@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "Psycheros Thread Exporter",
+  "version": "0.3.2",
+  "description": "Export AI chat threads and inject Psycheros memory context.",
+  "options_page": "gemini-merge.html",
+  "background": {
+    "service_worker": "src/background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://chatgpt.com/*",
+        "https://chat.openai.com/*",
+        "https://claude.ai/*",
+        "https://gemini.google.com/*",
+        "https://myactivity.google.com/*"
+      ],
+      "js": ["src/content.js"],
+      "css": ["src/content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "host_permissions": [
+    "https://chatgpt.com/*",
+    "https://chat.openai.com/*",
+    "https://claude.ai/*",
+    "https://gemini.google.com/*",
+    "https://myactivity.google.com/*",
+    "http://127.0.0.1:*/*",
+    "http://localhost:*/*"
+  ],
+  "permissions": ["storage", "clipboardWrite"]
+}
