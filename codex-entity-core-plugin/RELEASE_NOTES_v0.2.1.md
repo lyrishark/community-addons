@@ -31,7 +31,7 @@ Smoke test covered:
 
 ## Release Assets
 
-- `psycheros-entity-core-codex-plugin-0.2.1-share.zip`
+- `psycheros-entity-core-codex-plugin-0.2.1.zip`
 - `SHA256SUMS.txt`
 
 ## Known Limitations

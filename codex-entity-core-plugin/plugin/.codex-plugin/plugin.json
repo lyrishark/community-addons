@@ -1,0 +1,37 @@
+{
+  "name": "psycheros-entity-core",
+  "version": "0.2.1",
+  "description": "Read Psycheros entity-core context and record memories from Codex.",
+  "author": {
+    "name": "Rae and Ember"
+  },
+  "license": "Local",
+  "keywords": [
+    "psycheros",
+    "entity-core",
+    "memory",
+    "mcp",
+    "codex"
+  ],
+  "interface": {
+    "displayName": "Psycheros Entity Core",
+    "shortDescription": "Read Psycheros context and record memories from Codex.",
+    "longDescription": "Psycheros Entity Core connects Codex to the local Psycheros entity-core data directory through an included MCP server. It exposes status, identity context, memory and graph search, fetch tools, and a governed memory-recording tool. Identity/core edits are not exposed.",
+    "developerName": "Rae and Ember",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write",
+      "Local",
+      "MCP"
+    ],
+    "defaultPrompt": [
+      "Check Psycheros entity-core status.",
+      "Load my Psycheros identity context.",
+      "Search Psycheros memory for this project.",
+      "Record this project update as a Psycheros memory."
+    ],
+    "brandColor": "#FF6B35"
+  },
+  "mcpServers": "./.mcp.json"
+}

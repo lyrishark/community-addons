@@ -1,4 +1,2 @@
-﻿89f478c225313ef94998725d7068d9c8c48488ffb811fc0746e25daa05eb40d6  psycheros-thread-exporter-0.3.2-receiver-aware-memory.zip
-518336a3ae7402e71fc90d3dc51c22666f20bcdb445ae2ab2eefd2d123adb25d  psycheros-entity-core-codex-plugin-0.2.1-share.zip
-
-
+68df87587f2712574db5f613b9dbb9391f0fbe963cd7b5325a33530b15b907d6  psycheros-thread-exporter-0.3.2.zip
+0a12cd9d1b7f3baaffa01c88a2f3ebe39fcc54c3e1902728fcee55bbd1fceb51  psycheros-entity-core-codex-plugin-0.2.1.zip

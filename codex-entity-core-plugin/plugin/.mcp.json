@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "psycheros-entity-core": {
+      "cwd": "./connectors/codex-entity-core",
+      "command": "deno",
+      "args": [
+        "run",
+        "--node-modules-dir=none",
+        "-A",
+        "src/server.ts"
+      ],
+      "env": {
+        "ENTITY_CONNECTOR_INSTANCE_ID": "codex",
+        "ENTITY_CONNECTOR_WRITE_ENABLED": "true"
+      }
+    }
+  }
+}

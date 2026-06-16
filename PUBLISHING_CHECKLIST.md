@@ -5,10 +5,10 @@ community Discord."
 
 ## 1. Create A Public Repository
 
-Suggested repo name:
+Repository:
 
 ```text
-psycheros-community-addons
+https://github.com/lyrishark/community-addons
 ```
 
 Suggested structure:
@@ -22,14 +22,8 @@ Suggested structure:
   site/
 ```
 
-Copy the drafts from this folder into the repo, then replace all placeholders:
-
-- `https://github.com/lyrishark/community-addons`
-- `https://lyrishark.github.io/community-addons/`
-- `https://github.com/lyrishark/community-addons/releases/tag/browser-thread-exporter-v0.3.2`
-- `https://github.com/lyrishark/community-addons/releases/tag/codex-entity-core-plugin-v0.2.1`
-- `https://github.com/lyrishark/community-addons/releases`
-- `https://github.com/lyrishark/community-addons/issues`
+Public docs and source are now in the repo. Keep this checklist as a release
+runbook for future versions.
 
 ## 2. Add Trust Files
 
@@ -51,7 +45,7 @@ permissions and browser-store data disclosure forms.
 Release assets to upload:
 
 - `psycheros-thread-exporter-0.3.2.zip`
-- `psycheros-entity-core-codex-plugin-0.2.1-share.zip`
+- `psycheros-entity-core-codex-plugin-0.2.1.zip`
 - `SHA256SUMS.txt`
 
 Generate checksums on Windows:
@@ -72,7 +66,7 @@ Official docs:
 
 ## 5. Publish GitHub Pages
 
-Use `site/index.html` as a first simple landing page.
+Use `docs/index.html` as the first simple landing page.
 
 Official docs:
 

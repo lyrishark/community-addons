@@ -1,67 +1,87 @@
-﻿# Psycheros Community Addons - Public Draft
+# Psycheros Community Addons
 
-This folder contains public-facing draft copy for two community addons:
+Community alpha addons and plugins for the Psycheros AI platform.
 
-1. Psycheros Thread Exporter - browser extension
-2. Psycheros Entity Core for Codex - local Codex plugin
+This repository currently contains:
 
-These drafts are meant to be copied into a public GitHub repository, GitHub
-Pages site, browser-store listing, or Discord announcement.
+1. **Psycheros Thread Exporter** - a browser extension for exporting AI chat
+   threads and injecting local Psycheros memory context.
+2. **Psycheros Entity Core for Codex** - a local Codex plugin that connects
+   Codex to a Psycheros entity-core through MCP.
 
-## Suggested Release Shape
+These are community addons, not official Psycheros releases.
 
-Recommended public setup:
+## Addons
 
-- Public GitHub repository for source code and documentation.
-- GitHub Releases for downloadable alpha builds.
-- SHA256 checksums attached to each release.
-- GitHub Pages landing page using `site/index.html`.
-- Browser extension submitted to Chrome Web Store as Unlisted for early testers.
-- Firefox/Edge listings later, after Chrome testing settles.
-- Codex plugin distributed through GitHub Releases until Codex has a broader
-  public plugin distribution flow.
+### Psycheros Thread Exporter
 
-## Files
+Location:
 
-- `browser-thread-exporter/README.md` - public browser extension README
-- `browser-thread-exporter/PRIVACY.md` - browser extension privacy draft
-- `browser-thread-exporter/SECURITY.md` - browser extension security draft
-- `browser-thread-exporter/RELEASE_NOTES_v0.3.2.md` - release note draft
-- `browser-thread-exporter/STORE_LISTING.md` - Chrome/Edge listing draft
-- `browser-thread-exporter/DISCORD_POST.md` - short Discord post
-- `codex-entity-core-plugin/README.md` - public Codex plugin README
-- `codex-entity-core-plugin/PRIVACY.md` - Codex plugin privacy draft
-- `codex-entity-core-plugin/SECURITY.md` - Codex plugin security draft
-- `codex-entity-core-plugin/RELEASE_NOTES_v0.2.1.md` - release note draft
-- `codex-entity-core-plugin/DISCORD_POST.md` - short Discord post
-- `site/index.html` - simple static landing page draft
+```text
+browser-thread-exporter/
+```
 
-## Before Posting
+Current alpha features:
 
-Replace these placeholders:
+- ChatGPT export with exact backend timestamps.
+- Claude export with exact web conversation timestamps.
+- Gemini visible chat draft exports.
+- Gemini Apps Activity timestamp exports.
+- Gemini merge workflow with repair reports.
+- Local Psycheros memory context injection into ChatGPT, Claude, and Gemini.
+- Receiver-aware filtering for synced memories, such as `[via:chatgpt]`.
 
-- `https://github.com/lyrishark/community-addons`
-- `https://lyrishark.github.io/community-addons/`
-- `https://github.com/lyrishark/community-addons/releases/tag/browser-thread-exporter-v0.3.2`
-- `https://github.com/lyrishark/community-addons/releases/tag/codex-entity-core-plugin-v0.2.1`
-- `https://github.com/lyrishark/community-addons/releases`
-- `https://github.com/lyrishark/community-addons/issues`
+Start here:
 
-Recommended release assets:
+- [Browser extension README](browser-thread-exporter/README.md)
+- [Browser extension privacy notes](browser-thread-exporter/PRIVACY.md)
+- [Browser extension security notes](browser-thread-exporter/SECURITY.md)
 
-- `psycheros-thread-exporter-0.3.2.zip`
-- `psycheros-entity-core-codex-plugin-0.2.1-share.zip`
-- `SHA256SUMS.txt`
+### Psycheros Entity Core for Codex
 
-## Positioning
+Location:
 
-Use this wording until/unless the Psycheros maintainers adopt or bless the
-addons:
+```text
+codex-entity-core-plugin/
+```
 
-> Community alpha addon for Psycheros. Not an official Psycheros release.
+Current alpha features:
 
-That keeps trust clean: people know what they are installing, who maintains it,
-and where to report issues.
+- entity-core status checks
+- identity context reads
+- memory and graph search
+- fetch by connector ID
+- ordinary daily/significant memory writes from Codex
+- no direct identity/core mutation
 
+Start here:
 
+- [Codex plugin README](codex-entity-core-plugin/README.md)
+- [Codex plugin privacy notes](codex-entity-core-plugin/PRIVACY.md)
+- [Codex plugin security notes](codex-entity-core-plugin/SECURITY.md)
+
+## Downloads
+
+Alpha release downloads will be published through GitHub Releases:
+
+- [Psycheros Thread Exporter v0.3.2](https://github.com/lyrishark/community-addons/releases/tag/browser-thread-exporter-v0.3.2)
+- [Psycheros Entity Core for Codex v0.2.1](https://github.com/lyrishark/community-addons/releases/tag/codex-entity-core-plugin-v0.2.1)
+
+Checksums are in [SHA256SUMS.txt](SHA256SUMS.txt).
+
+## Trust Notes
+
+- Source is public.
+- Release builds include checksums.
+- Browser extension permissions are scoped to supported chat sites and
+  localhost.
+- Neither addon uses analytics, ads, or developer-owned telemetry.
+- The browser extension never presses Send.
+- The Codex plugin does not expose direct identity/core mutation.
+
+## Issues
+
+Report bugs or questions here:
+
+https://github.com/lyrishark/community-addons/issues
 

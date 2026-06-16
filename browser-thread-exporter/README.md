@@ -60,7 +60,8 @@ or the parent folder. Select the folder that directly contains `manifest.json`.
 
 ### Future Store Install
 
-Chrome Web Store alpha listing:
+Chrome Web Store alpha listing is not published yet. Until then, use the GitHub
+release download above.
 
 ```text
 https://github.com/lyrishark/community-addons/releases

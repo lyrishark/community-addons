@@ -1,0 +1,22 @@
+{
+  "name": "@local/codex-entity-core-connector",
+  "version": "0.1.0",
+  "exports": "./src/server.ts",
+  "nodeModulesDir": "none",
+  "imports": {
+    "@db/sqlite": "jsr:@db/sqlite@^0.12",
+    "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1",
+    "@std/fs": "jsr:@std/fs@^1",
+    "@std/path": "jsr:@std/path@^1",
+    "zod": "npm:zod@^3"
+  },
+  "tasks": {
+    "start": "deno run --node-modules-dir=none -A src/server.ts",
+    "check": "deno check src/server.ts scripts/smoke.ts",
+    "smoke": "deno run --node-modules-dir=none -A scripts/smoke.ts",
+    "fmt": "deno fmt"
+  },
+  "compilerOptions": {
+    "strict": true
+  }
+}
