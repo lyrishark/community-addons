@@ -1,0 +1,19 @@
+{
+  "name": "psycheros-loom-gemini-parser-mod",
+  "version": "0.1.0",
+  "description": "Alternate Entity Loom files that add support for merged Gemini exports from Psycheros Thread Exporter.",
+  "kind": "psycheros-entity-loom-file-mod",
+  "official": false,
+  "requires": {
+    "psycheros_package": "packages/entity-loom",
+    "browser_thread_exporter": "0.3.2+"
+  },
+  "files": [
+    "packages/entity-loom/src/types.ts",
+    "packages/entity-loom/src/parsers/gemini.ts",
+    "packages/entity-loom/src/parsers/gemini.test.ts",
+    "packages/entity-loom/src/parsers/mod.ts",
+    "packages/entity-loom/src/parsers/registry.ts",
+    "packages/entity-loom/web/wizard.html"
+  ]
+}
