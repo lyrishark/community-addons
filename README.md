@@ -11,6 +11,9 @@ This repository currently contains:
 3. **Psycheros Loom Gemini Parser Mod** - optional alternate Entity Loom files
    that let Loom consume merged Gemini batch exports from the browser
    extension.
+4. **Psycheros Loom Gemini Resume Patch** - optional alternate Entity Loom
+   files that recover stale running import stages and improve updated-thread
+   reimports while testing Gemini history.
 
 These are community addons, not official Psycheros releases.
 
@@ -87,6 +90,31 @@ Start here:
 
 - [Gemini parser mod README](psycheros-loom-gemini-parser-mod/README.md)
 
+### Psycheros Loom Gemini Resume Patch
+
+Location:
+
+```text
+psycheros-loom-gemini-resume-patch/
+```
+
+Current alpha features:
+
+- Recovers stale `running` Significant/Daily/Graph checkpoints as resumable
+  after a daemon restart.
+- Treats changed same-ID thread exports as updates instead of duplicates.
+- Replaces old messages for updated conversations and resets downstream
+  checkpoints only where needed.
+- Includes helper scripts that back up replaced source files and checkpoint
+  files.
+
+Important: this is a **modded Psycheros file set**, not an official Psycheros
+release. It is mainly useful for long Gemini import testing.
+
+Start here:
+
+- [Gemini resume patch README](psycheros-loom-gemini-resume-patch/README.md)
+
 ## Downloads
 
 Alpha release downloads will be published through GitHub Releases:
@@ -94,6 +122,7 @@ Alpha release downloads will be published through GitHub Releases:
 - [Psycheros Thread Exporter v0.3.2](https://github.com/lyrishark/community-addons/releases/tag/browser-thread-exporter-v0.3.2)
 - [Psycheros Entity Core for Codex v0.2.1](https://github.com/lyrishark/community-addons/releases/tag/codex-entity-core-plugin-v0.2.1)
 - Psycheros Loom Gemini Parser Mod v0.1.0: release coming after testing
+- Psycheros Loom Gemini Resume Patch v0.1.0: release coming after testing
 
 Checksums are in [SHA256SUMS.txt](SHA256SUMS.txt).
 
@@ -108,6 +137,8 @@ Checksums are in [SHA256SUMS.txt](SHA256SUMS.txt).
 - The Codex plugin does not expose direct identity/core mutation.
 - The Gemini parser mod is visibly labeled as a local Entity Loom file
   replacement.
+- The Gemini resume patch is visibly labeled as a local Entity Loom file
+  replacement and includes backup scripts.
 
 ## Issues
 

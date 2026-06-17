@@ -75,6 +75,11 @@ to Loom. The intended flow is:
 3. Merge them in the extension's Gemini Export Merger.
 4. Upload the merged batch JSON to Entity Loom with this mod installed.
 
+If a long import is interrupted and the Loom UI later looks stuck on a running
+stage, see the companion resume/reimport patch:
+
+- [Psycheros Loom Gemini Resume Patch](../psycheros-loom-gemini-resume-patch/README.md)
+
 ## Undo
 
 To undo this mod, reinstall/update Psycheros or restore the backed-up files.
