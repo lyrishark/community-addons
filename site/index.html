@@ -74,7 +74,7 @@
 
     .grid {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 18px;
       margin: 22px 0 56px;
     }
@@ -186,7 +186,8 @@
       <h1>Psycheros tools for moving memory between surfaces.</h1>
       <p class="lede">
         Browser-thread export, Gemini timestamp repair, local memory injection,
-        and a Codex connector for reading and recording Psycheros memories.
+        a Codex connector, and a private ChatGPT bridge for reading and
+        recording Psycheros memories.
       </p>
       <div class="notice">
         These are community addons, not official Psycheros releases. They are
@@ -237,6 +238,26 @@
       </article>
 
       <article class="card">
+        <h2>Psycheros Entity Core for ChatGPT</h2>
+        <p>
+          Private ChatGPT Developer Mode bridge for companion users who do not
+          use Codex but want ChatGPT to reach their local Psycheros entity-core.
+        </p>
+        <ul>
+          <li>OAuth login through Auth0</li>
+          <li>Tailscale Funnel HTTPS setup</li>
+          <li>Read identity context, memories, and graph nodes</li>
+          <li>Record daily and significant memories when enabled</li>
+          <li>Numbered double-click helper scripts</li>
+        </ul>
+        <div class="actions">
+          <a class="button primary" href="https://github.com/lyrishark/community-addons/releases/tag/chatgpt-entity-core-private-v0.1.0">Download bridge</a>
+          <a class="button" href="https://github.com/lyrishark/community-addons/tree/main/chatgpt-entity-core-private/START_HERE.md">Start here</a>
+          <a class="button" href="https://github.com/lyrishark/community-addons">Source</a>
+        </div>
+      </article>
+
+      <article class="card">
         <h2>Loom Gemini Parser Mod</h2>
         <p>
           Optional modded Entity Loom files that let Loom consume merged Gemini
@@ -282,7 +303,12 @@
         </div>
         <div class="check">
           <strong>Governed core</strong>
-          Codex memory writes are allowed; direct identity edits are not exposed.
+          Codex and ChatGPT memory writes are allowed; direct identity edits are
+          not exposed.
+        </div>
+        <div class="check">
+          <strong>Private bridge</strong>
+          ChatGPT access requires the user's own OAuth setup and local tunnel.
         </div>
       </div>
     </section>

@@ -3,6 +3,7 @@ param(
   [string] $PagesUrl = "https://lyrishark.github.io/community-addons/",
   [string] $BrowserReleaseUrl = "https://github.com/lyrishark/community-addons/releases/tag/browser-thread-exporter-v0.3.2",
   [string] $CodexReleaseUrl = "https://github.com/lyrishark/community-addons/releases/tag/codex-entity-core-plugin-v0.2.1",
+  [string] $ChatGptBridgeReleaseUrl = "https://github.com/lyrishark/community-addons/releases/tag/chatgpt-entity-core-private-v0.1.0",
   [string] $ChromeWebStoreUrl = "https://github.com/lyrishark/community-addons/releases",
   [string] $ContactOrIssuesUrl = "https://github.com/lyrishark/community-addons/issues"
 )
@@ -13,6 +14,7 @@ $replacements = @{
   "{{PAGES_URL}}" = $PagesUrl
   "{{BROWSER_RELEASE_URL}}" = $BrowserReleaseUrl
   "{{CODEX_RELEASE_URL}}" = $CodexReleaseUrl
+  "{{CHATGPT_BRIDGE_RELEASE_URL}}" = $ChatGptBridgeReleaseUrl
   "{{CHROME_WEB_STORE_URL}}" = $ChromeWebStoreUrl
   "{{CONTACT_OR_ISSUES_URL}}" = $ContactOrIssuesUrl
 }
@@ -30,4 +32,3 @@ Get-ChildItem -LiteralPath $root -Recurse -File |
 Write-Host "Filled placeholders under $root"
 Write-Host "Remaining placeholders:"
 rg "\{\{[A-Z_]+\}\}" $root
-

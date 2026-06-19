@@ -8,10 +8,13 @@ This repository currently contains:
    threads and injecting local Psycheros memory context.
 2. **Psycheros Entity Core for Codex** - a local Codex plugin that connects
    Codex to a Psycheros entity-core through MCP.
-3. **Psycheros Loom Gemini Parser Mod** - optional alternate Entity Loom files
+3. **Psycheros Entity Core for ChatGPT** - a private ChatGPT Developer Mode app
+   bridge for people who do not use Codex but want ChatGPT to read and record
+   local Psycheros memories through MCP.
+4. **Psycheros Loom Gemini Parser Mod** - optional alternate Entity Loom files
    that let Loom consume merged Gemini batch exports from the browser
    extension.
-4. **Psycheros Loom Gemini Resume Patch** - optional alternate Entity Loom
+5. **Psycheros Loom Gemini Resume Patch** - optional alternate Entity Loom
    files that recover stale running import stages and improve updated-thread
    reimports while testing Gemini history.
 
@@ -65,6 +68,32 @@ Start here:
 - [Codex plugin README](codex-entity-core-plugin/README.md)
 - [Codex plugin privacy notes](codex-entity-core-plugin/PRIVACY.md)
 - [Codex plugin security notes](codex-entity-core-plugin/SECURITY.md)
+
+### Psycheros Entity Core for ChatGPT
+
+Location:
+
+```text
+chatgpt-entity-core-private/
+```
+
+Current alpha features:
+
+- private ChatGPT Developer Mode app bridge
+- local MCP server for Psycheros entity-core
+- OAuth login through Auth0
+- Tailscale Funnel support for HTTPS
+- read identity context, memories, and graph nodes
+- record daily and significant memories when writes are enabled
+- numbered double-click setup helpers for non-technical users
+- no direct identity/core mutation
+
+Start here:
+
+- [ChatGPT bridge start-here guide](chatgpt-entity-core-private/START_HERE.md)
+- [ChatGPT bridge README](chatgpt-entity-core-private/README.md)
+- [ChatGPT bridge privacy notes](chatgpt-entity-core-private/PRIVACY.md)
+- [ChatGPT bridge security notes](chatgpt-entity-core-private/SECURITY.md)
 
 ### Psycheros Loom Gemini Parser Mod
 
@@ -121,6 +150,7 @@ Alpha release downloads will be published through GitHub Releases:
 
 - [Psycheros Thread Exporter v0.3.2](https://github.com/lyrishark/community-addons/releases/tag/browser-thread-exporter-v0.3.2)
 - [Psycheros Entity Core for Codex v0.2.1](https://github.com/lyrishark/community-addons/releases/tag/codex-entity-core-plugin-v0.2.1)
+- Psycheros Entity Core for ChatGPT v0.1.0: release coming after testing
 - Psycheros Loom Gemini Parser Mod v0.1.0: release coming after testing
 - Psycheros Loom Gemini Resume Patch v0.1.0: release coming after testing
 
@@ -135,6 +165,8 @@ Checksums are in [SHA256SUMS.txt](SHA256SUMS.txt).
 - Neither addon uses analytics, ads, or developer-owned telemetry.
 - The browser extension never presses Send.
 - The Codex plugin does not expose direct identity/core mutation.
+- The ChatGPT bridge requires OAuth and does not expose direct identity/core
+  mutation.
 - The Gemini parser mod is visibly labeled as a local Entity Loom file
   replacement.
 - The Gemini resume patch is visibly labeled as a local Entity Loom file

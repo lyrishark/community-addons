@@ -18,6 +18,7 @@ Suggested structure:
   README.md
   browser-thread-exporter/
   codex-entity-core-plugin/
+  chatgpt-entity-core-private/
   docs/
   site/
 ```
@@ -46,6 +47,7 @@ Release assets to upload:
 
 - `psycheros-thread-exporter-0.3.2.zip`
 - `psycheros-entity-core-codex-plugin-0.2.1.zip`
+- `psycheros-entity-core-chatgpt-private-0.1.0.zip`
 - `SHA256SUMS.txt`
 
 Generate checksums on Windows:
@@ -53,6 +55,7 @@ Generate checksums on Windows:
 ```powershell
 Get-FileHash .\psycheros-thread-exporter-0.3.2.zip -Algorithm SHA256
 Get-FileHash .\psycheros-entity-core-codex-plugin-0.2.1-share.zip -Algorithm SHA256
+Get-FileHash .\psycheros-entity-core-chatgpt-private-0.1.0.zip -Algorithm SHA256
 ```
 
 ## 4. Publish GitHub Release
@@ -106,6 +109,35 @@ Post the shorter `DISCORD_POST.md` text first, with:
 
 Do not post raw zip attachments as the main install path. Point people to the
 public source/release page.
+
+## 8. ChatGPT Private Bridge Path
+
+Before publishing the ChatGPT bridge:
+
+1. Run `.\package-chatgpt-bridge.ps1`.
+2. Confirm the zip includes:
+
+```text
+START_HERE.md
+1 Check Setup.bat
+2 Start Tailscale Funnel.bat
+3 Edit Bridge Settings.bat
+4 Start ChatGPT Bridge.bat
+connectors/codex-entity-core/
+packages/entity-core/
+```
+
+3. Confirm the zip does not include:
+
+```text
+bridge.env
+.env
+.env.*
+```
+
+4. Test the exact release zip on a clean folder before announcing.
+5. In Discord, tell users this is a private ChatGPT Developer Mode bridge, not
+   a public ChatGPT app.
 
 
 
