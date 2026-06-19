@@ -150,7 +150,7 @@ Alpha release downloads will be published through GitHub Releases:
 
 - [Psycheros Thread Exporter v0.3.2](https://github.com/lyrishark/community-addons/releases/tag/browser-thread-exporter-v0.3.2)
 - [Psycheros Entity Core for Codex v0.2.1](https://github.com/lyrishark/community-addons/releases/tag/codex-entity-core-plugin-v0.2.1)
-- Psycheros Entity Core for ChatGPT v0.1.0: release coming after testing
+- [Psycheros Entity Core for ChatGPT v0.1.0](https://github.com/lyrishark/community-addons/releases/tag/chatgpt-entity-core-private-v0.1.0)
 - Psycheros Loom Gemini Parser Mod v0.1.0: release coming after testing
 - Psycheros Loom Gemini Resume Patch v0.1.0: release coming after testing
 
