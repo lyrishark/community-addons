@@ -88,6 +88,8 @@ You should see files named:
 2 Start Tailscale Funnel.bat
 3 Edit Bridge Settings.bat
 4 Start ChatGPT Bridge.bat
+5 Keep Bridge Running Automatically.bat
+6 Stop Automatic Bridge.bat
 ```
 
 ## Step 1 - Check This Computer
@@ -438,7 +440,7 @@ OAuth issuer: https://your-tenant.us.auth0.com
 Writes enabled: false
 ```
 
-Leave this bridge window open.
+Leave this bridge window open during the first connection test.
 
 At this point you should have two black windows open:
 
@@ -447,7 +449,7 @@ Tailscale Funnel
 Local MCP bridge
 ```
 
-Do not close them while using ChatGPT with Psycheros.
+Do not close them until you finish Step 11.
 
 ## Step 9 - Connect In ChatGPT
 
@@ -508,6 +510,35 @@ Now ChatGPT can record ordinary daily and significant memories.
 
 The bridge still does not expose direct identity/core file editing.
 
+## Step 11 - Keep It Running Automatically
+
+After both reads and writes work, double-click:
+
+```text
+5 Keep Bridge Running Automatically.bat
+```
+
+Wait for this line:
+
+```text
+Automatic startup is installed and running.
+```
+
+This creates a private Windows startup task. It:
+
+- starts the bridge when you sign in
+- restarts the bridge if it crashes or stops responding
+- keeps its working copy and settings under your Psycheros AppData folder
+- refreshes Tailscale Funnel in background mode
+
+You can now close the old `Local MCP bridge` and `Tailscale Funnel` windows.
+
+To turn automatic startup off later, double-click:
+
+```text
+6 Stop Automatic Bridge.bat
+```
+
 ## What To Tell ChatGPT
 
 Good first prompts:
@@ -530,7 +561,7 @@ After writes are enabled:
 Use Psycheros Entity Core to record a daily memory about this setup working.
 ```
 
-## When You Are Done
+## When You Are Done Without Automatic Startup
 
 Close:
 
@@ -539,7 +570,8 @@ Local MCP bridge
 Tailscale Funnel
 ```
 
-ChatGPT cannot reach your Psycheros entity-core after those windows are closed.
+Without Step 11, ChatGPT cannot reach your Psycheros entity-core after those
+windows are closed.
 
 ## Fast Troubleshooting
 
@@ -551,8 +583,10 @@ There was a problem connecting
 
 Check:
 
-- Is `2 Start Tailscale Funnel.bat` still open?
-- Is `4 Start ChatGPT Bridge.bat` still open?
+- If you completed Step 11, did `5 Keep Bridge Running Automatically.bat`
+  finish successfully?
+- Otherwise, is `2 Start Tailscale Funnel.bat` still open?
+- Otherwise, is `4 Start ChatGPT Bridge.bat` still open?
 - Did ChatGPT Server URL end in `/mcp`?
 - Did Auth0 API Identifier not end in `/mcp`?
 
@@ -593,4 +627,3 @@ Writes enabled: false
 ```
 
 That is normal during read-only testing. Turn writes on in Step 10.
-

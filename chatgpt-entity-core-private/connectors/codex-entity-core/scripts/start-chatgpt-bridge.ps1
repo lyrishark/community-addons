@@ -10,7 +10,9 @@ param(
   [string] $HostAddress = "",
   [int] $Port = 0,
   [string] $WriteEnabled = "",
-  [string] $CorsOrigins = ""
+  [string] $CorsOrigins = "",
+  [string] $DenoPath = "",
+  [string] $LogFile = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -140,8 +142,24 @@ if (-not (Test-Path -LiteralPath (Join-Path $connectorRoot "src\http.ts"))) {
   throw "Could not find src\http.ts under $connectorRoot"
 }
 
-if (-not (Get-Command deno -ErrorAction SilentlyContinue)) {
-  throw "Deno was not found on PATH. Install Deno before running the bridge."
+if ([string]::IsNullOrWhiteSpace($DenoPath)) {
+  if ($env:ENTITY_CONNECTOR_DENO_PATH) {
+    $DenoPath = $env:ENTITY_CONNECTOR_DENO_PATH
+  } else {
+    $bundledDeno = Join-Path $env:APPDATA "Psycheros\bin\deno.exe"
+    if (Test-Path -LiteralPath $bundledDeno) {
+      $DenoPath = $bundledDeno
+    } else {
+      $denoCommand = Get-Command deno -ErrorAction SilentlyContinue
+      if ($denoCommand) {
+        $DenoPath = $denoCommand.Source
+      }
+    }
+  }
+}
+
+if ([string]::IsNullOrWhiteSpace($DenoPath) -or -not (Test-Path -LiteralPath $DenoPath)) {
+  throw "Deno was not found. Install Deno or set ENTITY_CONNECTOR_DENO_PATH."
 }
 
 if (-not (Test-Path -LiteralPath $DataDir)) {
@@ -167,12 +185,34 @@ Write-Host "OAuth resource: $OAuthResource"
 Write-Host "Entity-core data: $DataDir"
 Write-Host "Writes enabled: $writeEnabledNormalized"
 Write-Host ""
-Write-Host "Keep this terminal window open while ChatGPT is connected."
+if ([string]::IsNullOrWhiteSpace($LogFile)) {
+  Write-Host "Keep this terminal window open while ChatGPT is connected."
+}
 
 Push-Location $connectorRoot
 try {
-  & deno run --node-modules-dir=none -A src/http.ts
-  exit $LASTEXITCODE
+  if ([string]::IsNullOrWhiteSpace($LogFile)) {
+    & $DenoPath run --node-modules-dir=none -A src/http.ts
+  } else {
+    $logDirectory = Split-Path -Parent $LogFile
+    if ($logDirectory) {
+      New-Item -ItemType Directory -Force $logDirectory | Out-Null
+    }
+
+    $errorLogFile = [IO.Path]::ChangeExtension($LogFile, ".error.log")
+    $denoProcess = Start-Process `
+      -FilePath $DenoPath `
+      -ArgumentList @("run", "--node-modules-dir=none", "-A", "src/http.ts") `
+      -WorkingDirectory $connectorRoot `
+      -WindowStyle Hidden `
+      -RedirectStandardOutput $LogFile `
+      -RedirectStandardError $errorLogFile `
+      -Wait `
+      -PassThru
+    $global:LASTEXITCODE = $denoProcess.ExitCode
+  }
+  $denoExitCode = $LASTEXITCODE
+  exit $denoExitCode
 } finally {
   Pop-Location
 }

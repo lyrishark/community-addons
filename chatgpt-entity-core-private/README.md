@@ -16,7 +16,6 @@ do not use Codex.
 You still need:
 
 - Psycheros installed on the same computer.
-- A terminal window you can leave open.
 - Deno installed.
 - A public HTTPS tunnel, such as Tailscale Funnel.
 - An OAuth provider account, such as Auth0.
@@ -70,6 +69,8 @@ https://your-machine.your-tailnet.ts.net
 ## Helper Scripts
 
 Non-technical path: double-click the numbered `.bat` files in this folder.
+After the connection works, number 5 installs automatic startup and crash
+recovery so no terminal window has to stay open.
 
 Manual path: open PowerShell in `connectors\codex-entity-core`.
 
@@ -99,6 +100,16 @@ In a second terminal, start Tailscale Funnel:
 ```powershell
 .\scripts\start-tailscale-funnel.ps1
 ```
+
+After testing the connection, install the supervised Windows startup task:
+
+```powershell
+.\scripts\install-chatgpt-bridge-autostart.ps1 -EnvFile .\bridge.env
+```
+
+The task uses a stable runtime copy under `%APPDATA%\Psycheros\addons`, restarts
+the bridge after crashes or failed health checks, and writes logs under
+`%APPDATA%\Psycheros\logs`.
 
 After configuring Auth0, test the common Auth0 resource-server problem:
 

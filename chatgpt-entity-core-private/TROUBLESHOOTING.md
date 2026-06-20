@@ -4,7 +4,7 @@ This is not an official Psycheros release.
 
 ## ChatGPT Says It Cannot Connect
 
-Check:
+If automatic startup is not installed, check:
 
 1. The local bridge terminal is still open.
 2. The Tailscale Funnel terminal is still open.
@@ -16,6 +16,32 @@ Run:
 
 ```powershell
 .\scripts\check-chatgpt-bridge-prereqs.ps1
+```
+
+## ChatGPT Shows 502 Bad Gateway
+
+This means the public Tailscale Funnel is alive but the local bridge is not
+listening behind it.
+
+If you enabled automatic startup, check it in PowerShell:
+
+```powershell
+Get-ScheduledTask -TaskName "Psycheros ChatGPT Bridge"
+Invoke-RestMethod http://127.0.0.1:3006/healthz
+```
+
+If the task is missing, double-click:
+
+```text
+5 Keep Bridge Running Automatically.bat
+```
+
+The automatic task starts at sign-in and supervises both the bridge process and
+its local health endpoint. Logs are in:
+
+```text
+%APPDATA%\Psycheros\logs\chatgpt-bridge.error.log
+%APPDATA%\Psycheros\logs\chatgpt-bridge.supervisor.log
 ```
 
 ## OAuth Settings Spin Or Never Load
@@ -90,8 +116,9 @@ fetch
 
 ## Auth0 Login Works But Tool Calls Fail
 
-Check the bridge terminal. If it says the token audience/resource does not
-match, one of these is wrong:
+Check the bridge terminal or
+`%APPDATA%\Psycheros\logs\chatgpt-bridge.error.log`. If it says the token
+audience/resource does not match, one of these is wrong:
 
 - `ENTITY_CONNECTOR_OAUTH_RESOURCE`
 - Auth0 API Identifier
@@ -163,4 +190,3 @@ Keep the one that connects.
 
 In ChatGPT app settings, delete stale draft apps only after the working app has
 been tested.
-

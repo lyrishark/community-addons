@@ -94,7 +94,7 @@ In another PowerShell window:
   -OAuthIssuer "https://your-tenant.us.auth0.com"
 ```
 
-Leave this terminal open.
+Leave this terminal open until the connection test succeeds.
 
 Optional: copy `bridge.env.example` to
 `connectors\codex-entity-core\bridge.env`, fill in your URLs, then start with:
@@ -143,3 +143,15 @@ Try:
 ```text
 Use Psycheros Entity Core to check entity status.
 ```
+
+## 9. Enable Automatic Startup
+
+After the bridge works, run:
+
+```powershell
+.\scripts\install-chatgpt-bridge-autostart.ps1 -EnvFile .\bridge.env
+```
+
+Or double-click `5 Keep Bridge Running Automatically.bat` from the addon root.
+The supervised task starts at sign-in and recovers from bridge crashes or
+failed local health checks.

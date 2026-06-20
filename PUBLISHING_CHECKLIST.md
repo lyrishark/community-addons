@@ -47,7 +47,7 @@ Release assets to upload:
 
 - `psycheros-thread-exporter-0.3.2.zip`
 - `psycheros-entity-core-codex-plugin-0.2.1.zip`
-- `psycheros-entity-core-chatgpt-private-0.1.0.zip`
+- `psycheros-entity-core-chatgpt-private-0.1.1.zip`
 - `SHA256SUMS.txt`
 
 Generate checksums on Windows:
@@ -55,7 +55,7 @@ Generate checksums on Windows:
 ```powershell
 Get-FileHash .\psycheros-thread-exporter-0.3.2.zip -Algorithm SHA256
 Get-FileHash .\psycheros-entity-core-codex-plugin-0.2.1-share.zip -Algorithm SHA256
-Get-FileHash .\psycheros-entity-core-chatgpt-private-0.1.0.zip -Algorithm SHA256
+Get-FileHash .\psycheros-entity-core-chatgpt-private-0.1.1.zip -Algorithm SHA256
 ```
 
 ## 4. Publish GitHub Release
@@ -123,6 +123,8 @@ START_HERE.md
 2 Start Tailscale Funnel.bat
 3 Edit Bridge Settings.bat
 4 Start ChatGPT Bridge.bat
+5 Keep Bridge Running Automatically.bat
+6 Stop Automatic Bridge.bat
 connectors/codex-entity-core/
 packages/entity-core/
 ```

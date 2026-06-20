@@ -17,12 +17,13 @@ What it does not do:
 - it is not a public approved ChatGPT app
 - it does not directly edit core identity
 - it does not delete memories
-- it does not work unless your local bridge and tunnel are running
+- it requires your computer, Psycheros, and Tailscale to be running
 
 This setup is more involved than the browser extension because it needs a local
 server, Tailscale or another HTTPS tunnel, Auth0/OAuth, and ChatGPT Developer
-Mode. The docs include copy/paste PowerShell helper scripts and a troubleshooting
-guide for the Auth0 errors we hit during setup.
+Mode. The docs include numbered double-click scripts, automatic Windows startup
+and crash recovery, and a troubleshooting guide for the Auth0 errors we hit
+during setup.
 
 Source:
 
@@ -33,9 +34,8 @@ https://github.com/lyrishark/community-addons
 Release:
 
 ```text
-https://github.com/lyrishark/community-addons/releases/tag/chatgpt-entity-core-private-v0.1.0
+https://github.com/lyrishark/community-addons/releases/tag/chatgpt-entity-core-private-v0.1.1
 ```
 
 Please treat this as careful alpha testing. Start with read-only checks before
 letting ChatGPT record memories.
-

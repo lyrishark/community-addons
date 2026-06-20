@@ -2,3 +2,4 @@
 0a12cd9d1b7f3baaffa01c88a2f3ebe39fcc54c3e1902728fcee55bbd1fceb51  psycheros-entity-core-codex-plugin-0.2.1.zip
 93569ac9577b19c53cbd9e3bece853b16a50e05bdbe3451557937bd61a37fd0e  psycheros-loom-gemini-parser-mod-0.1.0.zip
 c38d5f2ba2939c380d20816f55eb9463d5b8bedb012301051ae795fba08c5d6a  psycheros-entity-core-chatgpt-private-0.1.0.zip
+8bbf7fe07899b56002832aeeec5b70e25293f20721336cb56184962e248e0e7f  psycheros-entity-core-chatgpt-private-0.1.1.zip

@@ -75,7 +75,7 @@ Once you know the public base URL and Auth0 issuer, run:
   -OAuthIssuer "https://your-tenant.us.auth0.com"
 ```
 
-Leave this terminal window open.
+Leave this terminal window open during the first connection test.
 
 If you want read-only mode:
 
@@ -281,11 +281,30 @@ Use Psycheros Entity Core to search memory for "setup".
 
 Only after reads work, try a dry run memory write if your version supports it.
 
-## What To Leave Running
+## Install Automatic Startup And Recovery
+
+After the connection works, run:
+
+```powershell
+.\scripts\install-chatgpt-bridge-autostart.ps1 -EnvFile .\bridge.env
+```
+
+This copies the runtime and settings into stable Psycheros AppData locations,
+registers a Windows task at sign-in, supervises the local health endpoint, and
+refreshes Tailscale Funnel in background mode.
+
+To remove the task later without deleting settings or logs:
+
+```powershell
+.\scripts\remove-chatgpt-bridge-autostart.ps1
+```
+
+## What To Leave Running During Manual Setup
 
 While ChatGPT uses the bridge, keep both terminal windows open:
 
 - the local MCP bridge
 - the Tailscale Funnel tunnel
 
-If either stops, ChatGPT loses access until you start it again.
+If either stops, ChatGPT loses access until you start it again. After automatic
+startup is installed, neither terminal needs to remain open.
