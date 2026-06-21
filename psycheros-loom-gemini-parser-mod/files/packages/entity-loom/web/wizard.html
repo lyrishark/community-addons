@@ -2645,7 +2645,19 @@
             const section = document.getElementById("resume-section");
             const list = document.getElementById("resume-list");
             if (section && list) {
-              renderPackageList(data.packages, list, section);
+              list.innerHTML = data.packages.map((p) =>
+                `<div class="wiz-resume-item">
+                <span class="wiz-resume-name">${esc(p.name)}</span>
+                <div style="display:flex;gap:var(--sp-2)">
+                  <button class="btn btn--sm btn--ghost" onclick="resumePackage('${
+                  esc(p.dir)
+                }')">Resume</button>
+                  <button class="btn btn--sm btn--danger" onclick="purgePackage('${
+                  esc(p.dir)
+                }', '${esc(p.name)}')">Purge</button>
+                </div>
+              </div>`
+              ).join("");
               section.style.display = "block";
             }
           }
@@ -2864,8 +2876,10 @@
               res.config.llmBaseUrl || "";
             document.getElementById("setup-model").value =
               res.config.llmModel || "";
-            document.getElementById("setup-apikey").value =
-              res.config.llmApiKey || "";
+            document.getElementById("setup-apikey").value = res.config
+                .hasApiKey
+              ? "••••••••••••••••"
+              : "";
           }
           goToStage(res.currentStage || "convert");
         } catch (e) {
@@ -2902,7 +2916,19 @@
           if (
             data.packages && data.packages.length > 0 && list && section
           ) {
-            renderPackageList(data.packages, list, section);
+            list.innerHTML = data.packages.map((p) =>
+              `<div class="wiz-resume-item">
+              <span class="wiz-resume-name">${esc(p.name)}</span>
+              <div style="display:flex;gap:var(--sp-2)">
+                <button class="btn btn--sm btn--ghost" onclick="resumePackage('${
+                esc(p.dir)
+              }')">Resume</button>
+                <button class="btn btn--sm btn--danger" onclick="purgePackage('${
+                esc(p.dir)
+              }', '${esc(p.name)}')">Purge</button>
+              </div>
+            </div>`
+            ).join("");
           } else if (list && section) {
             list.innerHTML = "";
             section.style.display = "none";
@@ -2910,37 +2936,6 @@
         } catch (e) {
           showToast("Purge failed: " + e.message);
         }
-      }
-
-      function renderPackageList(packages, list, section) {
-        list.innerHTML = packages.map((p) =>
-          `<div class="wiz-resume-item">
-            <span class="wiz-resume-name">${esc(p.name)}</span>
-            <div style="display:flex;gap:var(--sp-2)">
-              <button class="btn btn--sm btn--ghost" data-resume-dir="${
-            esc(p.dir)
-          }">Resume</button>
-              <button class="btn btn--sm btn--danger" data-purge-dir="${
-            esc(p.dir)
-          }" data-purge-name="${esc(p.name)}">Purge</button>
-            </div>
-          </div>`
-        ).join("");
-        section.style.display = "block";
-
-        list.querySelectorAll("[data-resume-dir]").forEach((btn) => {
-          btn.addEventListener("click", () => {
-            resumePackage(btn.dataset.resumeDir || "");
-          });
-        });
-        list.querySelectorAll("[data-purge-dir]").forEach((btn) => {
-          btn.addEventListener("click", () => {
-            purgePackage(
-              btn.dataset.purgeDir || "",
-              btn.dataset.purgeName || "",
-            );
-          });
-        });
       }
 
       async function testLLM() {
@@ -3424,39 +3419,6 @@
 
       // ─── Memory Review ──────────────────────────────────────────────────────
 
-      function setMemoryReadContent(type, filename, content) {
-        const bodyEl = document.getElementById(`mem-body-${type}-${filename}`);
-        if (!bodyEl) return;
-        bodyEl.innerHTML =
-          `<div class="wiz-memory-content" id="mem-content-${type}-${
-            esc(filename)
-          }"></div>`;
-        const contentEl = document.getElementById(
-          `mem-content-${type}-${filename}`,
-        );
-        if (contentEl) contentEl.textContent = content || "(empty)";
-      }
-
-      async function reloadMemoryReadContent(type, filename) {
-        const res = await api(
-          "GET",
-          `/api/memories/${type}/${encodeURIComponent(filename)}`,
-        );
-        if (res.error) throw new Error(res.error);
-        setMemoryReadContent(type, filename, res.content || "(empty)");
-      }
-
-      async function cancelEditMemory(type, filename) {
-        editingMemory = null;
-        const item = document.getElementById(`mem-${type}-${filename}`);
-        if (item) item.classList.add("wiz-memory-item--open");
-        try {
-          await reloadMemoryReadContent(type, filename);
-        } catch {
-          setMemoryReadContent(type, filename, "Failed to load");
-        }
-      }
-
       async function loadMemories(type) {
         const listEl = document.getElementById(`${type}-memories`);
         if (!listEl) return;
@@ -3509,9 +3471,21 @@
 
         if (isOpen) {
           try {
-            await reloadMemoryReadContent(type, filename);
+            const res = await api(
+              "GET",
+              `/api/memories/${type}/${encodeURIComponent(filename)}`,
+            );
+            const contentEl = document.getElementById(
+              `mem-content-${type}-${filename}`,
+            );
+            if (contentEl) {
+              contentEl.textContent = res.content || "(empty)";
+            }
           } catch {
-            setMemoryReadContent(type, filename, "Failed to load");
+            const contentEl = document.getElementById(
+              `mem-content-${type}-${filename}`,
+            );
+            if (contentEl) contentEl.textContent = "Failed to load";
           }
         }
       }
@@ -3519,21 +3493,20 @@
       async function editMemory(type, filename) {
         // If already editing this memory, save it
         if (editingMemory === `${type}:${filename}`) {
-          const textarea = document.getElementById(
-            `mem-edit-${type}-${filename}`,
+          const textarea = document.querySelector(
+            `#mem-edit-${type}-${filename}`,
           );
           if (textarea) {
             try {
-              const content = textarea.value;
-              const res = await api(
+              await api(
                 "PUT",
                 `/api/memories/${type}/${encodeURIComponent(filename)}`,
-                { content },
+                { content: textarea.value },
               );
-              if (res.error) throw new Error(res.error);
               showToast("Memory saved");
               editingMemory = null;
-              setMemoryReadContent(type, filename, content);
+              toggleMemory(type, filename); // close
+              setTimeout(() => toggleMemory(type, filename), 50); // reopen to load fresh
               return;
             } catch (e) {
               showToast("Save failed: " + e.message);
@@ -3556,17 +3529,13 @@
           const bodyEl = document.getElementById(
             `mem-body-${type}-${filename}`,
           );
-          if (!bodyEl) return;
-          if (res.error) throw new Error(res.error);
           bodyEl.innerHTML = `
-          <textarea class="wiz-memory-edit" id="mem-edit-${type}-${
-            esc(filename)
-          }">${esc(res.content || "")}</textarea>
+          <textarea class="wiz-memory-edit">${esc(res.content || "")}</textarea>
           <div class="wiz-actions" style="border:none;margin:0">
             <button class="btn btn--sm btn--primary" onclick="editingMemory='${type}:${filename}';editMemory('${type}','${
             esc(filename)
           }')">Save</button>
-            <button class="btn btn--sm btn--ghost" onclick="cancelEditMemory('${type}','${
+            <button class="btn btn--sm btn--ghost" onclick="toggleMemory('${type}','${
             esc(filename)
           }')">Cancel</button>
           </div>`;
