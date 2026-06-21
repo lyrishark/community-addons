@@ -7,6 +7,9 @@ extension.
 It is not an official Psycheros release. It replaces a small set of
 `packages/entity-loom` files in a local Psycheros source checkout.
 
+Version 0.1.0 is rebased and tested against **Psycheros 0.8.9**. The installer
+refuses other versions before changing files.
+
 ## What This Adds
 
 - Adds `gemini` as an Entity Loom source platform.
@@ -42,19 +45,17 @@ packages\entity-loom\
 packages\psycheros\
 ```
 
-4. Back up your Entity Loom files if you want an easy undo path.
-5. From PowerShell, run this from the extracted mod folder, replacing the
-   destination path with your Psycheros checkout:
+4. Open PowerShell in the extracted mod folder.
+5. Run the installer, replacing the destination path with your Psycheros
+   checkout:
 
 ```powershell
-Copy-Item -Recurse -Force .\files\packages\entity-loom\* G:\Psycheros-main\packages\entity-loom\
+Set-ExecutionPolicy -Scope Process Bypass
+.\tools\install-source-files.ps1 -PsycherosRoot "C:\Users\<name>\AppData\Roaming\Psycheros"
 ```
 
-If your checkout is `G:\Psycheros` instead, use:
-
-```powershell
-Copy-Item -Recurse -Force .\files\packages\entity-loom\* G:\Psycheros\packages\entity-loom\
-```
+The installer checks for Psycheros 0.8.9 and creates a timestamped backup of
+every replaced file.
 
 6. Start Entity Loom again.
 7. Upload your merged Gemini batch JSON, usually named like:
@@ -82,7 +83,8 @@ stage, see the companion resume/reimport patch:
 
 ## Undo
 
-To undo this mod, reinstall/update Psycheros or restore the backed-up files.
+To undo this mod, restore the timestamped backup created inside
+`packages\entity-loom`, or reinstall/update Psycheros.
 
 ## Known Limits
 

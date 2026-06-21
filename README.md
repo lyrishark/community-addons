@@ -17,6 +17,10 @@ This repository currently contains:
 5. **Psycheros Loom Gemini Resume Patch** - optional alternate Entity Loom
    files that recover stale running import stages and improve updated-thread
    reimports while testing Gemini history.
+6. **Psycheros Accessible Font Settings** - a Psycheros 0.8.9 file mod with
+   interface font sizing and reading-oriented font presets.
+7. **Psycheros Windows Shell Fix** - a Psycheros 0.8.9 compatibility patch for
+   systems where the shell tool cannot spawn `sh`.
 
 These are community addons, not official Psycheros releases.
 
@@ -144,6 +148,45 @@ Start here:
 
 - [Gemini resume patch README](psycheros-loom-gemini-resume-patch/README.md)
 
+### Psycheros Accessible Font Settings
+
+Location:
+
+```text
+psycheros-accessible-font-settings/
+```
+
+Current alpha features:
+
+- Adds a Text tab to General Settings.
+- Provides a 12–28 px interface font-size slider.
+- Provides Sans, Serif, Dyslexia-friendly, and Handwriting presets.
+- Preserves theme and background settings.
+- Checks for Psycheros 0.8.9 and backs up replaced files during install.
+
+Start here:
+
+- [Accessible font settings README](psycheros-accessible-font-settings/README.md)
+
+### Psycheros Windows Shell Fix
+
+Location:
+
+```text
+psycheros-windows-shell-fix/
+```
+
+Current alpha features:
+
+- Uses PowerShell for shell-tool commands on Windows.
+- Falls back to `cmd.exe` only when PowerShell cannot be spawned.
+- Keeps `sh -c` behavior on macOS and Linux.
+- Checks for Psycheros 0.8.9 and backs up replaced files during install.
+
+Start here:
+
+- [Windows shell fix README](psycheros-windows-shell-fix/README.md)
+
 ## Downloads
 
 Alpha release downloads will be published through GitHub Releases:
@@ -152,7 +195,9 @@ Alpha release downloads will be published through GitHub Releases:
 - [Psycheros Entity Core for Codex v0.2.1](https://github.com/lyrishark/community-addons/releases/tag/codex-entity-core-plugin-v0.2.1)
 - [Psycheros Entity Core for ChatGPT v0.1.1](https://github.com/lyrishark/community-addons/releases/tag/chatgpt-entity-core-private-v0.1.1)
 - Psycheros Loom Gemini Parser Mod v0.1.0: release coming after testing
-- Psycheros Loom Gemini Resume Patch v0.1.0: release coming after testing
+- Psycheros Loom Gemini Resume Patch v0.1.0: blocked pending 0.8.9 rebase and update-path tests
+- Psycheros Accessible Font Settings v0.1.0: release coming after review
+- Psycheros Windows Shell Fix v0.1.0: release coming after upstream review
 
 Checksums are in [SHA256SUMS.txt](SHA256SUMS.txt).
 
@@ -171,6 +216,8 @@ Checksums are in [SHA256SUMS.txt](SHA256SUMS.txt).
   replacement.
 - The Gemini resume patch is visibly labeled as a local Entity Loom file
   replacement and includes backup scripts.
+- The accessibility and Windows shell packages are visibly labeled as
+  Psycheros 0.8.9 file replacements and refuse other versions before install.
 
 ## Issues
 

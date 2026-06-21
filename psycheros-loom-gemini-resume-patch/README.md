@@ -1,5 +1,11 @@
 # Psycheros Loom Gemini Resume Patch
 
+> **Release status: blocked.** Do not publish or install the current 0.1.0 file
+> set over Psycheros 0.8.9. The package type-checks, but its `db-writer.ts`
+> predates 0.8.9 voice-message schema support and would remove `is_voice` from
+> newly created Loom databases. The update/reimport paths also need focused
+> database and checkpoint tests before release.
+
 This is an optional modded Entity Loom file set for people testing Gemini imports
 with Psycheros Thread Exporter.
 

@@ -5,6 +5,7 @@
   "kind": "psycheros-entity-loom-file-mod",
   "official": false,
   "requires": {
+    "psycheros_version": "0.8.9",
     "psycheros_package": "packages/entity-loom",
     "browser_thread_exporter": "0.3.2+"
   },
