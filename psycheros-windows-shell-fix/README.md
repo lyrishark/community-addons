@@ -1,7 +1,7 @@
 # Psycheros Windows Shell Fix
 
-This community patch fixes Psycheros shell-tool failures on Windows when `sh`
-is not installed:
+This community patch fixes Psycheros shell-tool failures on Windows when `sh` is
+not installed:
 
 ```text
 Failed to spawn sh: entity not found
@@ -22,8 +22,9 @@ shell languages.
 
 ## Compatibility
 
-Version 0.1.0 is built and tested specifically for **Psycheros 0.8.9**. The
-installer refuses other versions before changing files.
+Version 0.1.1 is tested for **Psycheros 0.8.9 through 0.8.11**. Upstream 0.8.10
+and 0.8.11 did not change the shell-tool files replaced by this patch. The
+installer refuses all other versions before changing files.
 
 ## Install on Windows
 

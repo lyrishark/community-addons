@@ -4,10 +4,10 @@
   "description": "Alternate Entity Loom files that recover stale running stages and improve updated thread reimports for Gemini testing.",
   "kind": "psycheros-entity-loom-file-mod",
   "official": false,
-  "release_status": "blocked-pending-0.8.9-rebase-and-update-path-tests",
+  "release_status": "blocked-pending-current-rebase-database-checkpoint-and-update-path-tests",
   "requires": {
     "psycheros_package": "packages/entity-loom",
-    "psycheros_loom_gemini_parser_mod": "0.1.0+",
+    "psycheros_loom_gemini_parser_mod": "0.1.1+",
     "browser_thread_exporter": "0.3.2+"
   },
   "files": [

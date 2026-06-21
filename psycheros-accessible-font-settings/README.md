@@ -11,10 +11,10 @@ It is not an official Psycheros release.
 
 ## Compatibility
 
-Version 0.1.0 is built and tested specifically for **Psycheros 0.8.9**. The
-included files are clean 0.8.9 files with only this accessibility feature
-applied. The installer refuses other versions rather than overwriting newer or
-locally modified source by accident.
+Version 0.1.1 is tested for **Psycheros 0.8.9 through 0.8.11**. Upstream 0.8.10
+and 0.8.11 changed only the native microphone path and did not touch any file
+replaced by this add-on. The installer refuses all other versions rather than
+overwriting newer or locally modified source by accident.
 
 The Windows shell-tool fix previously bundled with the local prototype is not
 part of this add-on. It now lives separately in
@@ -33,8 +33,8 @@ Set-ExecutionPolicy -Scope Process Bypass
 ```
 
 The selected folder must contain `packages\psycheros\deno.json`. The installer
-checks for version 0.8.9 and creates a timestamped backup before replacing any
-files.
+checks for a supported version and creates a timestamped backup before replacing
+any files.
 
 ## Verify
 

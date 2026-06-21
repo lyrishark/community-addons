@@ -5,7 +5,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$RequiredVersion = "0.8.9"
+$SupportedVersions = @("0.8.9", "0.8.10", "0.8.11")
 $PatchRoot = Split-Path -Parent $PSScriptRoot
 $ReplaceRoot = Join-Path $PatchRoot "files\packages\entity-loom"
 $LoomDir = Join-Path $PsycherosRoot "packages\entity-loom"
@@ -24,8 +24,9 @@ if (-not (Test-Path -LiteralPath $DenoJson)) {
 }
 
 $InstalledVersion = (Get-Content -LiteralPath $DenoJson -Raw | ConvertFrom-Json).version
-if ($InstalledVersion -ne $RequiredVersion) {
-  throw "This mod requires Psycheros $RequiredVersion; found $InstalledVersion. No files were changed."
+if ($InstalledVersion -notin $SupportedVersions) {
+  $SupportedList = $SupportedVersions -join ", "
+  throw "This mod supports Psycheros $SupportedList; found $InstalledVersion. No files were changed."
 }
 
 $Timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
@@ -49,5 +50,5 @@ foreach ($File in $Files) {
 }
 
 Write-Host ""
-Write-Host "Gemini parser mod installed for Psycheros $RequiredVersion."
+Write-Host "Gemini parser mod installed for Psycheros $InstalledVersion."
 Write-Host "Backup of replaced files: $BackupRoot"

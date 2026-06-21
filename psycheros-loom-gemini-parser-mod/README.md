@@ -7,8 +7,9 @@ extension.
 It is not an official Psycheros release. It replaces a small set of
 `packages/entity-loom` files in a local Psycheros source checkout.
 
-Version 0.1.0 is rebased and tested against **Psycheros 0.8.9**. The installer
-refuses other versions before changing files.
+Version 0.1.1 is rebased and tested against **Psycheros 0.8.9 through 0.8.11**.
+Upstream 0.8.10 and 0.8.11 did not change Entity Loom or any file replaced by
+this mod. The installer refuses all other versions before changing files.
 
 ## What This Adds
 
@@ -54,8 +55,8 @@ Set-ExecutionPolicy -Scope Process Bypass
 .\tools\install-source-files.ps1 -PsycherosRoot "C:\Users\<name>\AppData\Roaming\Psycheros"
 ```
 
-The installer checks for Psycheros 0.8.9 and creates a timestamped backup of
-every replaced file.
+The installer checks for a supported Psycheros version and creates a timestamped
+backup of every replaced file.
 
 6. Start Entity Loom again.
 7. Upload your merged Gemini batch JSON, usually named like:
