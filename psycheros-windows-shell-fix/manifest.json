@@ -1,11 +1,12 @@
 {
   "name": "psycheros-windows-shell-fix",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Use the host platform shell so the Psycheros shell tool works on Windows without sh.",
   "kind": "psycheros-file-mod",
   "official": false,
   "requires": {
-    "psycheros_version": "0.8.9"
+    "psycheros_version": "0.8.11",
+    "compatible_psycheros_versions": ["0.8.9", "0.8.10", "0.8.11"]
   },
   "files": [
     "packages/psycheros/src/tools/shell.ts",

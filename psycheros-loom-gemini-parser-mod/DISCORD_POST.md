@@ -1,7 +1,8 @@
 # Discord Post Draft
 
 I made a small optional Entity Loom compatibility mod for people testing Gemini
-exports with the Psycheros Thread Exporter.
+exports with the Psycheros Thread Exporter. Version 0.1.1 supports Psycheros
+0.8.9 through 0.8.11.
 
 What it does:
 
@@ -14,5 +15,5 @@ Important: this is a modded Psycheros file set, not an official Psycheros
 release. It replaces a few local `packages/entity-loom` files, so please read
 the README and back up your files first.
 
-Use this only if you are testing Gemini import through the browser extension
-and understand that it modifies Entity Loom locally.
+Use this only if you are testing Gemini import through the browser extension and
+understand that it modifies Entity Loom locally.
