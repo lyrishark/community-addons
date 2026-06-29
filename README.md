@@ -20,6 +20,8 @@ This repository currently contains:
    with interface font sizing and reading-oriented font presets.
 7. **Psycheros Windows Shell Fix** - a Psycheros 0.8.9–0.8.11 compatibility
    patch for systems where the shell tool cannot spawn `sh`.
+8. **Psycheros Screen Presence Alpha** - a Psycheros 0.8.20 file mod that adds
+   screen-share presence to text chat and voice mode.
 
 These are community addons, not official Psycheros releases.
 
@@ -186,6 +188,26 @@ Start here:
 
 - [Windows shell fix README](psycheros-windows-shell-fix/README.md)
 
+### Psycheros Screen Presence Alpha
+
+Location:
+
+```text
+psycheros-screen-presence-alpha/
+```
+
+Current alpha features:
+
+- Adds screen-share controls to chat and voice surfaces.
+- Captures compact visual summaries through the configured vision model.
+- Sends the entity current screen state plus distinct visual changes since the
+  previous turn.
+- Checks for Psycheros 0.8.20 and backs up replaced files during install.
+
+Start here:
+
+- [Screen presence alpha README](psycheros-screen-presence-alpha/README.md)
+
 ## Downloads
 
 Alpha release downloads will be published through GitHub Releases:
@@ -198,6 +220,8 @@ Alpha release downloads will be published through GitHub Releases:
   database/checkpoint coverage, and update-path tests
 - [Psycheros Accessible Font Settings v0.1.1](https://github.com/lyrishark/community-addons/releases/tag/psycheros-accessible-font-settings-v0.1.1)
 - [Psycheros Windows Shell Fix v0.1.1](https://github.com/lyrishark/community-addons/releases/tag/psycheros-windows-shell-fix-v0.1.1)
+- Psycheros Screen Presence Alpha v0.1.0: source package staged for alpha
+  testing; release zip pending broader install testing
 
 Checksums are in [SHA256SUMS.txt](SHA256SUMS.txt).
 
@@ -218,6 +242,8 @@ Checksums are in [SHA256SUMS.txt](SHA256SUMS.txt).
   replacement and includes backup scripts.
 - The Psycheros file-mod packages list their exact 0.8.9–0.8.11 compatibility
   window and refuse other versions before install.
+- The Screen Presence Alpha is visibly labeled as a Psycheros 0.8.20 file
+  replacement and includes a backup script.
 
 ## Issues
 

@@ -1,0 +1,27 @@
+{
+  "name": "psycheros-screen-presence-alpha",
+  "version": "0.1.0",
+  "description": "Screen-share presence alpha for Psycheros chat and voice surfaces.",
+  "kind": "psycheros-file-mod",
+  "official": false,
+  "requires": {
+    "psycheros_version": "0.8.20",
+    "compatible_psycheros_versions": ["0.8.20"]
+  },
+  "files": [
+    "packages/psycheros/src/entity/loop.ts",
+    "packages/psycheros/src/entity/sa-formatters.ts",
+    "packages/psycheros/src/pulse/engine.ts",
+    "packages/psycheros/src/server/llm-errors.ts",
+    "packages/psycheros/src/server/routes.ts",
+    "packages/psycheros/src/server/screen-presence.ts",
+    "packages/psycheros/src/server/server.ts",
+    "packages/psycheros/src/server/templates.ts",
+    "packages/psycheros/tests/llm_errors_test.ts",
+    "packages/psycheros/tests/screen_presence_test.ts",
+    "packages/psycheros/web/css/components.css",
+    "packages/psycheros/web/css/voice.css",
+    "packages/psycheros/web/js/psycheros.js",
+    "packages/psycheros/web/js/voice.js"
+  ]
+}
