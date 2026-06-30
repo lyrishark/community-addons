@@ -3019,7 +3019,7 @@ function showExpressionFeedbackToast(messageEl, expressionState) {
     <div class="expression-feedback-row">
       <div class="expression-feedback-text">
         <span class="expression-feedback-title">[Psycheros Emotional Sprite]</span>
-        your expression is: ${escapeHtml(formatExpressionLabel(label).toLowerCase())}. Is this right?
+        will display my expression as: ${escapeHtml(formatExpressionLabel(label).toLowerCase())}. Is this right?
       </div>
       <div class="expression-feedback-actions">
         <button class="expression-feedback-btn" type="button" data-expression-feedback-yes>Y</button>

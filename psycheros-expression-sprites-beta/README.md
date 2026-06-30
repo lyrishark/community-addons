@@ -100,7 +100,7 @@ From there you can:
 At the end of a turn, Psycheros shows a small correction prompt:
 
 ```text
-[Psycheros Emotional Sprite] your expression is: warmth. Is this right? Y/n
+[Psycheros Emotional Sprite] will display my expression as: warmth. Is this right? Y/n
 ```
 
 Choosing `Y` dismisses it. Choosing `N` opens the available expression labels so
