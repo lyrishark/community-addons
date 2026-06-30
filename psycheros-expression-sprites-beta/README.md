@@ -130,7 +130,7 @@ deno test -A packages/psycheros/tests
 ## Privacy note
 
 Expression state is derived from the entity's visible output stream. It is a UI
-display signal, not a durable statement about what the companion "feels" and not
+display signal, not a durable statement about what the companion is feeling and not
 a memory write.
 
 Imported sprite files are stored locally in the Psycheros data folder.
