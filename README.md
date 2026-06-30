@@ -238,7 +238,7 @@ Start here:
 
 ## Downloads
 
-Alpha release downloads will be published through GitHub Releases:
+Release downloads are published through GitHub Releases:
 
 - [Psycheros Thread Exporter v0.3.2](https://github.com/lyrishark/community-addons/releases/tag/browser-thread-exporter-v0.3.2)
 - [Psycheros Entity Core for Codex v0.2.1](https://github.com/lyrishark/community-addons/releases/tag/codex-entity-core-plugin-v0.2.1)
@@ -250,8 +250,9 @@ Alpha release downloads will be published through GitHub Releases:
 - [Psycheros Windows Shell Fix v0.1.1](https://github.com/lyrishark/community-addons/releases/tag/psycheros-windows-shell-fix-v0.1.1)
 - Psycheros Screen Presence Alpha v0.1.0: source package staged for alpha
   testing; release zip pending broader install testing
-- Psycheros Expression Sprites Beta v0.1.2: source package and release zip
-  smoke-tested; release publication pending
+- [Psycheros Expression Sprites Beta v0.1.2](https://github.com/lyrishark/community-addons/releases/tag/psycheros-expression-sprites-beta-v0.1.2):
+  download the ZIP, unzip it, run `install.ps1` on Windows or `install.sh` on
+  macOS/Linux, then open Settings > Vision > Expressions
 
 Checksums are in [SHA256SUMS.txt](SHA256SUMS.txt).
 
