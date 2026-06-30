@@ -1,5 +1,7 @@
-import { assertEquals } from "@std/assert";
+import { assertEquals, assertStringIncludes } from "@std/assert";
 import {
+  DEFAULT_EXPRESSION_LABELS,
+  EXPRESSION_SPRITE_PROTOCOL,
   ExpressionDirectiveStreamFilter,
   extractExpressionDirectives,
   matchExpressionLabelFromFilename,
@@ -128,4 +130,15 @@ Deno.test("expression directive stripping truncates incomplete hidden control", 
     ),
     "Visible text.",
   );
+});
+
+Deno.test("expression sprite protocol gives my valid directive labels", () => {
+  assertStringIncludes(EXPRESSION_SPRITE_PROTOCOL, "Allowed directive labels:");
+  assertStringIncludes(
+    EXPRESSION_SPRITE_PROTOCOL,
+    "I do not invent a new label for the directive.",
+  );
+  for (const label of DEFAULT_EXPRESSION_LABELS) {
+    assertStringIncludes(EXPRESSION_SPRITE_PROTOCOL, label);
+  }
 });

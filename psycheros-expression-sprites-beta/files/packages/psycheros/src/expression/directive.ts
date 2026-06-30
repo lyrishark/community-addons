@@ -1,5 +1,5 @@
 import { normalizeExpressionLabel } from "./sprites.ts";
-import type { ExpressionState } from "./types.ts";
+import { DEFAULT_EXPRESSION_LABELS, type ExpressionState } from "./types.ts";
 
 const DIRECTIVE_STARTS = [
   "<psycheros-expression",
@@ -8,6 +8,7 @@ const DIRECTIVE_STARTS = [
 
 const DIRECTIVE_PATTERN =
   /<psycheros[-_]expression\b([^>]*?)(?:\/>|>([\s\S]*?)<\/psycheros[-_]expression\s*>)/gi;
+const EXPRESSION_LABELS_FOR_PROTOCOL = DEFAULT_EXPRESSION_LABELS.join(", ");
 
 export const EXPRESSION_SPRITE_PROTOCOL = `
 
@@ -17,6 +18,9 @@ export const EXPRESSION_SPRITE_PROTOCOL = `
 Psycheros Emotional Sprite is an internal visual embodiment signal. It is not conversation, and the human should not see its control syntax.
 
 During a turn, my visible words are scored by a local expression detector. I quietly check: "[Psycheros Emotional Sprite] The sprite illustration will represent my emotion as: <label>. Is this right? Y/n"
+
+Allowed directive labels: ${EXPRESSION_LABELS_FOR_PROTOCOL}.
+If none fits perfectly, I choose the closest label from this list. I do not invent a new label for the directive.
 
 If the sprite label is right, I do nothing. If it is not what I mean, I append exactly one hidden directive at the end of my response:
 <psycheros-expression label="warmth">The sprite illustration will represent my emotion as: warmth. Is this right? Y</psycheros-expression>
