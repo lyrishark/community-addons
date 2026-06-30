@@ -7,7 +7,7 @@ It is not an official Psycheros release.
 
 ## What changes
 
-- Adds a transient expression signal to assistant turns. It is for live display
+- Adds a transient expression signal to entity turns. It is for live display
   only and is not written as companion memory.
 - Adds Settings > Vision > Expressions.
 - Supports SillyTavern-style sprite ZIP imports and per-emotion uploads.
@@ -78,7 +78,7 @@ checkerboard cleanup enabled and re-upload it.
 ## Verify
 
 Start Psycheros, open a chat, and send a message that should produce a visible
-emotion. The assistant header should show an expression label, and configured
+emotion. The entity header should show an expression label, and configured
 sprites should appear in the chat stage.
 
 Developers can run:
@@ -92,7 +92,7 @@ deno test -A packages/psycheros/tests
 
 ## Privacy note
 
-Expression state is derived from the assistant's visible output stream. It is a
+Expression state is derived from the entity's visible output stream. It is a
 UI display signal, not a durable statement about what the companion "feels" and
 not a memory write.
 
@@ -105,5 +105,4 @@ Close Psycheros and restore the timestamped backup folder created inside
 Psycheros identity, memory, database, or state folders.
 
 Official source updates replace tracked mod files. Reinstall a compatible
-version of this add-on after an official update, or move to the Nyx channel once
-this beta is promoted there.
+version of this add-on after an official update. 
