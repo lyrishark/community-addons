@@ -5,6 +5,14 @@ export {
   shouldAttemptCheckerboardCleanup,
 } from "./checkerboard.ts";
 export {
+  EXPRESSION_SPRITE_PROTOCOL,
+  type ExpressionDirectiveExtraction,
+  type ExpressionDirectiveOptions,
+  ExpressionDirectiveStreamFilter,
+  extractExpressionDirectives,
+  stripExpressionDirectives,
+} from "./directive.ts";
+export {
   buildExpressionSpriteFilename,
   type ExpressionDisplaySettings,
   type ExpressionSpriteAsset,

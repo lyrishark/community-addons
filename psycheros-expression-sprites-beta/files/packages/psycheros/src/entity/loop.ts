@@ -60,7 +60,13 @@ import { acquireLock } from "../utils/conversation-lock.ts";
 import { createCollector, finalize, setFinishReason } from "../metrics/mod.ts";
 import { getWearableDataCache } from "../wearable/cache.ts";
 import { formatWearableData } from "./sa-formatters.ts";
-import { ExpressionTracker } from "../expression/mod.ts";
+import {
+  EXPRESSION_SPRITE_PROTOCOL,
+  ExpressionDirectiveStreamFilter,
+  ExpressionTracker,
+  extractExpressionDirectives,
+  stripExpressionDirectives,
+} from "../expression/mod.ts";
 
 /**
  * Escape special XML characters in a string.
@@ -881,7 +887,7 @@ Discord interaction:
       imageGenContent,
       saContent,
       discordChannelContent,
-    ) + (options?.systemPromptSuffix ?? "");
+    ) + EXPRESSION_SPRITE_PROTOCOL + (options?.systemPromptSuffix ?? "");
 
     // Get conversation history from DB
     const history = this.db.getMessages(conversationId);
@@ -1084,14 +1090,26 @@ Discord interaction:
             ? "pulse"
             : "chat",
         });
+        let manualExpressionOverride = false;
         const emitContent = function* (
           content: string,
+          directiveFilter: ExpressionDirectiveStreamFilter,
         ): Generator<EntityYield, void, unknown> {
           if (!content) return;
-          yield { type: "content", content };
-          const expressionState = expressionTracker.ingest(content);
-          if (expressionState) {
-            yield { type: "expression_state", state: expressionState };
+          const filtered = directiveFilter.push(content);
+          for (const state of filtered.states) {
+            manualExpressionOverride = true;
+            yield { type: "expression_state", state };
+          }
+          if (!filtered.visibleText) return;
+          yield { type: "content", content: filtered.visibleText };
+          if (!manualExpressionOverride) {
+            const expressionState = expressionTracker.ingest(
+              filtered.visibleText,
+            );
+            if (expressionState) {
+              yield { type: "expression_state", state: expressionState };
+            }
           }
         };
 
@@ -1101,12 +1119,20 @@ Discord interaction:
           assistantReasoning = "";
           toolCalls.length = 0;
           streamError = null;
+          manualExpressionOverride = false;
           // Hold back the first 13 chars (length of "[Voice Chat] ") to
           // detect and strip a parroted leading prefix before it streams
           // to the browser. Persist-side strip still catches mid-message
           // parrots for DB.
           let leadingPrefixBuffer = "";
           let leadingPrefixResolved = false;
+          const directiveFilter = new ExpressionDirectiveStreamFilter({
+            surface: options?.voiceMode
+              ? "voice"
+              : options?.pulseId
+              ? "pulse"
+              : "chat",
+          });
           const VOICE_PREFIX = "[Voice Chat] ";
           finishReason = "stop";
           metricsCollector = createCollector(conversationId);
@@ -1129,7 +1155,7 @@ Discord interaction:
                 case "content":
                   assistantContent += chunk.content;
                   if (leadingPrefixResolved) {
-                    yield* emitContent(chunk.content);
+                    yield* emitContent(chunk.content, directiveFilter);
                   } else {
                     leadingPrefixBuffer += chunk.content;
                     const couldStillMatch = VOICE_PREFIX.startsWith(
@@ -1142,10 +1168,10 @@ Discord interaction:
                         VOICE_PREFIX.length,
                       );
                       if (cleaned) {
-                        yield* emitContent(cleaned);
+                        yield* emitContent(cleaned, directiveFilter);
                       }
                     } else {
-                      yield* emitContent(leadingPrefixBuffer);
+                      yield* emitContent(leadingPrefixBuffer, directiveFilter);
                     }
                   }
                   break;
@@ -1171,10 +1197,29 @@ Discord interaction:
                   VOICE_PREFIX.length,
                 );
                 if (cleaned) {
-                  yield* emitContent(cleaned);
+                  yield* emitContent(cleaned, directiveFilter);
                 }
               } else {
-                yield* emitContent(leadingPrefixBuffer);
+                yield* emitContent(leadingPrefixBuffer, directiveFilter);
+              }
+            }
+            const remainingExpression = directiveFilter.flush();
+            for (const state of remainingExpression.states) {
+              manualExpressionOverride = true;
+              yield { type: "expression_state", state };
+            }
+            if (remainingExpression.visibleText) {
+              yield {
+                type: "content",
+                content: remainingExpression.visibleText,
+              };
+              if (!manualExpressionOverride) {
+                const expressionState = expressionTracker.ingest(
+                  remainingExpression.visibleText,
+                );
+                if (expressionState) {
+                  yield { type: "expression_state", state: expressionState };
+                }
               }
             }
           } catch (error) {
@@ -1284,6 +1329,23 @@ Discord interaction:
           // assistant-text. Emitted before done so the frontend finalizes
           // with the corrected state.
           if (recovered) {
+            const recoveredExpression = extractExpressionDirectives(
+              assistantContent,
+              {
+                surface: options?.voiceMode
+                  ? "voice"
+                  : options?.pulseId
+                  ? "pulse"
+                  : "chat",
+              },
+            );
+            if (recoveredExpression.states.length > 0) {
+              assistantContent = recoveredExpression.visibleText;
+              manualExpressionOverride = true;
+              for (const state of recoveredExpression.states) {
+                yield { type: "expression_state", state };
+              }
+            }
             yield {
               type: "thinking_corrected",
               thinking: assistantReasoning.trim()
@@ -1294,7 +1356,9 @@ Discord interaction:
           }
         }
 
-        const finalExpressionState = expressionTracker.finalize();
+        const finalExpressionState = manualExpressionOverride
+          ? null
+          : expressionTracker.finalize();
         if (finalExpressionState) {
           yield { type: "expression_state", state: finalExpressionState };
         }
@@ -1321,9 +1385,11 @@ Discord interaction:
               "g",
             );
             const tTagPattern = /<t>[^<]*<\/t>\s*/g;
-            const cleanedAssistantContent = assistantContent
-              .replace(prefixPattern, "")
-              .replace(tTagPattern, "");
+            const cleanedAssistantContent = stripExpressionDirectives(
+              assistantContent
+                .replace(prefixPattern, "")
+                .replace(tTagPattern, ""),
+            );
             this.db.addMessage(conversationId, {
               role: "assistant",
               content: cleanedAssistantContent,
@@ -1335,14 +1401,14 @@ Discord interaction:
             // Index the assistant message for chat RAG (non-blocking, non-fatal)
             // Skip for Discord and other non-web source turns
             if (
-              this.config.chatRAG && messageId && assistantContent &&
+              this.config.chatRAG && messageId && cleanedAssistantContent &&
               !this.config.discordContext
             ) {
               this.config.chatRAG.indexMessage(
                 messageId,
                 conversationId,
                 "assistant",
-                assistantContent,
+                cleanedAssistantContent,
               ).catch((error) => {
                 console.warn(
                   "[ChatRAG] Failed to index assistant message:",
@@ -1424,9 +1490,12 @@ Discord interaction:
               if (messageId) {
                 const imgMarker = `\n\n[IMAGE:${imageMatch[1]}]`;
                 assistantContent += imgMarker;
+                const imageContent = stripExpressionDirectives(
+                  assistantContent,
+                );
                 this.db.getRawDb().prepare(
                   "UPDATE messages SET content = ? WHERE id = ?",
-                ).run(assistantContent, messageId);
+                ).run(imageContent, messageId);
                 console.log(
                   `[ImageGen] Persisted image marker to message ${messageId}: ${img.path}`,
                 );
@@ -1485,11 +1554,13 @@ Discord interaction:
         // the persist path (line ~1171). Without this, a tool-calling turn
         // would feed the next iteration's LLM call a context that contains
         // the very prefix we're trying to prevent.
-        const cleanAssistantContent = (assistantContent || "")
-          .replace(/<t>[^<]*<\/t>\s*/g, "")
-          .replace(/\[Voice Chat\]\s*/g, "")
-          // Strip [IMAGE:{...}] markers — UI-only, not part of entity's text
-          .replace(/\[IMAGE:\{.*?\}\]/g, "");
+        const cleanAssistantContent = stripExpressionDirectives(
+          (assistantContent || "")
+            .replace(/<t>[^<]*<\/t>\s*/g, "")
+            .replace(/\[Voice Chat\]\s*/g, "")
+            // Strip [IMAGE:{...}] markers — UI-only, not part of entity's text
+            .replace(/\[IMAGE:\{.*?\}\]/g, ""),
+        );
         const assistantMsg: ChatMessage = {
           role: "assistant",
           content: `${assistantTimestamp} ${cleanAssistantContent}`,

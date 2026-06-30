@@ -22,8 +22,8 @@ This repository currently contains:
    patch for systems where the shell tool cannot spawn `sh`.
 8. **Psycheros Screen Presence Alpha** - a Psycheros 0.8.20 file mod that adds
    screen-share presence to text chat and voice mode.
-9. **Psycheros Expression Sprites Beta** - a Psycheros 0.8.22 file mod that
-   adds live expression detection and SillyTavern-style sprite display.
+9. **Psycheros Expression Sprites Beta** - a Psycheros 0.8.22 file mod that adds
+   live expression detection and SillyTavern-style sprite display.
 
 These are community addons, not official Psycheros releases.
 
@@ -220,13 +220,13 @@ psycheros-expression-sprites-beta/
 
 Current beta features:
 
-- Adds live expression labels for assistant turns.
+- Adds live expression labels for entity turns.
 - Adds Settings > Vision > Expressions.
 - Imports SillyTavern-style sprite ZIP packs and per-emotion uploads.
 - Cleans common fake checkerboard transparency during upload/import.
 - Provides missing-sprite fallback options.
 - Displays the latest sprite in a desktop/mobile visual-novel-style chat stage.
-- Adds desktop/mobile side settings and browser-local expression corrections.
+- Adds desktop/mobile side settings and entity-only hidden expression overrides.
 - Checks for Psycheros 0.8.22 and backs up replaced files during install.
 - Includes Windows and macOS/Linux installers.
 

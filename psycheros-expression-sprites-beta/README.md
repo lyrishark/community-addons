@@ -20,8 +20,8 @@ It is not an official Psycheros release.
 - Displays the latest sprite in a visual-novel-style chat stage that works on
   desktop and mobile.
 - Adds desktop/mobile side settings for the sprite stage.
-- Adds an end-of-turn correction prompt so the companion can mark an expression
-  as right or choose a better label.
+- Adds an entity-only hidden directive so the entity can override the automatic
+  expression detector without showing a correction prompt to the human.
 
 No sprite images are bundled. You bring your own transparent PNG/WebP/GIF/JPEG
 sprite set.
@@ -97,15 +97,16 @@ From there you can:
 - choose frame/background cleanup behavior
 - choose which side the stage appears on for desktop and mobile
 
-At the end of a turn, Psycheros shows a small correction prompt:
+During a turn, Psycheros gives the entity a private check:
 
 ```text
-[Psycheros Emotional Sprite] will display my expression as: warmth. Is this right? Y/n
+[Psycheros Emotional Sprite] The sprite illustration will represent my emotion as: warmth. Is this right? Y/n
 ```
 
-Choosing `Y` dismisses it. Choosing `N` opens the available expression labels so
-you can correct the live display. Corrections are browser-local UI feedback, not
-long-term companion memory.
+There is no human-facing correction prompt during normal use. If the automatic
+detector is wrong, the entity can append a hidden `<psycheros-expression>`
+directive at the end of the response. Psycheros strips that directive before
+display and persistence, then uses it only to update the live sprite state.
 
 Transparent PNG or WebP files look best over chat backgrounds. If an image was
 generated with a visible gray checkerboard instead of real transparency, leave
@@ -128,9 +129,9 @@ deno test -A packages/psycheros/tests
 
 ## Privacy note
 
-Expression state is derived from the entity's visible output stream. It is a
-UI display signal, not a durable statement about what the companion "feels" and
-not a memory write.
+Expression state is derived from the entity's visible output stream. It is a UI
+display signal, not a durable statement about what the companion "feels" and not
+a memory write.
 
 Imported sprite files are stored locally in the Psycheros data folder.
 
@@ -141,4 +142,4 @@ Close Psycheros and restore the timestamped backup folder created inside
 Psycheros identity, memory, database, or state folders.
 
 Official source updates replace tracked mod files. Reinstall a compatible
-version of this add-on after an official update. 
+version of this add-on after an official update.

@@ -7,8 +7,9 @@ Beta package for Psycheros 0.8.22.
 - Rebased the sprite addon payload onto Psycheros 0.8.22.
 - Added desktop and mobile side settings for the visual-novel-style sprite
   stage.
-- Added an end-of-turn expression correction prompt. If the detected expression
-  is wrong, choose `N` and select a better label.
+- Added an entity-only hidden expression directive. If the detected expression
+  is wrong, the entity can override it without showing a correction prompt to
+  the human.
 - Improved the expression classifier around recent tone, romantic/charged
   intent, tenderness, reassurance, fear words inside comfort, project
   excitement, and long reflective messages.
@@ -52,5 +53,5 @@ Settings > Vision > Expressions
 ```
 
 Import a SillyTavern-style sprite ZIP or upload sprites per emotion, then send a
-chat message. The assistant header should show the current expression label, and
+chat message. The entity header should show the current expression label, and
 configured sprites should appear in the chat stage.

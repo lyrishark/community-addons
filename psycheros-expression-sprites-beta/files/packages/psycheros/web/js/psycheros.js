@@ -34,7 +34,6 @@ let expressionDisplaySettings = null;
 let expressionDisplaySettingsPromise = null;
 let expressionStageState = null;
 let expressionStageResizeObserver = null;
-const EXPRESSION_CORRECTIONS_STORAGE_KEY = 'psycheros.expressionCorrections.v1';
 
 // General settings (display names)
 globalThis.PsycherosSettings = { entityName: 'Assistant', userName: 'You', timezone: '' };
@@ -407,8 +406,6 @@ function initPersistentSSE() {
         const lastAsstMsg = asstMsgs[asstMsgs.length - 1];
         if (lastAsstMsg) {
           addMessageEditCapability(lastAsstMsg, id);
-          persistPendingExpressionCorrection(lastAsstMsg);
-          applySavedExpressionCorrection(lastAsstMsg);
         }
       }
     } catch (e) {
@@ -2603,7 +2600,6 @@ function handleSSEEvent(eventType, data, messageEl, state) {
         const header = messageEl.querySelector('.msg-header');
         header?.querySelector('.streaming')?.remove();
         AutoScroll.streamEnd();
-        maybeShowExpressionFeedback(messageEl);
       }
       break;
     }
@@ -2621,8 +2617,6 @@ function handleSSEEvent(eventType, data, messageEl, state) {
           }
         } else if (role === 'assistant') {
           addMessageEditCapability(messageEl, id);
-          persistPendingExpressionCorrection(messageEl);
-          applySavedExpressionCorrection(messageEl);
         }
       } catch (e) {
         console.error('Failed to handle message_id:', e);
@@ -2745,9 +2739,6 @@ function hydrateExpressionDisplays() {
     hydrateExpressionStageFromDocument();
     return;
   }
-  document.querySelectorAll('.msg--assistant[data-message-id]').forEach(messageEl => {
-    applySavedExpressionCorrection(messageEl);
-  });
   document.querySelectorAll('.expression-state-display, .expression-state-chip').forEach(el => {
     const state = readExpressionStateFromElement(el);
     if (!state) return;
@@ -2901,197 +2892,12 @@ function applyExpressionStagePlacement(stage, settings) {
   main.classList.toggle('expression-stage-mobile-side-right', mobileSide === 'right');
 }
 
-function readExpressionCorrectionStore() {
-  try {
-    const raw = localStorage.getItem(EXPRESSION_CORRECTIONS_STORAGE_KEY);
-    const parsed = raw ? JSON.parse(raw) : {};
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
-  } catch {
-    return {};
-  }
-}
-
-function writeExpressionCorrectionStore(store) {
-  try {
-    localStorage.setItem(EXPRESSION_CORRECTIONS_STORAGE_KEY, JSON.stringify(store));
-  } catch (error) {
-    console.warn('[Expression] Failed to save correction:', error);
-  }
-}
-
-function pruneExpressionCorrectionStore(store) {
-  const entries = Object.entries(store);
-  if (entries.length <= 300) return store;
-  entries
-    .sort((a, b) => Number(a[1]?.updatedAt || 0) - Number(b[1]?.updatedAt || 0))
-    .slice(0, entries.length - 300)
-    .forEach(([messageId]) => delete store[messageId]);
-  return store;
-}
-
-function saveExpressionCorrectionForMessage(messageEl, expressionState) {
-  const messageId = messageEl?.dataset?.messageId;
-  const label = normalizeExpressionLabel(expressionState?.label);
-  if (!messageId || !label) return false;
-
-  const store = pruneExpressionCorrectionStore(readExpressionCorrectionStore());
-  store[messageId] = {
-    label,
-    confidence: Number.isFinite(expressionState.confidence) ? expressionState.confidence : 1,
-    rationale: expressionState.rationale || 'Corrected by user',
-    updatedAt: Date.now(),
-  };
-  writeExpressionCorrectionStore(store);
-  return true;
-}
-
-function persistPendingExpressionCorrection(messageEl) {
-  if (messageEl?.dataset?.expressionManualCorrection !== 'true') return false;
-  const state = getExpressionStateForMessage(messageEl);
-  return state ? saveExpressionCorrectionForMessage(messageEl, state) : false;
-}
-
-function applySavedExpressionCorrection(messageEl) {
-  const messageId = messageEl?.dataset?.messageId;
-  if (!messageId) return false;
-
-  const correction = readExpressionCorrectionStore()[messageId];
-  const label = normalizeExpressionLabel(correction?.label);
-  if (!label) return false;
-
-  const state = {
-    label,
-    confidence: Number.isFinite(correction.confidence) ? correction.confidence : 1,
-    rationale: correction.rationale || 'Corrected by user',
-  };
-  messageEl.dataset.expressionManualCorrection = 'true';
-  renderExpressionState(messageEl, state, { updateStage: false });
-  return true;
-}
-
 function getExpressionStateForMessage(messageEl) {
   if (!messageEl) return null;
   const source = messageEl.querySelector(
     '.expression-state-seed[data-expression-label], .expression-state-display[data-expression-label], .expression-state-chip[data-expression-label]',
   );
   return source ? readExpressionStateFromElement(source) : null;
-}
-
-function availableExpressionLabels() {
-  const settings = expressionDisplaySettings || getDefaultExpressionDisplaySettings();
-  const labels = [
-    ...(Array.isArray(settings.labels) ? settings.labels : []),
-    ...Object.keys(settings.sprites || {}),
-    'neutral',
-  ];
-  const seen = new Set();
-  return labels
-    .map(normalizeExpressionLabel)
-    .filter(label => {
-      if (!label || seen.has(label)) return false;
-      seen.add(label);
-      return true;
-    })
-    .sort((a, b) => formatExpressionLabel(a).localeCompare(formatExpressionLabel(b)));
-}
-
-function maybeShowExpressionFeedback(messageEl) {
-  if (!messageEl || messageEl.dataset.expressionFeedbackShown === 'true') return;
-  const settings = expressionDisplaySettings || getDefaultExpressionDisplaySettings();
-  if (!settings.enabled) return;
-
-  const state = getExpressionStateForMessage(messageEl);
-  const label = normalizeExpressionLabel(state?.label);
-  if (!label) return;
-
-  messageEl.dataset.expressionFeedbackShown = 'true';
-  showExpressionFeedbackToast(messageEl, { ...state, label });
-}
-
-function showExpressionFeedbackToast(messageEl, expressionState) {
-  document.querySelector('.expression-feedback-toast')?.remove();
-
-  const label = normalizeExpressionLabel(expressionState.label);
-  const toast = document.createElement('div');
-  toast.className = 'expression-feedback-toast';
-  toast.setAttribute('role', 'status');
-  toast.innerHTML = `
-    <div class="expression-feedback-row">
-      <div class="expression-feedback-text">
-        <span class="expression-feedback-title">[Psycheros Emotional Sprite]</span>
-        will display my expression as: ${escapeHtml(formatExpressionLabel(label).toLowerCase())}. Is this right?
-      </div>
-      <div class="expression-feedback-actions">
-        <button class="expression-feedback-btn" type="button" data-expression-feedback-yes>Y</button>
-        <button class="expression-feedback-btn" type="button" data-expression-feedback-no>N</button>
-        <button class="expression-feedback-btn expression-feedback-close" type="button" aria-label="Dismiss expression feedback" data-expression-feedback-close>x</button>
-      </div>
-    </div>
-  `;
-
-  toast.querySelector('[data-expression-feedback-yes]')?.addEventListener('click', () => toast.remove());
-  toast.querySelector('[data-expression-feedback-close]')?.addEventListener('click', () => toast.remove());
-  toast.querySelector('[data-expression-feedback-no]')?.addEventListener('click', () => {
-    renderExpressionFeedbackCorrection(toast, messageEl, label);
-  });
-
-  document.body.appendChild(toast);
-}
-
-function renderExpressionFeedbackCorrection(toast, messageEl, currentLabel) {
-  toast.querySelector('.expression-feedback-correction')?.remove();
-  const labels = availableExpressionLabels();
-  if (!labels.length) return;
-
-  const correction = document.createElement('div');
-  correction.className = 'expression-feedback-correction';
-
-  const select = document.createElement('select');
-  select.className = 'input-field llm-input expression-feedback-select';
-  select.setAttribute('aria-label', 'Correct expression label');
-  for (const label of labels) {
-    const option = document.createElement('option');
-    option.value = label;
-    option.textContent = formatExpressionLabel(label);
-    option.selected = label === currentLabel;
-    select.appendChild(option);
-  }
-
-  const apply = document.createElement('button');
-  apply.className = 'expression-feedback-btn';
-  apply.type = 'button';
-  apply.textContent = 'Apply';
-  apply.addEventListener('click', () => {
-    applyExpressionCorrection(messageEl, select.value);
-    toast.remove();
-  });
-
-  const cancel = document.createElement('button');
-  cancel.className = 'expression-feedback-btn';
-  cancel.type = 'button';
-  cancel.textContent = 'Cancel';
-  cancel.addEventListener('click', () => correction.remove());
-
-  correction.append(select, apply, cancel);
-  toast.appendChild(correction);
-}
-
-function applyExpressionCorrection(messageEl, label) {
-  const normalized = normalizeExpressionLabel(label);
-  if (!messageEl || !normalized) return;
-
-  const state = {
-    label: normalized,
-    confidence: 1,
-    rationale: 'Corrected by user',
-  };
-  messageEl.dataset.expressionManualCorrection = 'true';
-  messageEl.dataset.expressionFeedbackShown = 'true';
-  renderExpressionState(messageEl, state);
-  saveExpressionCorrectionForMessage(messageEl, state);
-  setTimeout(() => saveExpressionCorrectionForMessage(messageEl, state), 800);
-  setTimeout(() => saveExpressionCorrectionForMessage(messageEl, state), 2200);
-  showToast('Expression corrected to ' + formatExpressionLabel(normalized), 'success');
 }
 
 function ensureExpressionStage() {

@@ -15,6 +15,7 @@
     "packages/psycheros/src/entity/loop.ts",
     "packages/psycheros/src/expression/checkerboard.ts",
     "packages/psycheros/src/expression/classifier.ts",
+    "packages/psycheros/src/expression/directive.ts",
     "packages/psycheros/src/expression/mod.ts",
     "packages/psycheros/src/expression/sprites.ts",
     "packages/psycheros/src/expression/tracker.ts",

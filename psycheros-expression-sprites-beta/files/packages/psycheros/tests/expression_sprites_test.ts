@@ -1,8 +1,11 @@
 import { assertEquals } from "@std/assert";
 import {
+  ExpressionDirectiveStreamFilter,
+  extractExpressionDirectives,
   matchExpressionLabelFromFilename,
   normalizeExpressionDisplaySettings,
   resolveExpressionDisplay,
+  stripExpressionDirectives,
 } from "../src/expression/mod.ts";
 
 Deno.test("expression sprite import matches SillyTavern-style filenames", () => {
@@ -80,4 +83,49 @@ Deno.test("expression display settings default invalid stage sides", () => {
 
   assertEquals(settings.desktopSide, "left");
   assertEquals(settings.mobileSide, "right");
+});
+
+Deno.test("expression directive is entity-only and produces manual state", () => {
+  const result = extractExpressionDirectives(
+    'Visible text.<psycheros-expression label="warmth">The sprite illustration will represent my emotion as: warmth. Is this right? Y</psycheros-expression>',
+    { surface: "chat", now: () => 1_234 },
+  );
+
+  assertEquals(result.visibleText, "Visible text.");
+  assertEquals(result.states.length, 1);
+  assertEquals(result.states[0].label, "warmth");
+  assertEquals(result.states[0].source, "manual");
+  assertEquals(result.states[0].surface, "chat");
+  assertEquals(result.states[0].updatedAt, 1_234);
+});
+
+Deno.test("expression directive stream filter does not leak split directive", () => {
+  const filter = new ExpressionDirectiveStreamFilter({
+    surface: "chat",
+    now: () => 2_468,
+  });
+
+  const first = filter.push(
+    'A visible reply. <psycheros-expression label="warm',
+  );
+  assertEquals(first.visibleText, "A visible reply. ");
+  assertEquals(first.states.length, 0);
+
+  const second = filter.push(
+    'th">The sprite illustration will represent my emotion as: warmth. Is this right? Y</psycheros-expression>',
+  );
+  assertEquals(second.visibleText, "");
+  assertEquals(second.states.length, 1);
+  assertEquals(second.states[0].label, "warmth");
+
+  assertEquals(filter.flush(), { visibleText: "", states: [] });
+});
+
+Deno.test("expression directive stripping truncates incomplete hidden control", () => {
+  assertEquals(
+    stripExpressionDirectives(
+      'Visible text.<psycheros-expression label="warmth"',
+    ),
+    "Visible text.",
+  );
 });

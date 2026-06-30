@@ -496,12 +496,12 @@ with file picker, label, and description inputs (max 10MB). Anchor images are
 stored in `.psycheros/anchors/` with metadata in the `anchor_images` SQLite
 table.
 
-**Expressions** — Manage visual-novel style expression sprites for assistant
-turns. Supports direct per-label upload and SillyTavern-style ZIP imports.
-Built-in labels cover the 28 SillyTavern expressions plus the Expressions Plus
-extension labels (`affection`, `flirtation`, `tenderness`, `focus`, etc.).
-Sprite display is driven by the latest transient `expression_state` event from
-the assistant turn; it is a live UI signal, not durable memory.
+**Expressions** — Manage visual-novel style expression sprites for entity turns.
+Supports direct per-label upload and SillyTavern-style ZIP imports. Built-in
+labels cover the 28 SillyTavern expressions plus the Expressions Plus extension
+labels (`affection`, `flirtation`, `tenderness`, `focus`, etc.). Sprite display
+is driven by the latest transient `expression_state` event from the entity turn;
+it is a live UI signal, not durable memory.
 
 - Expression detection uses recent-turn intent plus valence/arousal/intensity
   scoring. Quoted/story/topic emotion words are dampened so "furious" in a story
@@ -520,6 +520,10 @@ the assistant turn; it is a live UI signal, not durable memory.
   in `.psycheros/expression-display-settings.json`
 - Chat renders the latest sprite in a visual-novel stage: desktop defaults to
   the lower-left third, mobile to the lower-right quarter
+- Entity-only correction uses a hidden `<psycheros-expression>` directive when
+  the entity wants to override the automatic detector. The directive is stripped
+  from streamed and persisted text, so normal use shows no correction prompt to
+  the human.
 
 **Gallery** — Browse all generated and user-uploaded images. Rendered
 server-side on tab load. Features:
