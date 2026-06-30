@@ -4,7 +4,7 @@ Initial beta package for Psycheros 0.8.21.
 
 ## Included
 
-- Live expression-state events for assistant turns.
+- Live expression-state events for entity turns.
 - Settings > Vision > Expressions.
 - SillyTavern-style sprite ZIP import.
 - Per-expression sprite upload and delete.
