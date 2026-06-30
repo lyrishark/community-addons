@@ -19,13 +19,16 @@ It is not an official Psycheros release.
   sprite, or show nothing.
 - Displays the latest sprite in a visual-novel-style chat stage that works on
   desktop and mobile.
+- Adds desktop/mobile side settings for the sprite stage.
+- Adds an end-of-turn correction prompt so the companion can mark an expression
+  as right or choose a better label.
 
 No sprite images are bundled. You bring your own transparent PNG/WebP/GIF/JPEG
 sprite set.
 
 ## Compatibility
 
-Version 0.1.0 is tested for **Psycheros 0.8.21**. The installer refuses other
+Version 0.1.2 is tested for **Psycheros 0.8.22**. The installer refuses other
 versions before changing files.
 
 This package replaces shared chat, server, UI, docs, test, and lock files. Close
@@ -52,7 +55,29 @@ If the installer cannot find your Psycheros source folder, run it with the path:
 ```
 
 The selected folder must contain `packages\psycheros\deno.json`. The installer
-checks for Psycheros 0.8.21 and creates a timestamped backup before replacing
+checks for Psycheros 0.8.22 and creates a timestamped backup before replacing
+any files.
+
+## Install on macOS or Linux
+
+1. Close Psycheros.
+2. Back up any local source changes you want to preserve.
+3. Open Terminal in this add-on folder.
+4. Run:
+
+```bash
+chmod +x ./install.sh ./tools/install-source-files.sh
+./install.sh
+```
+
+If the installer cannot find your Psycheros source folder, run it with the path:
+
+```bash
+./install.sh "$HOME/Code/Psycheros"
+```
+
+The selected folder must contain `packages/psycheros/deno.json`. The installer
+checks for Psycheros 0.8.22 and creates a timestamped backup before replacing
 any files.
 
 ## Add sprites
@@ -70,6 +95,17 @@ From there you can:
 - upload one image per expression slot
 - choose fallback behavior for missing sprites
 - choose frame/background cleanup behavior
+- choose which side the stage appears on for desktop and mobile
+
+At the end of a turn, Psycheros shows a small correction prompt:
+
+```text
+[Psycheros Emotional Sprite] your expression is: warmth. Is this right? Y/n
+```
+
+Choosing `Y` dismisses it. Choosing `N` opens the available expression labels so
+you can correct the live display. Corrections are browser-local UI feedback, not
+long-term companion memory.
 
 Transparent PNG or WebP files look best over chat backgrounds. If an image was
 generated with a visible gray checkerboard instead of real transparency, leave

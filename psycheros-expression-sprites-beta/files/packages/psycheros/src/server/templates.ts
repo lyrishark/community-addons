@@ -7232,7 +7232,6 @@ function renderVisionTabs(activeTab: string): string {
   const tabs = [
     { id: "generators", label: "Generators" },
     { id: "anchors", label: "Anchors" },
-    { id: "expressions", label: "Expressions" },
     { id: "gallery", label: "Gallery" },
   ];
 
@@ -7709,6 +7708,28 @@ export function renderVisionExpressionsTab(
           <option value="accent" ${
     settings.frameStyle === "accent" ? "selected" : ""
   }>Accent border</option>
+        </select>
+      </div>
+      <div class="llm-field">
+        <label for="expr-desktop-side">Desktop side</label>
+        <select id="expr-desktop-side" class="input-field llm-input">
+          <option value="left" ${
+    settings.desktopSide === "left" ? "selected" : ""
+  }>Left</option>
+          <option value="right" ${
+    settings.desktopSide === "right" ? "selected" : ""
+  }>Right</option>
+        </select>
+      </div>
+      <div class="llm-field">
+        <label for="expr-mobile-side">Mobile side</label>
+        <select id="expr-mobile-side" class="input-field llm-input">
+          <option value="left" ${
+    settings.mobileSide === "left" ? "selected" : ""
+  }>Left</option>
+          <option value="right" ${
+    settings.mobileSide === "right" ? "selected" : ""
+  }>Right</option>
         </select>
       </div>
       <div class="llm-field">

@@ -61,3 +61,23 @@ Deno.test("expression display can hide missing sprites", () => {
   assertEquals(display.hidden, true);
   assertEquals(display.fallback, "none");
 });
+
+Deno.test("expression display settings preserve valid stage sides", () => {
+  const settings = normalizeExpressionDisplaySettings({
+    desktopSide: "right",
+    mobileSide: "left",
+  });
+
+  assertEquals(settings.desktopSide, "right");
+  assertEquals(settings.mobileSide, "left");
+});
+
+Deno.test("expression display settings default invalid stage sides", () => {
+  const settings = normalizeExpressionDisplaySettings({
+    desktopSide: "top",
+    mobileSide: "bottom",
+  });
+
+  assertEquals(settings.desktopSide, "left");
+  assertEquals(settings.mobileSide, "right");
+});

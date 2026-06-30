@@ -327,6 +327,7 @@ const IMAGE_DESCRIPTION_FADE_TURNS = 5;
  */
 export type EntityYield =
   | StreamChunk
+  | { type: "expression_state"; state: ExpressionState }
   | { type: "tool_result"; result: ToolResult }
   | { type: "dom_update"; update: UIUpdate }
   | {
@@ -340,13 +341,17 @@ export type EntityYield =
   | { type: "metrics"; metrics: TurnMetrics }
   | { type: "context"; context: LLMContextSnapshot }
   | { type: "message_id"; role: "user" | "assistant"; id: string }
-  | { type: "expression_state"; state: ExpressionState }
   | {
     type: "image_generated";
     imagePath: string;
     prompt: string;
     generatorName: string;
     description?: string;
+  }
+  | {
+    type: "thinking_corrected";
+    thinking?: string;
+    content: string;
   };
 
 /**
@@ -1214,6 +1219,79 @@ Discord interaction:
 
           // Either succeeded or non-retryable — break out of retry loop
           break;
+        }
+
+        // Defensive: detect provider misroute where the entire response
+        // (thinking + reply) was sent through the reasoning field with empty
+        // content. Most commonly seen with GLM models on OpenRouter — Z.ai
+        // direct does not exhibit this. Try to recover the reply portion so
+        // it persists and renders as assistant-text instead of getting
+        // hidden inside the thinking section.
+        if (!assistantContent.trim() && assistantReasoning.trim()) {
+          const originalReasoning = assistantReasoning;
+
+          // Look for a thinking/reply boundary marker. Models and proxies
+          // sometimes emit these even when the surrounding fields are misrouted.
+          const boundaryPattern =
+            /<\/(?:thinking|thought|reasoning|antml:thinking)>\s*/gi;
+          const matches = [...originalReasoning.matchAll(boundaryPattern)];
+
+          let recovered = false;
+          if (matches.length > 0) {
+            // Split at the LAST occurrence — agentic turns can interleave
+            // multiple thinking blocks; the reply follows the final one.
+            const lastMatch = matches[matches.length - 1];
+            const splitIdx = (lastMatch.index ?? 0) + lastMatch[0].length;
+            const thinkingPart = originalReasoning.slice(0, splitIdx);
+            const contentPart = originalReasoning.slice(splitIdx);
+
+            if (contentPart.trim()) {
+              console.log(
+                `[EntityTurn] Recovered misrouted reply — ${matches.length} boundary marker(s) found; ` +
+                  `split thinking (${thinkingPart.length} chars) from reply (${contentPart.length} chars)`,
+              );
+              assistantReasoning = thinkingPart;
+              assistantContent = contentPart;
+              recovered = true;
+            } else {
+              console.log(
+                `[EntityTurn] Empty content with finish_reason=${finishReason} — ` +
+                  `reasoning ends with boundary marker but no reply follows; ` +
+                  `keeping ${originalReasoning.length} chars as thinking only`,
+              );
+            }
+          } else if (finishReason === "stop") {
+            // No marker, but the model finished naturally — likely the entire
+            // reply was routed through reasoning. Promote so it's visible.
+            console.log(
+              `[EntityTurn] Recovered misrouted reply — no boundary marker, ` +
+                `finish_reason=stop; promoting ${originalReasoning.length} chars ` +
+                `of reasoning to content (thinking may be mixed in)`,
+            );
+            assistantContent = originalReasoning;
+            assistantReasoning = "";
+            recovered = true;
+          } else {
+            // Truncated or abnormal finish — leave as thinking, no reply to
+            // recover. Promoting partial thinking would invent a reply.
+            console.log(
+              `[EntityTurn] Empty content with finish_reason=${finishReason} — ` +
+                `keeping ${originalReasoning.length} chars as thinking only (no reply to recover)`,
+            );
+          }
+
+          // Signal the live UI: reset thinking section, render reply as
+          // assistant-text. Emitted before done so the frontend finalizes
+          // with the corrected state.
+          if (recovered) {
+            yield {
+              type: "thinking_corrected",
+              thinking: assistantReasoning.trim()
+                ? assistantReasoning
+                : undefined,
+              content: assistantContent,
+            };
+          }
         }
 
         const finalExpressionState = expressionTracker.finalize();

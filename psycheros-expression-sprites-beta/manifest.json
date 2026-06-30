@@ -1,16 +1,15 @@
 {
   "name": "psycheros-expression-sprites-beta",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "Expression detection and SillyTavern-style sprite display beta for Psycheros.",
   "kind": "psycheros-file-mod",
   "official": false,
   "requires": {
-    "psycheros_version": "0.8.21",
-    "compatible_psycheros_versions": ["0.8.21"]
+    "psycheros_version": "0.8.22",
+    "compatible_psycheros_versions": ["0.8.22"]
   },
   "files": [
     "deno.lock",
-    "packages/psycheros/CHANGELOG.md",
     "packages/psycheros/deno.json",
     "packages/psycheros/docs/ui-features.md",
     "packages/psycheros/src/entity/loop.ts",

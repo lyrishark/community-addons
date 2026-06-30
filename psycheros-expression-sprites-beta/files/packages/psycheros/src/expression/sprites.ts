@@ -7,6 +7,7 @@ export type ExpressionSpriteFrameStyle =
   | "square"
   | "circle"
   | "accent";
+export type ExpressionSpriteSide = "left" | "right";
 
 export interface ExpressionSpriteAsset {
   label: string;
@@ -22,6 +23,8 @@ export interface ExpressionDisplaySettings {
   spritesEnabled: boolean;
   fallbackMode: ExpressionSpriteFallbackMode;
   frameStyle: ExpressionSpriteFrameStyle;
+  desktopSide: ExpressionSpriteSide;
+  mobileSide: ExpressionSpriteSide;
   showSubtitle: boolean;
   cleanupCheckerboardBackgrounds: boolean;
   labels: string[];
@@ -51,6 +54,8 @@ const DEFAULT_DISPLAY_SETTINGS: ExpressionDisplaySettings = {
   spritesEnabled: true,
   fallbackMode: "label",
   frameStyle: "transparent",
+  desktopSide: "left",
+  mobileSide: "right",
   showSubtitle: false,
   cleanupCheckerboardBackgrounds: true,
   labels: [...DEFAULT_EXPRESSION_LABELS],
@@ -171,6 +176,12 @@ export function normalizeExpressionDisplaySettings(
     frameStyle: isExpressionSpriteFrameStyle(input.frameStyle)
       ? input.frameStyle
       : defaults.frameStyle,
+    desktopSide: isExpressionSpriteSide(input.desktopSide)
+      ? input.desktopSide
+      : defaults.desktopSide,
+    mobileSide: isExpressionSpriteSide(input.mobileSide)
+      ? input.mobileSide
+      : defaults.mobileSide,
     showSubtitle: typeof input.showSubtitle === "boolean"
       ? input.showSubtitle
       : defaults.showSubtitle,
@@ -402,4 +413,8 @@ function isExpressionSpriteFrameStyle(
 ): value is ExpressionSpriteFrameStyle {
   return value === "transparent" || value === "square" ||
     value === "circle" || value === "accent";
+}
+
+function isExpressionSpriteSide(value: unknown): value is ExpressionSpriteSide {
+  return value === "left" || value === "right";
 }

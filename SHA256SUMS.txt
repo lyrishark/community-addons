@@ -9,3 +9,4 @@ a05199a510db13e78dfb26b962c35e71e1e5baf1518cbb5f2fddd8810aaebb5d  psycheros-wind
 268c7149ce74b1d6526b9873eb3875fa9f288b066f9d90637274bb349af63364  psycheros-loom-gemini-parser-mod-0.1.1.zip
 182381fefcecb82b9c660b7b2a3e5544d4e5cfedd1d84ab69a62051f215888aa  psycheros-windows-shell-fix-0.1.1.zip
 9271d901c649ade6dea13fea6886c7f4d9857ca15e3fcf6b2e8e2971aa6938f0  psycheros-expression-sprites-beta-0.1.0.zip
+1df96e2eb122c7ff0876d3d9fd943df7db81f95c898f59a4423b5c593ed84a55  psycheros-expression-sprites-beta-0.1.2.zip

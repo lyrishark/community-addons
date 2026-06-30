@@ -34,6 +34,7 @@ let expressionDisplaySettings = null;
 let expressionDisplaySettingsPromise = null;
 let expressionStageState = null;
 let expressionStageResizeObserver = null;
+const EXPRESSION_CORRECTIONS_STORAGE_KEY = 'psycheros.expressionCorrections.v1';
 
 // General settings (display names)
 globalThis.PsycherosSettings = { entityName: 'Assistant', userName: 'You', timezone: '' };
@@ -167,7 +168,6 @@ function initPersistentSSE() {
       const target = document.querySelector(update.target);
       if (target) {
         htmx.swap(target, update.html, { swapStyle: update.swap || 'innerHTML' });
-        hydrateExpressionDisplays();
         // Auto-scroll when content is appended to messages
         if (update.target === '#messages') {
           AutoScroll.streamTick();
@@ -405,7 +405,11 @@ function initPersistentSSE() {
         // pulseAssistantEl is nulled after done, so query the DOM
         const asstMsgs = messages.querySelectorAll('.msg--assistant:not([data-message-id])');
         const lastAsstMsg = asstMsgs[asstMsgs.length - 1];
-        if (lastAsstMsg) addMessageEditCapability(lastAsstMsg, id);
+        if (lastAsstMsg) {
+          addMessageEditCapability(lastAsstMsg, id);
+          persistPendingExpressionCorrection(lastAsstMsg);
+          applySavedExpressionCorrection(lastAsstMsg);
+        }
       }
     } catch (e) {
       console.error('Failed to handle persistent message_id:', e);
@@ -842,6 +846,7 @@ async function loadConversationFromUrl(conversationId, { silent = false } = {}) 
 
     // Re-init scroll system for new DOM — defer scroll until browser has laid out content
     AutoScroll.reinit();
+
     hydrateExpressionDisplays();
 
     // Show/hide voice call button based on voice enabled state
@@ -946,9 +951,6 @@ async function newConversation() {
 
     // Clean up lazy loader — new conversation has no older messages
     LazyLoader.cleanup();
-    expressionStageState = null;
-    initExpressionStageGeometry();
-    hideExpressionStage();
 
     // Update URL
     history.pushState({}, '', `/c/${conversation.id}`);
@@ -1014,7 +1016,6 @@ function selectConversation(id) {
 
   // Load chat content (handles both initial load and returning from settings/views)
   loadConversationFromUrl(id);
-  updateExpressionStageBottom();
 
   // Update URL to reflect the selected conversation
   history.pushState({}, '', `/c/${id}`);
@@ -2356,6 +2357,58 @@ function handleSSEEvent(eventType, data, messageEl, state) {
       break;
     }
 
+    case 'thinking_corrected': {
+      // Provider misroute recovery — server detected that the entire response
+      // was streamed through the reasoning field. Clear the thinking section,
+      // optionally re-create it with just the residual thinking, and render
+      // the recovered reply as assistant-text so it's visible/editable.
+      try {
+        const correction = JSON.parse(data);
+
+        const existingThinking = contentContainer.querySelector('.thinking');
+        if (existingThinking) existingThinking.remove();
+        state.setThinking(null);
+
+        // Also clear any half-built assistant-text from earlier content chunks
+        // (shouldn't normally happen in the misroute case, but be safe).
+        if (state.getContent()) {
+          state.getContent().remove();
+          state.setContent(null);
+          state.setSegmentRaw('');
+        }
+
+        if (correction.thinking) {
+          const residual = document.createElement('div');
+          residual.className = 'thinking';
+          residual.innerHTML = `
+            <div class="thinking-header" onclick="this.parentElement.classList.toggle('expanded')">
+              <span class="thinking-toggle">&#9660;</span>
+              <span>Thinking</span>
+            </div>
+            <div class="thinking-content"></div>
+          `;
+          residual.querySelector('.thinking-content').textContent = correction.thinking;
+          contentContainer.insertBefore(residual, contentContainer.firstChild);
+          // Don't set state.thinking — next iteration's thinking chunks should
+          // create a fresh section rather than append to the residual.
+        }
+
+        if (correction.content) {
+          const contentEl = document.createElement('div');
+          contentEl.className = 'assistant-text';
+          contentContainer.appendChild(contentEl);
+          state.setContent(contentEl);
+          state.setSegmentRaw(correction.content);
+          renderFinalContent(contentEl, correction.content);
+        }
+
+        AutoScroll.streamTick();
+      } catch (e) {
+        console.error('Failed to handle thinking_corrected:', e);
+      }
+      break;
+    }
+
     case 'content': {
       // Clear retry indicator — upstream recovered
       const retryContent = contentContainer.querySelector('.status-retry');
@@ -2550,6 +2603,7 @@ function handleSSEEvent(eventType, data, messageEl, state) {
         const header = messageEl.querySelector('.msg-header');
         header?.querySelector('.streaming')?.remove();
         AutoScroll.streamEnd();
+        maybeShowExpressionFeedback(messageEl);
       }
       break;
     }
@@ -2567,6 +2621,8 @@ function handleSSEEvent(eventType, data, messageEl, state) {
           }
         } else if (role === 'assistant') {
           addMessageEditCapability(messageEl, id);
+          persistPendingExpressionCorrection(messageEl);
+          applySavedExpressionCorrection(messageEl);
         }
       } catch (e) {
         console.error('Failed to handle message_id:', e);
@@ -2576,13 +2632,15 @@ function handleSSEEvent(eventType, data, messageEl, state) {
   }
 }
 
-function renderExpressionState(messageEl, expressionState) {
+function renderExpressionState(messageEl, expressionState, options = {}) {
   if (!expressionState || !expressionState.label) return;
   const header = messageEl.querySelector('.msg-header');
   if (!header) return;
 
   upsertExpressionSeed(header, expressionState);
-  renderExpressionStage(expressionState);
+  if (options.updateStage !== false) {
+    renderExpressionStage(expressionState);
+  }
 
   const display = resolveExpressionDisplay(expressionState);
   let displayEl = header.querySelector('.expression-state-display, .expression-state-chip');
@@ -2672,6 +2730,8 @@ function getDefaultExpressionDisplaySettings() {
     spritesEnabled: true,
     fallbackMode: 'label',
     frameStyle: 'transparent',
+    desktopSide: 'left',
+    mobileSide: 'right',
     showSubtitle: false,
     cleanupCheckerboardBackgrounds: true,
     labels: [],
@@ -2685,6 +2745,9 @@ function hydrateExpressionDisplays() {
     hydrateExpressionStageFromDocument();
     return;
   }
+  document.querySelectorAll('.msg--assistant[data-message-id]').forEach(messageEl => {
+    applySavedExpressionCorrection(messageEl);
+  });
   document.querySelectorAll('.expression-state-display, .expression-state-chip').forEach(el => {
     const state = readExpressionStateFromElement(el);
     if (!state) return;
@@ -2819,6 +2882,218 @@ function applyExpressionDisplay(el, display, expressionState, options = {}) {
   el.textContent = display.displayLabel;
 }
 
+function normalizeExpressionSide(value, fallback) {
+  return value === 'right' || value === 'left' ? value : fallback;
+}
+
+function applyExpressionStagePlacement(stage, settings) {
+  const main = document.querySelector('.main');
+  const desktopSide = normalizeExpressionSide(settings?.desktopSide, 'left');
+  const mobileSide = normalizeExpressionSide(settings?.mobileSide, 'right');
+
+  stage.dataset.desktopSide = desktopSide;
+  stage.dataset.mobileSide = mobileSide;
+
+  if (!main) return;
+  main.classList.toggle('expression-stage-side-left', desktopSide === 'left');
+  main.classList.toggle('expression-stage-side-right', desktopSide === 'right');
+  main.classList.toggle('expression-stage-mobile-side-left', mobileSide === 'left');
+  main.classList.toggle('expression-stage-mobile-side-right', mobileSide === 'right');
+}
+
+function readExpressionCorrectionStore() {
+  try {
+    const raw = localStorage.getItem(EXPRESSION_CORRECTIONS_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeExpressionCorrectionStore(store) {
+  try {
+    localStorage.setItem(EXPRESSION_CORRECTIONS_STORAGE_KEY, JSON.stringify(store));
+  } catch (error) {
+    console.warn('[Expression] Failed to save correction:', error);
+  }
+}
+
+function pruneExpressionCorrectionStore(store) {
+  const entries = Object.entries(store);
+  if (entries.length <= 300) return store;
+  entries
+    .sort((a, b) => Number(a[1]?.updatedAt || 0) - Number(b[1]?.updatedAt || 0))
+    .slice(0, entries.length - 300)
+    .forEach(([messageId]) => delete store[messageId]);
+  return store;
+}
+
+function saveExpressionCorrectionForMessage(messageEl, expressionState) {
+  const messageId = messageEl?.dataset?.messageId;
+  const label = normalizeExpressionLabel(expressionState?.label);
+  if (!messageId || !label) return false;
+
+  const store = pruneExpressionCorrectionStore(readExpressionCorrectionStore());
+  store[messageId] = {
+    label,
+    confidence: Number.isFinite(expressionState.confidence) ? expressionState.confidence : 1,
+    rationale: expressionState.rationale || 'Corrected by user',
+    updatedAt: Date.now(),
+  };
+  writeExpressionCorrectionStore(store);
+  return true;
+}
+
+function persistPendingExpressionCorrection(messageEl) {
+  if (messageEl?.dataset?.expressionManualCorrection !== 'true') return false;
+  const state = getExpressionStateForMessage(messageEl);
+  return state ? saveExpressionCorrectionForMessage(messageEl, state) : false;
+}
+
+function applySavedExpressionCorrection(messageEl) {
+  const messageId = messageEl?.dataset?.messageId;
+  if (!messageId) return false;
+
+  const correction = readExpressionCorrectionStore()[messageId];
+  const label = normalizeExpressionLabel(correction?.label);
+  if (!label) return false;
+
+  const state = {
+    label,
+    confidence: Number.isFinite(correction.confidence) ? correction.confidence : 1,
+    rationale: correction.rationale || 'Corrected by user',
+  };
+  messageEl.dataset.expressionManualCorrection = 'true';
+  renderExpressionState(messageEl, state, { updateStage: false });
+  return true;
+}
+
+function getExpressionStateForMessage(messageEl) {
+  if (!messageEl) return null;
+  const source = messageEl.querySelector(
+    '.expression-state-seed[data-expression-label], .expression-state-display[data-expression-label], .expression-state-chip[data-expression-label]',
+  );
+  return source ? readExpressionStateFromElement(source) : null;
+}
+
+function availableExpressionLabels() {
+  const settings = expressionDisplaySettings || getDefaultExpressionDisplaySettings();
+  const labels = [
+    ...(Array.isArray(settings.labels) ? settings.labels : []),
+    ...Object.keys(settings.sprites || {}),
+    'neutral',
+  ];
+  const seen = new Set();
+  return labels
+    .map(normalizeExpressionLabel)
+    .filter(label => {
+      if (!label || seen.has(label)) return false;
+      seen.add(label);
+      return true;
+    })
+    .sort((a, b) => formatExpressionLabel(a).localeCompare(formatExpressionLabel(b)));
+}
+
+function maybeShowExpressionFeedback(messageEl) {
+  if (!messageEl || messageEl.dataset.expressionFeedbackShown === 'true') return;
+  const settings = expressionDisplaySettings || getDefaultExpressionDisplaySettings();
+  if (!settings.enabled) return;
+
+  const state = getExpressionStateForMessage(messageEl);
+  const label = normalizeExpressionLabel(state?.label);
+  if (!label) return;
+
+  messageEl.dataset.expressionFeedbackShown = 'true';
+  showExpressionFeedbackToast(messageEl, { ...state, label });
+}
+
+function showExpressionFeedbackToast(messageEl, expressionState) {
+  document.querySelector('.expression-feedback-toast')?.remove();
+
+  const label = normalizeExpressionLabel(expressionState.label);
+  const toast = document.createElement('div');
+  toast.className = 'expression-feedback-toast';
+  toast.setAttribute('role', 'status');
+  toast.innerHTML = `
+    <div class="expression-feedback-row">
+      <div class="expression-feedback-text">
+        <span class="expression-feedback-title">[Psycheros Emotional Sprite]</span>
+        your expression is: ${escapeHtml(formatExpressionLabel(label).toLowerCase())}. Is this right?
+      </div>
+      <div class="expression-feedback-actions">
+        <button class="expression-feedback-btn" type="button" data-expression-feedback-yes>Y</button>
+        <button class="expression-feedback-btn" type="button" data-expression-feedback-no>N</button>
+        <button class="expression-feedback-btn expression-feedback-close" type="button" aria-label="Dismiss expression feedback" data-expression-feedback-close>x</button>
+      </div>
+    </div>
+  `;
+
+  toast.querySelector('[data-expression-feedback-yes]')?.addEventListener('click', () => toast.remove());
+  toast.querySelector('[data-expression-feedback-close]')?.addEventListener('click', () => toast.remove());
+  toast.querySelector('[data-expression-feedback-no]')?.addEventListener('click', () => {
+    renderExpressionFeedbackCorrection(toast, messageEl, label);
+  });
+
+  document.body.appendChild(toast);
+}
+
+function renderExpressionFeedbackCorrection(toast, messageEl, currentLabel) {
+  toast.querySelector('.expression-feedback-correction')?.remove();
+  const labels = availableExpressionLabels();
+  if (!labels.length) return;
+
+  const correction = document.createElement('div');
+  correction.className = 'expression-feedback-correction';
+
+  const select = document.createElement('select');
+  select.className = 'input-field llm-input expression-feedback-select';
+  select.setAttribute('aria-label', 'Correct expression label');
+  for (const label of labels) {
+    const option = document.createElement('option');
+    option.value = label;
+    option.textContent = formatExpressionLabel(label);
+    option.selected = label === currentLabel;
+    select.appendChild(option);
+  }
+
+  const apply = document.createElement('button');
+  apply.className = 'expression-feedback-btn';
+  apply.type = 'button';
+  apply.textContent = 'Apply';
+  apply.addEventListener('click', () => {
+    applyExpressionCorrection(messageEl, select.value);
+    toast.remove();
+  });
+
+  const cancel = document.createElement('button');
+  cancel.className = 'expression-feedback-btn';
+  cancel.type = 'button';
+  cancel.textContent = 'Cancel';
+  cancel.addEventListener('click', () => correction.remove());
+
+  correction.append(select, apply, cancel);
+  toast.appendChild(correction);
+}
+
+function applyExpressionCorrection(messageEl, label) {
+  const normalized = normalizeExpressionLabel(label);
+  if (!messageEl || !normalized) return;
+
+  const state = {
+    label: normalized,
+    confidence: 1,
+    rationale: 'Corrected by user',
+  };
+  messageEl.dataset.expressionManualCorrection = 'true';
+  messageEl.dataset.expressionFeedbackShown = 'true';
+  renderExpressionState(messageEl, state);
+  saveExpressionCorrectionForMessage(messageEl, state);
+  setTimeout(() => saveExpressionCorrectionForMessage(messageEl, state), 800);
+  setTimeout(() => saveExpressionCorrectionForMessage(messageEl, state), 2200);
+  showToast('Expression corrected to ' + formatExpressionLabel(normalized), 'success');
+}
+
 function ensureExpressionStage() {
   let stage = document.getElementById('expression-stage');
   if (stage) return stage;
@@ -2842,7 +3117,13 @@ function hideExpressionStage() {
     stage.innerHTML = '';
     delete stage.dataset.expressionLabel;
   }
-  document.querySelector('.main')?.classList.remove('expression-stage-active');
+  document.querySelector('.main')?.classList.remove(
+    'expression-stage-active',
+    'expression-stage-side-left',
+    'expression-stage-side-right',
+    'expression-stage-mobile-side-left',
+    'expression-stage-mobile-side-right',
+  );
 }
 
 function updateExpressionStageBottom() {
@@ -2889,6 +3170,7 @@ function renderExpressionStage(expressionState) {
     ? `<div class="expression-stage-label">${escapeHtml(display.displayLabel)}</div>`
     : '';
 
+  applyExpressionStagePlacement(stage, settings);
   writeExpressionDataset(stage, display.label, expressionState);
   stage.title = display.title;
   stage.innerHTML = `
@@ -2924,6 +3206,7 @@ function hydrateExpressionStageFromDocument() {
 
   renderExpressionStage(state);
 }
+
 
 // =============================================================================
 // DOM Helpers
@@ -4985,7 +5268,12 @@ function startMessageEdit(messageId) {
     // For regular user messages, target .msg-content
     targetEl = msgElement.querySelector('.discord-msg-text') || msgElement.querySelector('.msg-content');
     if (!targetEl) return;
-    originalContent = targetEl.dataset.rawContent || targetEl.textContent || '';
+    // Fallback path: read textContent, but explicitly exclude thinking/tool
+    // subtrees so the textarea never contains literal "▼ Thinking" UI text
+    // (defense-in-depth for the misroute case where .assistant-text is missing).
+    const clone = targetEl.cloneNode(true);
+    clone.querySelectorAll('.thinking, .tool').forEach(el => el.remove());
+    originalContent = targetEl.dataset.rawContent || clone.textContent || '';
   }
 
   // Store original content for cancel
@@ -5410,16 +5698,14 @@ globalThis.deleteAnchor = async function(id) {
   htmx.ajax('GET', '/fragments/settings/vision', '#chat');
 };
 
-// =============================================================================
-// Expression Sprites (global functions for htmx-fragment compatibility)
-// =============================================================================
-
 globalThis.saveExpressionDisplaySettings = async function() {
   const payload = {
     enabled: Boolean(document.getElementById('expr-enabled')?.checked),
     spritesEnabled: Boolean(document.getElementById('expr-sprites-enabled')?.checked),
     fallbackMode: document.getElementById('expr-fallback-mode')?.value || 'label',
     frameStyle: document.getElementById('expr-frame-style')?.value || 'transparent',
+    desktopSide: document.getElementById('expr-desktop-side')?.value || 'left',
+    mobileSide: document.getElementById('expr-mobile-side')?.value || 'right',
     showSubtitle: Boolean(document.getElementById('expr-show-subtitle')?.checked),
     cleanupCheckerboardBackgrounds: Boolean(document.getElementById('expr-cleanup-checkerboard')?.checked),
   };
@@ -5528,6 +5814,7 @@ globalThis.importExpressionSpritePack = async function() {
     showToast('Failed to import sprite pack');
   }
 };
+
 
 // =============================================================================
 // Gallery (Vision)

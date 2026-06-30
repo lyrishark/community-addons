@@ -2655,6 +2655,11 @@ export class Server {
       return await handleDeleteAnchorImage(ctx, anchorDeleteMatch[1]);
     }
 
+    // GET /api/chat-attachments - Upload chat attachment
+    if (method === "POST" && path === "/api/chat-attachments") {
+      return await handleUploadChatAttachment(ctx, request);
+    }
+
     // GET /api/expression-sprites/settings - Get expression display settings
     if (method === "GET" && path === "/api/expression-sprites/settings") {
       return await handleGetExpressionDisplaySettings(ctx);
@@ -2688,11 +2693,6 @@ export class Server {
           expressionSpriteMatch[1],
         );
       }
-    }
-
-    // GET /api/chat-attachments - Upload chat attachment
-    if (method === "POST" && path === "/api/chat-attachments") {
-      return await handleUploadChatAttachment(ctx, request);
     }
 
     // GET /api/gallery/images - List gallery images with pagination

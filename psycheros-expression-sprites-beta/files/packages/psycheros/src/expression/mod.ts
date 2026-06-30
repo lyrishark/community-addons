@@ -10,6 +10,7 @@ export {
   type ExpressionSpriteAsset,
   type ExpressionSpriteFallbackMode,
   type ExpressionSpriteFrameStyle,
+  type ExpressionSpriteSide,
   expressionSpriteUrl,
   findClosestExpressionSpriteLabel,
   formatExpressionLabel,

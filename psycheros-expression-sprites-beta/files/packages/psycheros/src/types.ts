@@ -1,5 +1,3 @@
-import type { ExpressionState } from "./expression/mod.ts";
-
 /**
  * Psycheros Shared Type Definitions
  *
@@ -106,7 +104,6 @@ export interface UIUpdate {
  * - metrics: Streaming performance metrics for the turn
  * - done: Stream completion signal
  * - message_id: Message ID assignment for streaming-created DOM elements
- * - expression_state: transient current expression signal for live UI
  */
 export interface SSEEvent {
   type:
@@ -121,11 +118,12 @@ export interface SSEEvent {
     | "done"
     | "message_id"
     | "image_generated"
-    | "expression_state";
+    | "expression_state"
+    | "thinking_corrected";
   data: string;
 }
 
-export type { ExpressionState };
+export type { ExpressionState } from "./expression/mod.ts";
 
 // =============================================================================
 // Conversation/Session Types

@@ -348,15 +348,15 @@ const ALLOWED_IMAGE_TYPES = [
   "image/webp",
 ];
 
-/**
- * Maximum file size for background uploads (5MB).
- */
-const MAX_BACKGROUND_SIZE = 5 * 1024 * 1024;
-
 const JSON_HEADERS = {
   "Content-Type": "application/json",
   "Access-Control-Allow-Origin": "*",
 };
+
+/**
+ * Maximum file size for background uploads (5MB).
+ */
+const MAX_BACKGROUND_SIZE = 5 * 1024 * 1024;
 
 /**
  * Get MIME type for a file path.
@@ -1797,6 +1797,15 @@ function convertToSSEEvent(chunk: EntityYield): SSEEvent {
       return {
         type: "done",
         data: chunk.finishReason,
+      };
+
+    case "thinking_corrected":
+      return {
+        type: "thinking_corrected",
+        data: JSON.stringify({
+          thinking: chunk.thinking,
+          content: chunk.content,
+        }),
       };
 
     case "message_id":

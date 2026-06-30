@@ -22,7 +22,7 @@ This repository currently contains:
    patch for systems where the shell tool cannot spawn `sh`.
 8. **Psycheros Screen Presence Alpha** - a Psycheros 0.8.20 file mod that adds
    screen-share presence to text chat and voice mode.
-9. **Psycheros Expression Sprites Beta** - a Psycheros 0.8.21 file mod that
+9. **Psycheros Expression Sprites Beta** - a Psycheros 0.8.22 file mod that
    adds live expression detection and SillyTavern-style sprite display.
 
 These are community addons, not official Psycheros releases.
@@ -226,7 +226,9 @@ Current beta features:
 - Cleans common fake checkerboard transparency during upload/import.
 - Provides missing-sprite fallback options.
 - Displays the latest sprite in a desktop/mobile visual-novel-style chat stage.
-- Checks for Psycheros 0.8.21 and backs up replaced files during install.
+- Adds desktop/mobile side settings and browser-local expression corrections.
+- Checks for Psycheros 0.8.22 and backs up replaced files during install.
+- Includes Windows and macOS/Linux installers.
 
 This package does not include sprite images and does not include screen sharing.
 
@@ -248,7 +250,7 @@ Alpha release downloads will be published through GitHub Releases:
 - [Psycheros Windows Shell Fix v0.1.1](https://github.com/lyrishark/community-addons/releases/tag/psycheros-windows-shell-fix-v0.1.1)
 - Psycheros Screen Presence Alpha v0.1.0: source package staged for alpha
   testing; release zip pending broader install testing
-- Psycheros Expression Sprites Beta v0.1.0: source package and release zip
+- Psycheros Expression Sprites Beta v0.1.2: source package and release zip
   smoke-tested; release publication pending
 
 Checksums are in [SHA256SUMS.txt](SHA256SUMS.txt).
@@ -272,7 +274,7 @@ Checksums are in [SHA256SUMS.txt](SHA256SUMS.txt).
   window and refuse other versions before install.
 - The Screen Presence Alpha is visibly labeled as a Psycheros 0.8.20 file
   replacement and includes a backup script.
-- The Expression Sprites Beta is visibly labeled as a Psycheros 0.8.21 file
+- The Expression Sprites Beta is visibly labeled as a Psycheros 0.8.22 file
   replacement, refuses unsupported versions, backs up files, and keeps
   expression state as live UI rather than memory.
 

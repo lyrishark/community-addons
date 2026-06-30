@@ -4,7 +4,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$SupportedVersions = @("0.8.21")
+$SupportedVersions = @("0.8.22")
 $PatchRoot = Split-Path -Parent $PSScriptRoot
 $FilesRoot = Join-Path $PatchRoot "files"
 $AddonName = "Expression Sprites Beta"
