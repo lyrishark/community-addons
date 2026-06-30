@@ -10,3 +10,4 @@ a05199a510db13e78dfb26b962c35e71e1e5baf1518cbb5f2fddd8810aaebb5d  psycheros-wind
 182381fefcecb82b9c660b7b2a3e5544d4e5cfedd1d84ab69a62051f215888aa  psycheros-windows-shell-fix-0.1.1.zip
 9271d901c649ade6dea13fea6886c7f4d9857ca15e3fcf6b2e8e2971aa6938f0  psycheros-expression-sprites-beta-0.1.0.zip
 1df96e2eb122c7ff0876d3d9fd943df7db81f95c898f59a4423b5c593ed84a55  psycheros-expression-sprites-beta-0.1.2.zip
+66bfd219b41f679add0f64318baf60d83767bce9b866c0d8f0a1a9b5d1d7b90f  psycheros-expression-sprites-beta-0.1.3.zip

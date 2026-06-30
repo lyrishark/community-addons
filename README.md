@@ -228,7 +228,8 @@ Current beta features:
 - Displays the latest sprite in a desktop/mobile visual-novel-style chat stage.
 - Adds desktop/mobile side settings and entity-only hidden expression overrides.
 - Checks for Psycheros 0.8.22 and backs up replaced files during install.
-- Includes Windows and macOS/Linux installers.
+- Includes Windows and macOS/Linux installers with launcher source-folder
+  auto-detection.
 
 This package does not include sprite images and does not include screen sharing.
 
@@ -250,7 +251,7 @@ Release downloads are published through GitHub Releases:
 - [Psycheros Windows Shell Fix v0.1.1](https://github.com/lyrishark/community-addons/releases/tag/psycheros-windows-shell-fix-v0.1.1)
 - Psycheros Screen Presence Alpha v0.1.0: source package staged for alpha
   testing; release zip pending broader install testing
-- [Psycheros Expression Sprites Beta v0.1.2](https://github.com/lyrishark/community-addons/releases/tag/psycheros-expression-sprites-beta-v0.1.2):
+- [Psycheros Expression Sprites Beta v0.1.3](https://github.com/lyrishark/community-addons/releases/tag/psycheros-expression-sprites-beta-v0.1.3):
   download the ZIP, unzip it, run `install.ps1` on Windows or `install.sh` on
   macOS/Linux, then open Settings > Vision > Expressions
 

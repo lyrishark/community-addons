@@ -7232,6 +7232,7 @@ function renderVisionTabs(activeTab: string): string {
   const tabs = [
     { id: "generators", label: "Generators" },
     { id: "anchors", label: "Anchors" },
+    { id: "expressions", label: "Expressions" },
     { id: "gallery", label: "Gallery" },
   ];
 

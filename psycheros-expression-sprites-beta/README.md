@@ -28,7 +28,7 @@ sprite set.
 
 ## Compatibility
 
-Version 0.1.2 is tested for **Psycheros 0.8.22**. The installer refuses other
+Version 0.1.3 is tested for **Psycheros 0.8.22**. The installer refuses other
 versions before changing files.
 
 This package replaces shared chat, server, UI, docs, test, and lock files. Close
@@ -51,12 +51,16 @@ Set-ExecutionPolicy -Scope Process Bypass
 If the installer cannot find your Psycheros source folder, run it with the path:
 
 ```powershell
-.\install.ps1 -PsycherosRoot "C:\Users\<name>\AppData\Roaming\Psycheros"
+.\install.ps1 -PsycherosRoot "C:\Users\<name>\AppData\Roaming\Psycheros\source"
 ```
 
 The selected folder must contain `packages\psycheros\deno.json`. The installer
 checks for Psycheros 0.8.22 and creates a timestamped backup before replacing
 any files.
+
+If Psycheros says it is running 0.8.22 but the installer reports an older
+source version, point the installer at the launcher-managed `source` folder
+instead of an older downloaded checkout.
 
 ## Install on macOS or Linux
 
@@ -73,12 +77,22 @@ chmod +x ./install.sh ./tools/install-source-files.sh
 If the installer cannot find your Psycheros source folder, run it with the path:
 
 ```bash
-./install.sh "$HOME/Code/Psycheros"
+./install.sh "$HOME/Library/Application Support/Psycheros/source"
 ```
 
 The selected folder must contain `packages/psycheros/deno.json`. The installer
 checks for Psycheros 0.8.22 and creates a timestamped backup before replacing
 any files.
+
+On Linux, the launcher-managed source folder is usually:
+
+```bash
+./install.sh "$HOME/.local/share/Psycheros/source"
+```
+
+If Psycheros says it is running 0.8.22 but the installer reports an older
+source version, point the installer at the launcher-managed `source` folder
+instead of an older downloaded checkout.
 
 ## Add sprites
 

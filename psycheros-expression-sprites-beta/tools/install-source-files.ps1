@@ -23,6 +23,21 @@ function Test-PsycherosSourceRoot {
   return Test-Path -LiteralPath $DenoJson
 }
 
+function Get-PsycherosSourceVersion {
+  param([string]$Path)
+  $DenoJson = Join-Path $Path "packages\psycheros\deno.json"
+  try {
+    return (Get-Content -LiteralPath $DenoJson -Raw | ConvertFrom-Json).version
+  } catch {
+    return "unknown"
+  }
+}
+
+function Format-PsycherosSourceMatches {
+  param([array]$Matches)
+  return ($Matches | ForEach-Object { "  - $($_.Path) (version $($_.Version))" }) -join [Environment]::NewLine
+}
+
 function Add-Candidate {
   param(
     [System.Collections.Generic.List[string]]$List,
@@ -65,7 +80,9 @@ function Resolve-PsycherosSourceRoot {
     $Here = $Parent
   }
 
+  Add-Candidate $Candidates (Join-Path $HOME "AppData\Roaming\Psycheros\source")
   Add-Candidate $Candidates (Join-Path $HOME "AppData\Roaming\Psycheros")
+  Add-Candidate $Candidates (Join-Path $HOME "AppData\Local\Psycheros\source")
   Add-Candidate $Candidates (Join-Path $HOME "AppData\Local\Psycheros")
   Add-Candidate $Candidates (Join-Path $HOME "Documents\Psycheros")
   Add-Candidate $Candidates (Join-Path $HOME "Code\Psycheros")
@@ -77,17 +94,28 @@ function Resolve-PsycherosSourceRoot {
   $Matches = @()
   foreach ($Candidate in $Candidates) {
     if (Test-PsycherosSourceRoot $Candidate) {
-      $Matches += $Candidate
+      $Matches += [pscustomobject]@{
+        Path = $Candidate
+        Version = Get-PsycherosSourceVersion $Candidate
+      }
     }
   }
 
-  if ($Matches.Count -eq 1) {
-    return $Matches[0]
+  $SupportedMatches = @($Matches | Where-Object { $_.Version -in $SupportedVersions })
+
+  if ($SupportedMatches.Count -eq 1) {
+    return $SupportedMatches[0].Path
   }
 
-  if ($Matches.Count -gt 1) {
-    $List = ($Matches | ForEach-Object { "  - $_" }) -join [Environment]::NewLine
-    throw "Multiple Psycheros source folders were found:$([Environment]::NewLine)$List$([Environment]::NewLine)Run again with -PsycherosRoot ""C:\path\to\Psycheros""."
+  if ($SupportedMatches.Count -gt 1) {
+    $List = Format-PsycherosSourceMatches $SupportedMatches
+    throw "Multiple compatible Psycheros source folders were found:$([Environment]::NewLine)$List$([Environment]::NewLine)Run again with -PsycherosRoot ""C:\path\to\Psycheros\source""."
+  }
+
+  if ($Matches.Count -gt 0) {
+    $SupportedList = $SupportedVersions -join ", "
+    $List = Format-PsycherosSourceMatches $Matches
+    throw "Found Psycheros source folder(s), but none match supported version ${SupportedList}:$([Environment]::NewLine)$List$([Environment]::NewLine)If Psycheros itself reports $SupportedList, this installer is seeing a stale or different source folder. Run again with -PsycherosRoot pointed at the launcher source folder, usually ""$HOME\AppData\Roaming\Psycheros\source""."
   }
 
   throw "Could not auto-detect a Psycheros source folder. Run again with -PsycherosRoot ""C:\path\to\Psycheros""."
@@ -106,7 +134,7 @@ $DenoJson = Join-Path $RootFull "packages\psycheros\deno.json"
 $InstalledVersion = (Get-Content -LiteralPath $DenoJson -Raw | ConvertFrom-Json).version
 if ($InstalledVersion -notin $SupportedVersions) {
   $SupportedList = $SupportedVersions -join ", "
-  throw "This add-on supports Psycheros $SupportedList; found $InstalledVersion. No files were changed."
+  throw "This add-on supports Psycheros $SupportedList, but $RootFull reports $InstalledVersion. No files were changed. If the running app reports $SupportedList, this is probably not the source folder your launcher is using; rerun with -PsycherosRoot pointed at the launcher source folder."
 }
 
 $Timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
