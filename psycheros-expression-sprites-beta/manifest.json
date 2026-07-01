@@ -1,6 +1,6 @@
 {
   "name": "psycheros-expression-sprites-beta",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Expression detection and SillyTavern-style sprite display beta for Psycheros.",
   "kind": "psycheros-file-mod",
   "official": false,
@@ -30,6 +30,7 @@
     "packages/psycheros/tests/expression_sprites_test.ts",
     "packages/psycheros/web/css/components.css",
     "packages/psycheros/web/js/psycheros.js",
+    "packages/psycheros/web/sw.js",
     "site/src/content/docs/psycheros/ui-features.md"
   ]
 }

@@ -52,6 +52,8 @@ import { pulseIconSvg } from "../pulse/templates.ts";
 import type { ExtractionHealth } from "../mcp-client/mod.ts";
 import { getWearableConnectionManager } from "../wearable/mod.ts";
 
+const WEB_ASSET_VERSION = "expression-sprites-beta-0.1.4";
+
 // =============================================================================
 // Utilities
 // =============================================================================
@@ -301,7 +303,7 @@ export function renderAppShell(): string {
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Psycheros</title>
-  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/main.css?v=${WEB_ASSET_VERSION}">
   ${getAccentColorOverride()}
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="manifest" href="/manifest.json" crossorigin="use-credentials">
@@ -414,8 +416,8 @@ export function renderAppShell(): string {
     }).catch(() => {});
   })();
   </script>
-  <script type="module" src="/js/psycheros.js"></script>
-  <script type="module" src="/js/voice.js"></script>
+  <script type="module" src="/js/psycheros.js?v=${WEB_ASSET_VERSION}"></script>
+  <script type="module" src="/js/voice.js?v=${WEB_ASSET_VERSION}"></script>
 </body>
 </html>`;
 }

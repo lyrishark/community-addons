@@ -34,6 +34,8 @@ let expressionDisplaySettings = null;
 let expressionDisplaySettingsPromise = null;
 let expressionStageState = null;
 let expressionStageResizeObserver = null;
+const CLIENT_CACHE_VERSION = 'expression-sprites-beta-0.1.4';
+const CLIENT_CACHE_VERSION_KEY = 'psycheros.clientCacheVersion';
 
 // General settings (display names)
 globalThis.PsycherosSettings = { entityName: 'Assistant', userName: 'You', timezone: '' };
@@ -458,10 +460,35 @@ function initPersistentSSE() {
 // Initialization
 // =============================================================================
 
-document.addEventListener('DOMContentLoaded', () => {
+async function clearStaleClientCaches() {
+  try {
+    if (localStorage.getItem(CLIENT_CACHE_VERSION_KEY) === CLIENT_CACHE_VERSION) {
+      return;
+    }
+
+    if ('caches' in window) {
+      const keys = await caches.keys();
+      await Promise.all(
+        keys
+          .filter((key) => key.startsWith('psycheros-offline-'))
+          .map((key) => caches.delete(key)),
+      );
+    }
+
+    localStorage.setItem(CLIENT_CACHE_VERSION_KEY, CLIENT_CACHE_VERSION);
+  } catch (err) {
+    console.warn('Client cache refresh failed:', err);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  await clearStaleClientCaches();
+
   // Register service worker
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').catch((err) => {
+    navigator.serviceWorker.register('/sw.js?v=' + CLIENT_CACHE_VERSION, {
+      updateViaCache: 'none',
+    }).catch((err) => {
       console.warn('SW registration failed:', err);
     });
   }

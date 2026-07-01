@@ -167,7 +167,7 @@ printf 'Patched files: %s\n' "$patched"
 printf 'Backed-up existing files: %s\n' "$backed_up"
 printf 'Backup folder: %s\n\n' "$backup_root"
 printf 'Next steps:\n'
-printf '1. Restart Psycheros.\n'
+printf '1. Fully quit and relaunch Psycheros.\n'
 printf '2. Open Settings > Vision > Expressions.\n'
 printf '3. Import a SillyTavern-style ZIP pack or upload sprites per emotion.\n\n'
 printf 'This installer does not add sprite images. It only adds the expression display system.\n'

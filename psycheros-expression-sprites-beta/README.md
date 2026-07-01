@@ -28,7 +28,7 @@ sprite set.
 
 ## Compatibility
 
-Version 0.1.3 is tested for **Psycheros 0.8.22**. The installer refuses other
+Version 0.1.4 is tested for **Psycheros 0.8.22**. The installer refuses other
 versions before changing files.
 
 This package replaces shared chat, server, UI, docs, test, and lock files. Close
@@ -38,7 +38,7 @@ This add-on intentionally does **not** include screen sharing.
 
 ## Install on Windows
 
-1. Close Psycheros.
+1. Fully quit Psycheros.
 2. Back up any local source changes you want to preserve.
 3. Open PowerShell in this add-on folder.
 4. Run:
@@ -58,13 +58,16 @@ The selected folder must contain `packages\psycheros\deno.json`. The installer
 checks for Psycheros 0.8.22 and creates a timestamped backup before replacing
 any files.
 
+After install, fully quit and relaunch Psycheros so the embedded desktop app
+loads the add-on's refreshed app shell.
+
 If Psycheros says it is running 0.8.22 but the installer reports an older
 source version, point the installer at the launcher-managed `source` folder
 instead of an older downloaded checkout.
 
 ## Install on macOS or Linux
 
-1. Close Psycheros.
+1. Fully quit Psycheros.
 2. Back up any local source changes you want to preserve.
 3. Open Terminal in this add-on folder.
 4. Run:
@@ -83,6 +86,9 @@ If the installer cannot find your Psycheros source folder, run it with the path:
 The selected folder must contain `packages/psycheros/deno.json`. The installer
 checks for Psycheros 0.8.22 and creates a timestamped backup before replacing
 any files.
+
+After install, fully quit and relaunch Psycheros so the embedded desktop app
+loads the add-on's refreshed app shell.
 
 On Linux, the launcher-managed source folder is usually:
 
