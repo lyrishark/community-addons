@@ -34,7 +34,7 @@ let expressionDisplaySettings = null;
 let expressionDisplaySettingsPromise = null;
 let expressionStageState = null;
 let expressionStageResizeObserver = null;
-const CLIENT_CACHE_VERSION = 'expression-sprites-beta-0.1.4';
+const CLIENT_CACHE_VERSION = 'expression-sprites-beta-0.1.5';
 const CLIENT_CACHE_VERSION_KEY = 'psycheros.clientCacheVersion';
 
 // General settings (display names)
