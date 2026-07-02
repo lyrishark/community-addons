@@ -967,19 +967,19 @@ export function renderGeneralSettings(settings: GeneralSettings): string {
       <h3 class="theme-section-title">Font Preset</h3>
       <p class="theme-section-desc">Choose the reading style used across Psycheros</p>
       <div class="font-preset-grid" id="font-preset-grid">
-        <button type="button" class="font-preset-btn" data-font-preset="sans" aria-pressed="false" style="font-family: 'IBM Plex Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+        <button type="button" class="font-preset-btn" data-font-preset="sans" aria-pressed="false" style="font-family: 'IBM Plex Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Liberation Sans', 'DejaVu Sans', sans-serif;">
           <span class="font-preset-name">Sans</span>
           <span class="font-preset-sample">Clear everyday text</span>
         </button>
-        <button type="button" class="font-preset-btn" data-font-preset="serif" aria-pressed="false" style="font-family: Georgia, 'Iowan Old Style', 'Palatino Linotype', Cambria, serif;">
+        <button type="button" class="font-preset-btn" data-font-preset="serif" aria-pressed="false" style="font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, Cambria, 'Times New Roman', serif;">
           <span class="font-preset-name">Serif</span>
           <span class="font-preset-sample">Book-like reading</span>
         </button>
-        <button type="button" class="font-preset-btn" data-font-preset="dyslexia" aria-pressed="false" style="font-family: 'OpenDyslexic', 'Atkinson Hyperlegible', Lexend, Verdana, Arial, sans-serif;">
+        <button type="button" class="font-preset-btn" data-font-preset="dyslexia" aria-pressed="false" style="font-family: 'OpenDyslexic', 'Atkinson Hyperlegible', Lexend, Verdana, 'Trebuchet MS', Arial, 'Noto Sans', 'DejaVu Sans', sans-serif;">
           <span class="font-preset-name">Dyslexia-friendly</span>
           <span class="font-preset-sample">OpenDyslexic or readable fallback</span>
         </button>
-        <button type="button" class="font-preset-btn" data-font-preset="handwriting" aria-pressed="false" style="font-family: 'Segoe Print', 'Comic Sans MS', 'Bradley Hand', cursive;">
+        <button type="button" class="font-preset-btn" data-font-preset="handwriting" aria-pressed="false" style="font-family: 'Segoe Print', 'Bradley Hand', 'Apple Chancery', 'Comic Sans MS', 'Comic Neue', cursive;">
           <span class="font-preset-name">Handwriting</span>
           <span class="font-preset-sample">Softer handwritten style</span>
         </button>

@@ -11,10 +11,10 @@ It is not an official Psycheros release.
 
 ## Compatibility
 
-Version 0.1.2 is tested for **Psycheros 0.8.23**. It keeps the same font
-feature as v0.1.1 and carries forward Psycheros 0.8.23 route/template changes
-in the files this add-on replaces. The installer refuses all other versions
-rather than overwriting newer or locally modified source by accident.
+Version 0.1.3 is tested for **Psycheros 0.8.23**. It keeps the same font
+feature as v0.1.2 and adds broader OS-aware font fallback stacks for Windows,
+macOS/iOS, Android, and Linux. The installer refuses all other versions rather
+than overwriting newer or locally modified source by accident.
 
 Use v0.1.1 for Psycheros 0.8.9 through 0.8.11.
 
@@ -56,9 +56,18 @@ deno test -A packages/psycheros/tests/theme_test.ts
 
 ## Font fallback behavior
 
-The Dyslexia-friendly preset tries OpenDyslexic, Atkinson Hyperlegible, Lexend,
-Verdana, and Arial in that order. It works without downloading a font; the
-browser uses the first installed option.
+This add-on does not download or bundle font files. The browser uses the first
+installed font from each preset stack:
+
+- Sans tries IBM Plex Sans or Inter, then Apple, Windows, Android, and Linux
+  system sans fonts.
+- Serif tries Iowan Old Style on Apple systems, Palatino/Cambria/Georgia on
+  Windows and common desktops, then Times-style serif fallbacks.
+- Dyslexia-friendly tries OpenDyslexic, Atkinson Hyperlegible, and Lexend, then
+  readable Windows/macOS/Linux fallbacks such as Verdana, Trebuchet, Noto Sans,
+  and DejaVu Sans.
+- Handwriting tries Segoe Print on Windows, Bradley Hand or Apple Chancery on
+  macOS/iOS, then Comic Sans/Comic Neue or the browser cursive fallback.
 
 ## Undo
 

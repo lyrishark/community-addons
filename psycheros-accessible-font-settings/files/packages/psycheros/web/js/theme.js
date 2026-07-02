@@ -33,19 +33,19 @@ const THEMES = {
 const FONT_PRESETS = {
   sans: {
     name: 'Sans',
-    stack: '"IBM Plex Sans", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    stack: '"IBM Plex Sans", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", "DejaVu Sans", sans-serif',
   },
   serif: {
     name: 'Serif',
-    stack: 'Georgia, "Iowan Old Style", "Palatino Linotype", Cambria, serif',
+    stack: '"Iowan Old Style", "Palatino Linotype", Palatino, Georgia, Cambria, "Times New Roman", serif',
   },
   dyslexia: {
     name: 'Dyslexia-friendly',
-    stack: '"OpenDyslexic", "Atkinson Hyperlegible", Lexend, Verdana, Arial, sans-serif',
+    stack: '"OpenDyslexic", "Atkinson Hyperlegible", Lexend, Verdana, "Trebuchet MS", Arial, "Noto Sans", "DejaVu Sans", sans-serif',
   },
   handwriting: {
     name: 'Handwriting',
-    stack: '"Segoe Print", "Comic Sans MS", "Bradley Hand", cursive',
+    stack: '"Segoe Print", "Bradley Hand", "Apple Chancery", "Comic Sans MS", "Comic Neue", cursive',
   },
 };
 

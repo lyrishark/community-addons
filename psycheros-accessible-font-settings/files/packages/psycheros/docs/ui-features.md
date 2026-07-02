@@ -327,8 +327,8 @@ background.
 - **Font Size** — slider from 12px to 28px. The setting updates the shared
   font-size CSS tokens so chat messages, controls, and settings scale together.
 - **Font Preset** — Sans, Serif, Dyslexia-friendly, and Handwriting. The
-  dyslexia-friendly preset prefers OpenDyslexic, Atkinson Hyperlegible, and
-  Lexend when present, then falls back to common readable system fonts.
+  presets prefer optional specialty fonts when present, then fall back through
+  Windows, macOS/iOS, Android, and Linux-friendly system fonts.
 
 These settings persist in `.psycheros/appearance-settings.json` alongside the
 existing theme fields: `{ "fontPreset": "sans", "fontSize": 16 }`.

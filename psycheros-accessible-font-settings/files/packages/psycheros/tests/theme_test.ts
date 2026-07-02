@@ -8,7 +8,7 @@
  * the global without touching the DOM, localStorage, or the network.
  */
 
-import { assert, assertEquals } from "@std/assert";
+import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import { fromFileUrl } from "@std/path";
 
 const themeJsPath = fromFileUrl(
@@ -115,4 +115,28 @@ Deno.test("font presets expose all reading styles", () => {
     "sans",
     "serif",
   ]);
+});
+
+Deno.test("font presets include cross-platform fallbacks", () => {
+  const presets = Theme.getFontPresets();
+
+  assertStringIncludes(presets.sans.stack, "-apple-system");
+  assertStringIncludes(presets.sans.stack, '"Segoe UI"');
+  assertStringIncludes(presets.sans.stack, "Roboto");
+  assertStringIncludes(presets.sans.stack, '"Noto Sans"');
+  assertStringIncludes(presets.sans.stack, '"DejaVu Sans"');
+
+  assertStringIncludes(presets.serif.stack, '"Iowan Old Style"');
+  assertStringIncludes(presets.serif.stack, '"Palatino Linotype"');
+  assertStringIncludes(presets.serif.stack, '"Times New Roman"');
+
+  assertStringIncludes(presets.dyslexia.stack, '"OpenDyslexic"');
+  assertStringIncludes(presets.dyslexia.stack, '"Atkinson Hyperlegible"');
+  assertStringIncludes(presets.dyslexia.stack, '"Noto Sans"');
+  assertStringIncludes(presets.dyslexia.stack, '"DejaVu Sans"');
+
+  assertStringIncludes(presets.handwriting.stack, '"Segoe Print"');
+  assertStringIncludes(presets.handwriting.stack, '"Bradley Hand"');
+  assertStringIncludes(presets.handwriting.stack, '"Apple Chancery"');
+  assertStringIncludes(presets.handwriting.stack, '"Comic Neue"');
 });

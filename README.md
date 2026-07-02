@@ -165,7 +165,8 @@ Current alpha features:
 
 - Adds a Text tab to General Settings.
 - Provides a 12–28 px interface font-size slider.
-- Provides Sans, Serif, Dyslexia-friendly, and Handwriting presets.
+- Provides Sans, Serif, Dyslexia-friendly, and Handwriting presets with
+  OS-aware fallback stacks.
 - Preserves theme and background settings.
 - Checks for Psycheros 0.8.23 and backs up replaced files during install.
 - Use v0.1.1 for Psycheros 0.8.9 through 0.8.11.
@@ -277,7 +278,7 @@ Release downloads are published through GitHub Releases:
 - [Psycheros Loom Gemini Parser Mod v0.1.1](https://github.com/lyrishark/community-addons/releases/tag/psycheros-loom-gemini-parser-mod-v0.1.1)
 - Psycheros Loom Gemini Resume Patch v0.1.0: blocked pending a current rebase,
   database/checkpoint coverage, and update-path tests
-- [Psycheros Accessible Font Settings v0.1.2](https://github.com/lyrishark/community-addons/releases/tag/psycheros-accessible-font-settings-v0.1.2)
+- [Psycheros Accessible Font Settings v0.1.3](https://github.com/lyrishark/community-addons/releases/tag/psycheros-accessible-font-settings-v0.1.3)
 - [Psycheros Windows Shell Fix v0.1.1](https://github.com/lyrishark/community-addons/releases/tag/psycheros-windows-shell-fix-v0.1.1)
 - Psycheros Screen Presence Alpha v0.1.0: source package staged for alpha
   testing; release zip pending broader install testing
