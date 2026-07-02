@@ -24,7 +24,10 @@ This repository currently contains:
    screen-share presence to text chat and voice mode.
 9. **Psycheros Expression Sprites Beta** - a Psycheros 0.8.22 file mod that adds
    live expression detection and SillyTavern-style sprite display.
-10. **Psycheros Voice Text Resize** - a Psycheros 0.8.23 file mod that makes
+10. **Psycheros More Uploads** - a Psycheros 0.8.23 file mod that adds
+    multiple image uploads and document attachments to chat and Yin Yang typed
+    voice.
+11. **Psycheros Voice Text Resize** - a Psycheros 0.8.23 file mod that makes
     the Yin Yang typed voice input resizable while preserving auto-grow.
 
 These are community addons, not official Psycheros releases.
@@ -242,6 +245,33 @@ Start here:
 
 - [Expression sprites beta README](psycheros-expression-sprites-beta/README.md)
 
+### Psycheros More Uploads
+
+Location:
+
+```text
+psycheros-more-uploads/
+```
+
+Current alpha features:
+
+- Adds multiple attachments to the main chat composer.
+- Supports image uploads plus `.txt`, `.md`, `.csv`, `.json`, `.pdf`, `.docx`,
+  and `.xlsx` files.
+- Adds the same attachment flow to Yin Yang typed voice mode.
+- Renders uploaded images and file chips cleanly in chat history.
+- Extracts supported document text for the entity where Psycheros already has a
+  document parser.
+- Refreshes Psycheros web caches for launcher-embedded desktop views.
+- Checks for Psycheros 0.8.23 and backs up replaced files during install.
+
+This package does not include expression sprites, screen sharing, or voice text
+resize changes.
+
+Start here:
+
+- [More uploads README](psycheros-more-uploads/README.md)
+
 ### Psycheros Voice Text Resize
 
 Location:
@@ -288,6 +318,10 @@ Release downloads are published through GitHub Releases:
 - [Psycheros Voice Text Resize v0.1.0](https://github.com/lyrishark/community-addons/releases/tag/psycheros-voice-text-resize-v0.1.0):
   download the ZIP, unzip it, run `install.ps1` on Windows or `install.sh` on
   macOS/Linux, then open a voice call and switch to Yin Yang mode
+- [Psycheros More Uploads v0.1.0](https://github.com/lyrishark/community-addons/releases/tag/psycheros-more-uploads-v0.1.0):
+  download the ZIP, unzip it, run `install.ps1` on Windows or `install.sh` on
+  macOS/Linux, then attach multiple images or supported documents in chat or
+  Yin Yang typed voice mode
 
 Checksums are in [SHA256SUMS.txt](SHA256SUMS.txt).
 
@@ -297,7 +331,7 @@ Checksums are in [SHA256SUMS.txt](SHA256SUMS.txt).
 - Release builds include checksums.
 - Browser extension permissions are scoped to supported chat sites and
   localhost.
-- Neither addon uses analytics, ads, or developer-owned telemetry.
+- These addons use no analytics, ads, or developer-owned telemetry.
 - The browser extension never presses Send.
 - The Codex plugin does not expose direct identity/core mutation.
 - The ChatGPT bridge requires OAuth and does not expose direct identity/core
