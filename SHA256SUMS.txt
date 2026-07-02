@@ -16,3 +16,4 @@ c50e7d54e4a0c3f2d0d057f1ccf77e37a28d5a26d668b17cfd833da832ad052b  psycheros-expr
 a4ccab1dcacc557f7f1a7499a9629aa52a050e8d8adf94a2f0bd5b45a871b4b4  psycheros-voice-text-resize-0.1.0.zip
 50fb027be377fed801ec9ed87914d2885116dc915a0a417d1995df115b8d815d  psycheros-accessible-font-settings-0.1.3.zip
 44a99e93d17c8aed3e275fb97a142995472a528d85d9f4d0d2cf53b7e85e8a5a  psycheros-more-uploads-0.1.0.zip
+896004e079c9c5b2a96d4660cbdbadc244eab2f257781827a5dbbd86aae5f905  psycheros-more-uploads-voice-resize-0.1.0.zip

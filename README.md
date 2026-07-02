@@ -29,6 +29,9 @@ This repository currently contains:
     voice.
 11. **Psycheros Voice Text Resize** - a Psycheros 0.8.23 file mod that makes
     the Yin Yang typed voice input resizable while preserving auto-grow.
+12. **Psycheros More Uploads + Voice Text Resize** - a Psycheros 0.8.23 combo
+    file mod for people who want both upload expansion and the resizable Yin
+    Yang typed voice box without standalone package overwrite conflicts.
 
 These are community addons, not official Psycheros releases.
 
@@ -298,6 +301,30 @@ Start here:
 
 - [Voice text resize README](psycheros-voice-text-resize/README.md)
 
+### Psycheros More Uploads + Voice Text Resize
+
+Location:
+
+```text
+psycheros-more-uploads-voice-resize/
+```
+
+Current alpha features:
+
+- Includes all More Uploads features for main chat and Yin Yang typed voice.
+- Includes all Voice Text Resize behavior for the Yin Yang typed voice box.
+- Keeps attachment controls and resize handles in the same merged voice UI
+  files.
+- Refreshes Psycheros web caches for launcher-embedded desktop views.
+- Checks for Psycheros 0.8.23 and backs up replaced files during install.
+- Use this combo instead of installing the two standalone packages together.
+
+This package does not include expression sprites or screen sharing.
+
+Start here:
+
+- [More uploads + voice text resize README](psycheros-more-uploads-voice-resize/README.md)
+
 ## Downloads
 
 Release downloads are published through GitHub Releases:
@@ -322,6 +349,9 @@ Release downloads are published through GitHub Releases:
   download the ZIP, unzip it, run `install.ps1` on Windows or `install.sh` on
   macOS/Linux, then attach multiple images or supported documents in chat or
   Yin Yang typed voice mode
+- [Psycheros More Uploads + Voice Text Resize v0.1.0](https://github.com/lyrishark/community-addons/releases/tag/psycheros-more-uploads-voice-resize-v0.1.0):
+  download the ZIP, unzip it, run `install.ps1` on Windows or `install.sh` on
+  macOS/Linux, then try uploads and the resizable Yin Yang typed voice input
 
 Checksums are in [SHA256SUMS.txt](SHA256SUMS.txt).
 
@@ -350,6 +380,10 @@ Checksums are in [SHA256SUMS.txt](SHA256SUMS.txt).
 - The Voice Text Resize add-on is visibly labeled as a Psycheros 0.8.23 file
   replacement, refuses unsupported versions, backs up files, and changes only
   the typed voice input resize surface.
+- The More Uploads + Voice Text Resize combo is visibly labeled as a Psycheros
+  0.8.23 file replacement, refuses unsupported versions, backs up files, and
+  explains why it should be used instead of installing both standalone packages
+  together.
 
 ## Issues
 

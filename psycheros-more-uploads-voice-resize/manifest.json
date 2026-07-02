@@ -1,0 +1,24 @@
+{
+  "name": "psycheros-more-uploads-voice-resize",
+  "version": "0.1.0",
+  "description": "Multiple uploads plus resizable Yin Yang typed voice input for Psycheros.",
+  "kind": "psycheros-file-mod",
+  "official": false,
+  "requires": {
+    "psycheros_version": "0.8.23",
+    "compatible_psycheros_versions": ["0.8.23"]
+  },
+  "files": [
+    "packages/psycheros/src/server/chat-attachments.ts",
+    "packages/psycheros/src/server/routes.ts",
+    "packages/psycheros/src/server/templates.ts",
+    "packages/psycheros/src/voice/session-manager.ts",
+    "packages/psycheros/tests/chat_attachments_test.ts",
+    "packages/psycheros/tests/voice_text_resize_addon_test.ts",
+    "packages/psycheros/web/css/components.css",
+    "packages/psycheros/web/css/voice.css",
+    "packages/psycheros/web/js/psycheros.js",
+    "packages/psycheros/web/js/voice.js",
+    "packages/psycheros/web/sw.js"
+  ]
+}
