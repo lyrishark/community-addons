@@ -1,12 +1,12 @@
 {
   "name": "psycheros-accessible-font-settings",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Accessible interface font-size controls and reading-oriented font presets for Psycheros.",
   "kind": "psycheros-file-mod",
   "official": false,
   "requires": {
-    "psycheros_version": "0.8.11",
-    "compatible_psycheros_versions": ["0.8.9", "0.8.10", "0.8.11"]
+    "psycheros_version": "0.8.23",
+    "compatible_psycheros_versions": ["0.8.23"]
   },
   "files": [
     "packages/psycheros/docs/ui-features.md",

@@ -47,6 +47,8 @@ import { pulseIconSvg } from "../pulse/templates.ts";
 import type { ExtractionHealth } from "../mcp-client/mod.ts";
 import { getWearableConnectionManager } from "../wearable/mod.ts";
 
+const WEB_ASSET_VERSION = "voice-text-resize-0.1.0";
+
 // =============================================================================
 // Utilities
 // =============================================================================
@@ -267,7 +269,7 @@ export function renderAppShell(): string {
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Psycheros</title>
-  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/main.css?v=${WEB_ASSET_VERSION}">
   ${getAccentColorOverride()}
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="manifest" href="/manifest.json" crossorigin="use-credentials">
@@ -379,8 +381,8 @@ export function renderAppShell(): string {
     }).catch(() => {});
   })();
   </script>
-  <script type="module" src="/js/psycheros.js"></script>
-  <script type="module" src="/js/voice.js"></script>
+  <script type="module" src="/js/psycheros.js?v=${WEB_ASSET_VERSION}"></script>
+  <script type="module" src="/js/voice.js?v=${WEB_ASSET_VERSION}"></script>
 </body>
 </html>`;
 }
@@ -795,7 +797,6 @@ export function renderGeneralSettings(settings: GeneralSettings): string {
 
     <div class="settings-tabs">
       <button class="settings-tab active" data-tab="general" onclick="switchGeneralTab('general')">General</button>
-      <button class="settings-tab" data-tab="text" onclick="switchGeneralTab('text')">Text</button>
       <button class="settings-tab" data-tab="theme" onclick="switchGeneralTab('theme')">Theme</button>
     </div>
 
@@ -949,50 +950,6 @@ export function renderGeneralSettings(settings: GeneralSettings): string {
 
     </div>
 
-    <div id="general-tab-text" class="general-tab-panel" style="display:none;">
-
-    <section class="theme-section">
-      <h3 class="theme-section-title">Font Size</h3>
-      <p class="theme-section-desc">Set the chat and interface text size</p>
-      <div class="font-size-row">
-        <div class="slider-group">
-          <label for="font-size-slider">Size</label>
-          <input type="range" id="font-size-slider" min="12" max="28" step="1" value="16" aria-describedby="font-size-value" oninput="saveFontSize(this.value)">
-          <output id="font-size-value" for="font-size-slider" aria-live="polite">16px</output>
-        </div>
-      </div>
-    </section>
-
-    <section class="theme-section">
-      <h3 class="theme-section-title">Font Preset</h3>
-      <p class="theme-section-desc">Choose the reading style used across Psycheros</p>
-      <div class="font-preset-grid" id="font-preset-grid">
-        <button type="button" class="font-preset-btn" data-font-preset="sans" aria-pressed="false" style="font-family: 'IBM Plex Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-          <span class="font-preset-name">Sans</span>
-          <span class="font-preset-sample">Clear everyday text</span>
-        </button>
-        <button type="button" class="font-preset-btn" data-font-preset="serif" aria-pressed="false" style="font-family: Georgia, 'Iowan Old Style', 'Palatino Linotype', Cambria, serif;">
-          <span class="font-preset-name">Serif</span>
-          <span class="font-preset-sample">Book-like reading</span>
-        </button>
-        <button type="button" class="font-preset-btn" data-font-preset="dyslexia" aria-pressed="false" style="font-family: 'OpenDyslexic', 'Atkinson Hyperlegible', Lexend, Verdana, Arial, sans-serif;">
-          <span class="font-preset-name">Dyslexia-friendly</span>
-          <span class="font-preset-sample">OpenDyslexic or readable fallback</span>
-        </button>
-        <button type="button" class="font-preset-btn" data-font-preset="handwriting" aria-pressed="false" style="font-family: 'Segoe Print', 'Comic Sans MS', 'Bradley Hand', cursive;">
-          <span class="font-preset-name">Handwriting</span>
-          <span class="font-preset-sample">Softer handwritten style</span>
-        </button>
-      </div>
-      <div class="font-preview" id="font-preview">
-        <strong>Preview:</strong> The entity's messages, settings, buttons, and input text use this size and font.
-      </div>
-    </section>
-
-    <div id="font-settings-status" class="settings-status" role="status" aria-live="polite"></div>
-
-    </div>
-
     <div id="general-tab-theme" class="general-tab-panel" style="display:none;">
 
     <!-- Accent Color Section -->
@@ -1046,7 +1003,7 @@ export function renderGeneralSettings(settings: GeneralSettings): string {
         <input type="color" id="custom-color-picker" class="color-picker" value="#a855f7">
         <input type="text" id="custom-color-hex" class="color-hex-input" placeholder="#a855f7" maxlength="7">
       </div>
-      <button class="btn btn--ghost btn--sm" onclick="Theme.reset(); initAppearance(); initTypography();" style="margin-top: var(--sp-3);">Reset to Default</button>
+      <button class="btn btn--ghost btn--sm" onclick="Theme.reset(); initAppearance();" style="margin-top: var(--sp-3);">Reset to Default</button>
     </section>
 
     <!-- Background Image Section -->
@@ -1245,56 +1202,6 @@ function updateBgOverlay(value) {
 function toggleGlass(enabled) {
   Theme.setGlassEnabled(enabled);
 }
-
-function showFontStatus(type, message) {
-  const el = document.getElementById('font-settings-status');
-  if (!el) return;
-  el.className = 'settings-status visible ' + type;
-  el.textContent = message;
-  if (type !== 'error') {
-    setTimeout(() => { el.className = 'settings-status'; }, 2000);
-  }
-}
-
-function updateFontPresetButtons(activePreset) {
-  document.querySelectorAll('.font-preset-btn').forEach(btn => {
-    const isActive = btn.dataset.fontPreset === activePreset;
-    btn.classList.toggle('active', isActive);
-    btn.setAttribute('aria-pressed', String(isActive));
-  });
-}
-
-function initTypography() {
-  const theme = Theme.get();
-  const size = Theme.clampFontSize(theme.fontSize);
-  const preset = Theme.normalizeFontPreset(theme.fontPreset);
-  const slider = document.getElementById('font-size-slider');
-  const value = document.getElementById('font-size-value');
-
-  if (slider) slider.value = String(size);
-  if (value) value.textContent = size + 'px';
-
-  updateFontPresetButtons(preset);
-  document.querySelectorAll('.font-preset-btn').forEach(btn => {
-    btn.onclick = () => selectFontPreset(btn.dataset.fontPreset);
-  });
-}
-
-function saveFontSize(value) {
-  const size = Theme.clampFontSize(value);
-  const label = document.getElementById('font-size-value');
-  if (label) label.textContent = size + 'px';
-  Theme.setFontSize(size);
-  showFontStatus('success', 'Text settings saved');
-}
-
-function selectFontPreset(preset) {
-  const normalized = Theme.normalizeFontPreset(preset);
-  Theme.setFontPreset(normalized);
-  updateFontPresetButtons(normalized);
-  showFontStatus('success', 'Text settings saved');
-}
-initTypography();
 
 async function applyBackgroundUrl() {
   const url = document.getElementById('bg-url').value.trim();
@@ -9348,13 +9255,36 @@ export function renderVoiceCallView(
     <div class="voice-transcript" id="voice-transcript" aria-live="polite"></div>
 
     <div class="voice-text-input-area" id="voice-text-input-area" style="display: none;">
-      <textarea
-        class="voice-text-input"
-        id="voice-text-input"
-        placeholder="Type a message..."
-        rows="2"
-        onkeydown="handleVoiceTextInputKey(event)"
-      ></textarea>
+      <div class="voice-text-input-frame" id="voice-text-input-frame">
+        <textarea
+          class="voice-text-input"
+          id="voice-text-input"
+          placeholder="Type a message..."
+          rows="2"
+          onkeydown="handleVoiceTextInputKey(event)"
+        ></textarea>
+        <button
+          class="voice-text-resize-handle voice-text-resize-handle--east"
+          type="button"
+          data-voice-text-resize-handle="east"
+          aria-label="Resize typed voice input width"
+          title="Drag to resize width"
+        ></button>
+        <button
+          class="voice-text-resize-handle voice-text-resize-handle--south"
+          type="button"
+          data-voice-text-resize-handle="south"
+          aria-label="Resize typed voice input height"
+          title="Drag to resize height"
+        ></button>
+        <button
+          class="voice-text-resize-handle voice-text-resize-handle--corner"
+          type="button"
+          data-voice-text-resize-handle="corner"
+          aria-label="Resize typed voice input width and height"
+          title="Drag to resize, double-click to reset"
+        ></button>
+      </div>
       <button class="voice-btn voice-text-send-btn" id="voice-text-send-btn" onclick="sendVoiceTextInput()" aria-label="Send" title="Send">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
       </button>

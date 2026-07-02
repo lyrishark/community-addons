@@ -16,14 +16,16 @@ This repository currently contains:
 5. **Psycheros Loom Gemini Resume Patch** - optional alternate Entity Loom files
    that recover stale running import stages and improve updated-thread reimports
    while testing Gemini history.
-6. **Psycheros Accessible Font Settings** - a Psycheros 0.8.9–0.8.11 file mod
-   with interface font sizing and reading-oriented font presets.
+6. **Psycheros Accessible Font Settings** - a Psycheros 0.8.23 file mod with
+   interface font sizing and reading-oriented font presets.
 7. **Psycheros Windows Shell Fix** - a Psycheros 0.8.9–0.8.11 compatibility
    patch for systems where the shell tool cannot spawn `sh`.
 8. **Psycheros Screen Presence Alpha** - a Psycheros 0.8.20 file mod that adds
    screen-share presence to text chat and voice mode.
 9. **Psycheros Expression Sprites Beta** - a Psycheros 0.8.22 file mod that adds
    live expression detection and SillyTavern-style sprite display.
+10. **Psycheros Voice Text Resize** - a Psycheros 0.8.23 file mod that makes
+    the Yin Yang typed voice input resizable while preserving auto-grow.
 
 These are community addons, not official Psycheros releases.
 
@@ -165,7 +167,8 @@ Current alpha features:
 - Provides a 12–28 px interface font-size slider.
 - Provides Sans, Serif, Dyslexia-friendly, and Handwriting presets.
 - Preserves theme and background settings.
-- Checks for Psycheros 0.8.9–0.8.11 and backs up replaced files during install.
+- Checks for Psycheros 0.8.23 and backs up replaced files during install.
+- Use v0.1.1 for Psycheros 0.8.9 through 0.8.11.
 
 Start here:
 
@@ -238,6 +241,32 @@ Start here:
 
 - [Expression sprites beta README](psycheros-expression-sprites-beta/README.md)
 
+### Psycheros Voice Text Resize
+
+Location:
+
+```text
+psycheros-voice-text-resize/
+```
+
+Current alpha features:
+
+- Adds horizontal, vertical, and corner drag handles to the Yin Yang typed voice
+  input.
+- Keeps longer text auto-growing the input until that dimension is manually
+  resized.
+- Persists manually chosen width/height across voice calls.
+- Double-clicks a resize handle to return to adaptive sizing.
+- Refreshes Psycheros web caches for launcher-embedded desktop views.
+- Checks for Psycheros 0.8.23 and backs up replaced files during install.
+
+This package does not include expression sprites, screen sharing, or image
+attachment changes.
+
+Start here:
+
+- [Voice text resize README](psycheros-voice-text-resize/README.md)
+
 ## Downloads
 
 Release downloads are published through GitHub Releases:
@@ -248,13 +277,16 @@ Release downloads are published through GitHub Releases:
 - [Psycheros Loom Gemini Parser Mod v0.1.1](https://github.com/lyrishark/community-addons/releases/tag/psycheros-loom-gemini-parser-mod-v0.1.1)
 - Psycheros Loom Gemini Resume Patch v0.1.0: blocked pending a current rebase,
   database/checkpoint coverage, and update-path tests
-- [Psycheros Accessible Font Settings v0.1.1](https://github.com/lyrishark/community-addons/releases/tag/psycheros-accessible-font-settings-v0.1.1)
+- [Psycheros Accessible Font Settings v0.1.2](https://github.com/lyrishark/community-addons/releases/tag/psycheros-accessible-font-settings-v0.1.2)
 - [Psycheros Windows Shell Fix v0.1.1](https://github.com/lyrishark/community-addons/releases/tag/psycheros-windows-shell-fix-v0.1.1)
 - Psycheros Screen Presence Alpha v0.1.0: source package staged for alpha
   testing; release zip pending broader install testing
 - [Psycheros Expression Sprites Beta v0.1.4](https://github.com/lyrishark/community-addons/releases/tag/psycheros-expression-sprites-beta-v0.1.4):
   download the ZIP, unzip it, run `install.ps1` on Windows or `install.sh` on
   macOS/Linux, then open Settings > Vision > Expressions
+- [Psycheros Voice Text Resize v0.1.0](https://github.com/lyrishark/community-addons/releases/tag/psycheros-voice-text-resize-v0.1.0):
+  download the ZIP, unzip it, run `install.ps1` on Windows or `install.sh` on
+  macOS/Linux, then open a voice call and switch to Yin Yang mode
 
 Checksums are in [SHA256SUMS.txt](SHA256SUMS.txt).
 
@@ -273,13 +305,16 @@ Checksums are in [SHA256SUMS.txt](SHA256SUMS.txt).
   replacement.
 - The Gemini resume patch is visibly labeled as a local Entity Loom file
   replacement and includes backup scripts.
-- The Psycheros file-mod packages list their exact 0.8.9–0.8.11 compatibility
-  window and refuse other versions before install.
+- The Psycheros file-mod packages list their exact compatibility window and
+  refuse other versions before install.
 - The Screen Presence Alpha is visibly labeled as a Psycheros 0.8.20 file
   replacement and includes a backup script.
 - The Expression Sprites Beta is visibly labeled as a Psycheros 0.8.22 file
   replacement, refuses unsupported versions, backs up files, and keeps
   expression state as live UI rather than memory.
+- The Voice Text Resize add-on is visibly labeled as a Psycheros 0.8.23 file
+  replacement, refuses unsupported versions, backs up files, and changes only
+  the typed voice input resize surface.
 
 ## Issues
 

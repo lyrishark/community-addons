@@ -11,10 +11,12 @@ It is not an official Psycheros release.
 
 ## Compatibility
 
-Version 0.1.1 is tested for **Psycheros 0.8.9 through 0.8.11**. Upstream 0.8.10
-and 0.8.11 changed only the native microphone path and did not touch any file
-replaced by this add-on. The installer refuses all other versions rather than
-overwriting newer or locally modified source by accident.
+Version 0.1.2 is tested for **Psycheros 0.8.23**. It keeps the same font
+feature as v0.1.1 and carries forward Psycheros 0.8.23 route/template changes
+in the files this add-on replaces. The installer refuses all other versions
+rather than overwriting newer or locally modified source by accident.
+
+Use v0.1.1 for Psycheros 0.8.9 through 0.8.11.
 
 The Windows shell-tool fix previously bundled with the local prototype is not
 part of this add-on. It now lives separately in

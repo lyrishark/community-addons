@@ -434,7 +434,7 @@ export function handleIndex(_ctx: RouteContext): Response {
  * @returns HTTP Response with JSON array of conversations
  */
 export function handleListConversations(ctx: RouteContext): Response {
-  const conversations = ctx.db.listWebConversations();
+  const conversations = ctx.db.listSidebarConversations();
 
   return new Response(JSON.stringify(conversations), {
     headers: {
@@ -654,7 +654,7 @@ export async function handleMessagesPaginated(
  * @returns HTTP Response with conversation list HTML fragment
  */
 export function handleConversationListFragment(ctx: RouteContext): Response {
-  const conversations = ctx.db.listWebConversations();
+  const conversations = ctx.db.listSidebarConversations();
 
   // Build set of conversation IDs that have active pulses
   const allPulses = ctx.db.listPulses({ enabled: true });
@@ -1774,6 +1774,15 @@ function convertToSSEEvent(chunk: EntityYield): SSEEvent {
       return {
         type: "done",
         data: chunk.finishReason,
+      };
+
+    case "thinking_corrected":
+      return {
+        type: "thinking_corrected",
+        data: JSON.stringify({
+          thinking: chunk.thinking,
+          content: chunk.content,
+        }),
       };
 
     case "message_id":
@@ -3023,8 +3032,15 @@ export async function handleMemoriesEditorFragment(
     });
   }
 
-  // For MCP lookup, extract the date portion (before any instance suffix)
-  const mcpDate = date.split("_")[0];
+  // Extract the date portion for MCP lookup (before any slug suffix).
+  // For significant memories, the suffix is the slug — without it, entity-core's
+  // findMemoryByDate returns the first file matching the date prefix, which is
+  // the wrong memory on dates with multiple significant entries.
+  const parts = date.split("_");
+  const mcpDate = parts[0];
+  const slug = granularity === "significant" && parts.length > 1
+    ? parts.slice(1).join("_")
+    : undefined;
 
   if (!ctx.mcpClient?.isConnected()) {
     return new Response(
@@ -3040,6 +3056,7 @@ export async function handleMemoriesEditorFragment(
     const entry = await ctx.mcpClient.readMemory(
       granularity as "daily" | "weekly" | "monthly" | "yearly" | "significant",
       mcpDate,
+      slug,
     );
 
     if (!entry) {
@@ -6500,7 +6517,7 @@ export async function handleTestLovenseConnection(
 
     if (data.code !== 200 || !data.data?.toys) {
       return new Response(
-        JSON.stringify({ error: `API returned code ${data.code}` }),
+        JSON.stringify({ error: `API returned code ${data.code}`, raw: data }),
         {
           headers: {
             "Content-Type": "application/json",
@@ -6530,7 +6547,15 @@ export async function handleTestLovenseConnection(
     }));
 
     return new Response(
-      JSON.stringify({ success: true, toys }),
+      JSON.stringify({
+        success: true,
+        toys,
+        raw: {
+          apiCode: data.code,
+          toysRaw: data.data?.toys,
+          toysParsed: toysMap,
+        },
+      }),
       {
         headers: {
           "Content-Type": "application/json",
@@ -10195,11 +10220,18 @@ export function handleGetVoiceStatus(ctx: RouteContext): Response {
   const settings = ctx.getVoiceSettings();
   const sessionManager = getVoiceSessionManager();
 
+  // Include active profile's STT/TTS providers for diagnostics.
+  const profile =
+    settings.profiles.find((p) => p.id === settings.activeProfileId) ??
+      settings.profiles[0];
+
   return new Response(
     JSON.stringify({
       enabled: settings.enabled,
       activeProfileId: settings.activeProfileId,
       activeSessions: sessionManager.activeSessionCount,
+      sttProvider: profile?.providerSettings.stt.provider ?? "unknown",
+      ttsProvider: profile?.providerSettings.tts.provider ?? "unknown",
     }),
     { headers: { "Content-Type": "application/json" } },
   );
@@ -10328,6 +10360,7 @@ export function handleVoiceWebSocket(
       profile,
       entityTurn,
       voiceSuffix,
+      false,
     );
 
     if ("error" in result) {
@@ -10400,7 +10433,6 @@ export function handleVoiceCallFragment(
   const html = renderVoiceCallView(
     conversationId,
     profile,
-    settings.pttEnabled ?? false,
     settings.pttKeys ?? ["Space"],
     settings.voiceChatDebug ?? false,
   );
