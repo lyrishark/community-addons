@@ -22,11 +22,11 @@ Deno.test({
 
     assertStringIncludes(
       html,
-      "/css/main.css?v=everything-together-0.1.0-rc.1",
+      "/css/main.css?v=everything-together-0.1.0-rc.2",
     );
     assertStringIncludes(
       html,
-      "/js/psycheros.js?v=everything-together-0.1.0-rc.1",
+      "/js/psycheros.js?v=everything-together-0.1.0-rc.2",
     );
   },
 });
@@ -41,7 +41,7 @@ Deno.test({
 
     assertStringIncludes(
       sw,
-      "psycheros-offline-__VERSION__-everything-together-0-1-0-rc-1",
+      "psycheros-offline-__VERSION__-everything-together-0-1-0-rc-2",
     );
     assertStringIncludes(sw, 'path === "/"');
     assertFalse(sw.includes('  "/",'));

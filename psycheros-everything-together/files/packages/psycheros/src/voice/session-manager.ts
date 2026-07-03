@@ -37,6 +37,8 @@ export type PrepareVoiceTextTurn = (
   attachmentIds: string[],
 ) => Promise<string>;
 
+export type VoiceUserTurnAccepted = (text: string) => void;
+
 export interface VoiceSession {
   id: string;
   conversationId: string;
@@ -149,6 +151,7 @@ export class VoiceSessionManager {
     voiceSuffix: string,
     pttEnabled: boolean,
     prepareTextTurn?: PrepareVoiceTextTurn,
+    onUserTurnAccepted?: VoiceUserTurnAccepted,
   ): { session: VoiceSession } | { error: string } {
     // Multi-device lock: reject if conversation already in voice
     const existingId = this.conversationLocks.get(conversationId);
@@ -163,6 +166,7 @@ export class VoiceSessionManager {
       entityTurn,
       conversationId,
       systemPromptSuffix: voiceSuffix,
+      onUserTurnAccepted,
     });
 
     const session: VoiceSession = {

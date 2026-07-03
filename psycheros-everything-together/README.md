@@ -1,6 +1,6 @@
 # Psycheros Everything Together
 
-Release candidate: `0.1.0-rc.1`  
+Release candidate: `0.1.0-rc.2`  
 Compatible with Psycheros: `0.8.23`
 
 This is the combined community bundle for the upgrades that touch the same chat,
@@ -22,6 +22,9 @@ be tested before a stable release.
   missing response.
 - Voice expression fix: expression state from voice responses is forwarded to
   the voice overlay.
+- Voice-started chats auto-generate titles from the first accepted user turn.
+- Queued Yin Yang typed voice turns now drain after ordinary voice responses,
+  not only after Pulse responses.
 
 ## Expression Toggle
 

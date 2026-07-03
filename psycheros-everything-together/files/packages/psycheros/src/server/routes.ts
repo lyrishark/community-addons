@@ -11124,6 +11124,20 @@ export function handleVoiceWebSocket(
         ? `\n\n${profile.customInstructions}`
         : "");
 
+    let voiceAutoTitleStarted = false;
+    const maybeStartVoiceAutoTitle = (userMessage: string): void => {
+      if (voiceAutoTitleStarted) return;
+      const conversation = ctx.db.getConversation(conversationId);
+      if (!conversation || conversation.title) return;
+      const existingMessages = ctx.db.getMessages(conversationId);
+      if (existingMessages.length !== 0) return;
+
+      voiceAutoTitleStarted = true;
+      void generateAndSetTitle(conversationId, userMessage, ctx.db, {
+        activeProfile,
+      });
+    };
+
     const result = sessionManager.createSession(
       conversationId,
       profile.id,
@@ -11142,6 +11156,7 @@ export function handleVoiceWebSocket(
           ? `${markers.join("\n")}\n${bodyText}`
           : bodyText;
       },
+      maybeStartVoiceAutoTitle,
     );
 
     if ("error" in result) {

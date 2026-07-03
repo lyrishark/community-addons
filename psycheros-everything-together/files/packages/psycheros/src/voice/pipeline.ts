@@ -40,6 +40,16 @@ import {
 import { streamTTS } from "./tts.ts";
 import { transcribe } from "./stt.ts";
 
+type TextTurnOptions = {
+  applyCorrections?: boolean;
+  queueWhileBusy?: boolean;
+};
+
+interface QueuedUserTextTurn {
+  text: string;
+  options: TextTurnOptions;
+}
+
 export type WalkieTalkieState =
   | "idle"
   | "recording"
@@ -67,6 +77,8 @@ export interface WalkieTalkieSessionOptions {
   conversationId: string;
   /** Appended to EntityTurn's system message (VOICE CHAT MODE note + customInstructions) */
   systemPromptSuffix: string;
+  /** Called when a real user voice/text turn is accepted for processing. */
+  onUserTurnAccepted?: (text: string) => void;
 }
 
 export class WalkieTalkieSession {
@@ -88,13 +100,15 @@ export class WalkieTalkieSession {
    * entity response are still dropped — see isEntityMidResponse guard.)
    */
   private _isPulseTurn = false;
-  private queuedUserTranscript: string | null = null;
+  private queuedUserTurns: QueuedUserTextTurn[] = [];
+  private onUserTurnAccepted?: (text: string) => void;
 
   constructor(opts: WalkieTalkieSessionOptions) {
     this.profile = opts.profile;
     this.entityTurn = opts.entityTurn;
     this.conversationId = opts.conversationId;
     this.systemPromptSuffix = opts.systemPromptSuffix;
+    this.onUserTurnAccepted = opts.onUserTurnAccepted;
   }
 
   get state(): WalkieTalkieState {
@@ -169,6 +183,7 @@ export class WalkieTalkieSession {
         this.setState("idle");
         return;
       }
+      this.notifyUserTurnAccepted(text);
       await this.runEntityTurn(text);
     } catch (err) {
       this.emit({
@@ -178,6 +193,7 @@ export class WalkieTalkieSession {
       this.setState("idle");
     } finally {
       this.currentTurnAbort = null;
+      this.drainQueuedUserTurn();
     }
   }
 
@@ -191,7 +207,7 @@ export class WalkieTalkieSession {
    */
   async processTextTurn(
     rawText: string,
-    options: { applyCorrections?: boolean; queueWhileBusy?: boolean } = {},
+    options: TextTurnOptions = {},
   ): Promise<void> {
     if (this._stopped) return;
     // If the entity is mid-response to a NORMAL user turn (not a Pulse),
@@ -204,7 +220,7 @@ export class WalkieTalkieSession {
     // turn should still go through once the Pulse finishes.
     if (this.isEntityMidResponse()) {
       if (this._isPulseTurn || options.queueWhileBusy) {
-        this.queuedUserTranscript = rawText;
+        this.queuedUserTurns.push({ text: rawText, options: { ...options } });
       }
       return;
     }
@@ -213,6 +229,7 @@ export class WalkieTalkieSession {
       : applySTTCorrections(rawText.trim(), this.profile);
     if (!text) return;
 
+    this.notifyUserTurnAccepted(text);
     this.setState("processing");
     this.currentTurnAbort = new AbortController();
     try {
@@ -225,6 +242,7 @@ export class WalkieTalkieSession {
       this.setState("idle");
     } finally {
       this.currentTurnAbort = null;
+      this.drainQueuedUserTurn();
     }
   }
 
@@ -273,19 +291,7 @@ export class WalkieTalkieSession {
     } finally {
       this.currentTurnAbort = null;
       this._isPulseTurn = false;
-      // If the user's transcript arrived during the Pulse response (race
-      // case the userSpeaking guard didn't catch), process it now that
-      // the pipeline is idle again.
-      const queued = this.queuedUserTranscript;
-      this.queuedUserTranscript = null;
-      if (queued && !this._stopped) {
-        // Defer slightly so the idle state event fires first and any
-        // pending Pulse drain check runs (otherwise we'd jump straight
-        // into another turn before the session manager sees idle).
-        setTimeout(() => {
-          void this.processTextTurn(queued);
-        }, 0);
-      }
+      this.drainQueuedUserTurn();
     }
   }
 
@@ -332,6 +338,26 @@ export class WalkieTalkieSession {
    */
   private isEntityMidResponse(): boolean {
     return this._state === "processing" || this._state === "speaking";
+  }
+
+  private notifyUserTurnAccepted(text: string): void {
+    try {
+      this.onUserTurnAccepted?.(text);
+    } catch (err) {
+      console.error("[Voice:pipeline] onUserTurnAccepted threw:", err);
+    }
+  }
+
+  private drainQueuedUserTurn(): void {
+    if (this._stopped || this.queuedUserTurns.length === 0) return;
+    const queued = this.queuedUserTurns.shift();
+    if (!queued) return;
+    // Defer slightly so the idle state event fires first and any pending
+    // Pulse drain check runs before the next user turn starts.
+    setTimeout(() => {
+      if (this._stopped) return;
+      void this.processTextTurn(queued.text, queued.options);
+    }, 0);
   }
 
   /**

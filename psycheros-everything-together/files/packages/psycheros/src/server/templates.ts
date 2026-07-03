@@ -53,7 +53,7 @@ import { pulseIconSvg } from "../pulse/templates.ts";
 import type { ExtractionHealth } from "../mcp-client/mod.ts";
 import { getWearableConnectionManager } from "../wearable/mod.ts";
 
-const WEB_ASSET_VERSION = "everything-together-0.1.0-rc.1";
+const WEB_ASSET_VERSION = "everything-together-0.1.0-rc.2";
 
 // =============================================================================
 // Utilities

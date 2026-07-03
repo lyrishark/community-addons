@@ -33,7 +33,7 @@ let expressionDisplaySettings = null;
 let expressionDisplaySettingsPromise = null;
 let expressionStageState = null;
 let expressionStageResizeObserver = null;
-const CLIENT_CACHE_VERSION = 'everything-together-0.1.0-rc.1';
+const CLIENT_CACHE_VERSION = 'everything-together-0.1.0-rc.2';
 const CLIENT_CACHE_VERSION_KEY = 'psycheros.clientCacheVersion';
 
 // General settings (display names)
@@ -7453,3 +7453,4 @@ globalThis.toggleVoiceChatDebug = toggleVoiceChatDebug;
 globalThis.clearVoiceChatDebugLog = clearVoiceChatDebugLog;
 globalThis.copyVoiceChatDebugLog = copyVoiceChatDebugLog;
 globalThis.runVoiceChatTest = runVoiceChatTest;
+

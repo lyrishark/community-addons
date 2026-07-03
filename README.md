@@ -346,6 +346,8 @@ Current release-candidate features:
 - Includes screen presence alpha for chat and voice.
 - Includes expression sprites, voice expression overlay forwarding, and the
   missing-response regenerate button.
+- Includes voice-started chat auto-titling and queued Yin Yang typed-turn
+  draining.
 - Promotes Settings > Vision > Expressions > Show Expression Display as the
   expression master toggle.
 - Checks for Psycheros 0.8.23 and backs up replaced files during install.
@@ -389,7 +391,7 @@ Release downloads are published through GitHub Releases:
 - [Psycheros More Uploads + Voice Text Resize v0.1.0](https://github.com/lyrishark/community-addons/releases/tag/psycheros-more-uploads-voice-resize-v0.1.0):
   download the ZIP, unzip it, run `install.ps1` on Windows or `install.sh` on
   macOS/Linux, then try uploads and the resizable Yin Yang typed voice input
-- [Psycheros Everything Together v0.1.0-rc.1](https://github.com/lyrishark/community-addons/releases/tag/psycheros-everything-together-v0.1.0-rc.1):
+- [Psycheros Everything Together v0.1.0-rc.2](https://github.com/lyrishark/community-addons/releases/tag/psycheros-everything-together-v0.1.0-rc.2):
   prerelease bundle for Psycheros 0.8.23; download the ZIP, unzip it, run
   `install.ps1` on Windows or `install.sh` on macOS/Linux, then use
   Settings > Vision > Expressions > Show Expression Display as the expression
