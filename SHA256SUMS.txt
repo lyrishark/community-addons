@@ -18,3 +18,4 @@ a4ccab1dcacc557f7f1a7499a9629aa52a050e8d8adf94a2f0bd5b45a871b4b4  psycheros-voic
 44a99e93d17c8aed3e275fb97a142995472a528d85d9f4d0d2cf53b7e85e8a5a  psycheros-more-uploads-0.1.0.zip
 896004e079c9c5b2a96d4660cbdbadc244eab2f257781827a5dbbd86aae5f905  psycheros-more-uploads-voice-resize-0.1.0.zip
 46045ad8c4998a256acf9c18a38e582a01429304276a1122899cc43ab1a1e845  psycheros-everything-together-0.1.0-rc.1.zip
+bbf40d733c7917df67c7e7ee399d4d3e7ac9af7cf7f103b28be67c238b012dec  psycheros-expression-sprites-beta-0.1.5.zip

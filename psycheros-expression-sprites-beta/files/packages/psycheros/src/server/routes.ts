@@ -6547,7 +6547,7 @@ export async function handleTestLovenseConnection(
 
     if (data.code !== 200 || !data.data?.toys) {
       return new Response(
-        JSON.stringify({ error: `API returned code ${data.code}` }),
+        JSON.stringify({ error: `API returned code ${data.code}`, raw: data }),
         {
           headers: {
             "Content-Type": "application/json",
@@ -6577,7 +6577,15 @@ export async function handleTestLovenseConnection(
     }));
 
     return new Response(
-      JSON.stringify({ success: true, toys }),
+      JSON.stringify({
+        success: true,
+        toys,
+        raw: {
+          apiCode: data.code,
+          toysRaw: data.data?.toys,
+          toysParsed: toysMap,
+        },
+      }),
       {
         headers: {
           "Content-Type": "application/json",

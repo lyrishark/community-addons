@@ -19,7 +19,9 @@ It is not an official Psycheros release.
   sprite, or show nothing.
 - Displays the latest sprite in a visual-novel-style chat stage that works on
   desktop and mobile.
+- Forwards expression sprites into the live voice-call overlay.
 - Adds desktop/mobile side settings for the sprite stage.
+- Promotes Show Expression Display as the master expression toggle in settings.
 - Adds an entity-only hidden directive so the entity can override the automatic
   expression detector without showing a correction prompt to the human.
 
@@ -28,13 +30,14 @@ sprite set.
 
 ## Compatibility
 
-Version 0.1.4 is tested for **Psycheros 0.8.22**. The installer refuses other
-versions before changing files.
+Version 0.1.5 is tested for **Psycheros 0.8.23**. The installer refuses other
+versions before changing files. Use v0.1.4 for Psycheros 0.8.22.
 
 This package replaces shared chat, server, UI, docs, test, and lock files. Close
 Psycheros and back up local source edits before installing it.
 
-This add-on intentionally does **not** include screen sharing.
+This add-on intentionally does **not** include screen sharing, More Uploads,
+Voice Text Resize, font settings, or shell fixes.
 
 ## Install on Windows
 
@@ -55,13 +58,13 @@ If the installer cannot find your Psycheros source folder, run it with the path:
 ```
 
 The selected folder must contain `packages\psycheros\deno.json`. The installer
-checks for Psycheros 0.8.22 and creates a timestamped backup before replacing
+checks for Psycheros 0.8.23 and creates a timestamped backup before replacing
 any files.
 
 After install, fully quit and relaunch Psycheros so the embedded desktop app
 loads the add-on's refreshed app shell.
 
-If Psycheros says it is running 0.8.22 but the installer reports an older
+If Psycheros says it is running 0.8.23 but the installer reports an older
 source version, point the installer at the launcher-managed `source` folder
 instead of an older downloaded checkout.
 
@@ -84,7 +87,7 @@ If the installer cannot find your Psycheros source folder, run it with the path:
 ```
 
 The selected folder must contain `packages/psycheros/deno.json`. The installer
-checks for Psycheros 0.8.22 and creates a timestamped backup before replacing
+checks for Psycheros 0.8.23 and creates a timestamped backup before replacing
 any files.
 
 After install, fully quit and relaunch Psycheros so the embedded desktop app
@@ -96,7 +99,7 @@ On Linux, the launcher-managed source folder is usually:
 ./install.sh "$HOME/.local/share/Psycheros/source"
 ```
 
-If Psycheros says it is running 0.8.22 but the installer reports an older
+If Psycheros says it is running 0.8.23 but the installer reports an older
 source version, point the installer at the launcher-managed `source` folder
 instead of an older downloaded checkout.
 
@@ -116,6 +119,7 @@ From there you can:
 - choose fallback behavior for missing sprites
 - choose frame/background cleanup behavior
 - choose which side the stage appears on for desktop and mobile
+- use Show Expression Display as the master expression switch
 
 During a turn, Psycheros gives the entity a private check:
 
@@ -136,14 +140,16 @@ checkerboard cleanup enabled and re-upload it.
 
 Start Psycheros, open a chat, and send a message that should produce a visible
 emotion. The entity header should show an expression label, and configured
-sprites should appear in the chat stage.
+sprites should appear in the chat stage. In a voice call, configured sprites
+should also appear in the live call overlay.
 
 Developers can run:
 
 ```powershell
-deno check packages/psycheros/src/main.ts
+deno check packages/psycheros/src/server/server.ts packages/psycheros/src/entity/loop.ts packages/psycheros/src/voice/pipeline.ts packages/psycheros/src/voice/session-manager.ts
 node --check packages/psycheros/web/js/psycheros.js
-deno test -A packages/psycheros/tests/expression_classifier_test.ts packages/psycheros/tests/expression_sprites_test.ts packages/psycheros/tests/expression_checkerboard_test.ts
+node --check packages/psycheros/web/js/voice.js
+deno test -A packages/psycheros/tests/expression_classifier_test.ts packages/psycheros/tests/expression_sprites_test.ts packages/psycheros/tests/expression_checkerboard_test.ts packages/psycheros/tests/expression_settings_nav_test.ts
 deno test -A packages/psycheros/tests
 ```
 

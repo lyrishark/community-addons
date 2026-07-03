@@ -22,7 +22,7 @@ This repository currently contains:
    patch for systems where the shell tool cannot spawn `sh`.
 8. **Psycheros Screen Presence Alpha** - a Psycheros 0.8.20 file mod that adds
    screen-share presence to text chat and voice mode.
-9. **Psycheros Expression Sprites Beta** - a Psycheros 0.8.22 file mod that adds
+9. **Psycheros Expression Sprites Beta** - a Psycheros 0.8.23 file mod that adds
    live expression detection and SillyTavern-style sprite display.
 10. **Psycheros More Uploads** - a Psycheros 0.8.23 file mod that adds
     multiple image uploads and document attachments to chat and Yin Yang typed
@@ -239,13 +239,16 @@ Current beta features:
 - Cleans common fake checkerboard transparency during upload/import.
 - Provides missing-sprite fallback options.
 - Displays the latest sprite in a desktop/mobile visual-novel-style chat stage.
-- Adds desktop/mobile side settings and entity-only hidden expression overrides.
+- Forwards expression sprites into the live voice-call overlay.
+- Adds desktop/mobile side settings, a clearer expression master toggle, and
+  entity-only hidden expression overrides.
 - Refreshes Psycheros web caches for launcher-embedded desktop views.
-- Checks for Psycheros 0.8.22 and backs up replaced files during install.
+- Checks for Psycheros 0.8.23 and backs up replaced files during install.
 - Includes Windows and macOS/Linux installers with launcher source-folder
   auto-detection.
 
-This package does not include sprite images and does not include screen sharing.
+This package does not include sprite images, screen sharing, More Uploads,
+Voice Text Resize, font settings, or shell fixes.
 
 Start here:
 
@@ -368,8 +371,13 @@ Release downloads are published through GitHub Releases:
 - [Psycheros Windows Shell Fix v0.1.1](https://github.com/lyrishark/community-addons/releases/tag/psycheros-windows-shell-fix-v0.1.1)
 - Psycheros Screen Presence Alpha v0.1.0: source package staged for alpha
   testing; release zip pending broader install testing
+- [Psycheros Expression Sprites Beta v0.1.5](https://github.com/lyrishark/community-addons/releases/tag/psycheros-expression-sprites-beta-v0.1.5):
+  current standalone expression-sprites package for Psycheros 0.8.23; download
+  the ZIP, unzip it, run `install.ps1` on Windows or `install.sh` on
+  macOS/Linux, then open Settings > Vision > Expressions
 - [Psycheros Expression Sprites Beta v0.1.4](https://github.com/lyrishark/community-addons/releases/tag/psycheros-expression-sprites-beta-v0.1.4):
-  download the ZIP, unzip it, run `install.ps1` on Windows or `install.sh` on
+  older standalone expression-sprites package for Psycheros 0.8.22; download
+  the ZIP, unzip it, run `install.ps1` on Windows or `install.sh` on
   macOS/Linux, then open Settings > Vision > Expressions
 - [Psycheros Voice Text Resize v0.1.0](https://github.com/lyrishark/community-addons/releases/tag/psycheros-voice-text-resize-v0.1.0):
   download the ZIP, unzip it, run `install.ps1` on Windows or `install.sh` on
@@ -408,7 +416,7 @@ Checksums are in [SHA256SUMS.txt](SHA256SUMS.txt).
   refuse other versions before install.
 - The Screen Presence Alpha is visibly labeled as a Psycheros 0.8.20 file
   replacement and includes a backup script.
-- The Expression Sprites Beta is visibly labeled as a Psycheros 0.8.22 file
+- The Expression Sprites Beta is visibly labeled as a Psycheros 0.8.23 file
   replacement, refuses unsupported versions, backs up files, and keeps
   expression state as live UI rather than memory.
 - The Voice Text Resize add-on is visibly labeled as a Psycheros 0.8.23 file

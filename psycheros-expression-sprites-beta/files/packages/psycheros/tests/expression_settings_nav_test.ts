@@ -1,6 +1,9 @@
 import { assertFalse, assertStringIncludes } from "@std/assert";
 import { getDefaultImageGenSettings } from "../src/llm/image-gen-settings.ts";
-import { renderAppShell, renderVisionSettings } from "../src/server/templates.ts";
+import {
+  renderAppShell,
+  renderVisionSettings,
+} from "../src/server/templates.ts";
 
 Deno.test("vision settings initial tab bar exposes expressions", () => {
   const html = renderVisionSettings(getDefaultImageGenSettings());
@@ -11,18 +14,19 @@ Deno.test("vision settings initial tab bar exposes expressions", () => {
 });
 
 Deno.test({
-  name: "expression sprite addon stamps client assets for webview cache refresh",
+  name:
+    "expression sprite addon stamps client assets for webview cache refresh",
   permissions: { env: ["PSYCHEROS_ACCENT_COLOR"] },
   fn() {
     const html = renderAppShell();
 
     assertStringIncludes(
       html,
-      '/css/main.css?v=expression-sprites-beta-0.1.4',
+      "/css/main.css?v=expression-sprites-beta-0.1.5",
     );
     assertStringIncludes(
       html,
-      '/js/psycheros.js?v=expression-sprites-beta-0.1.4',
+      "/js/psycheros.js?v=expression-sprites-beta-0.1.5",
     );
   },
 });
@@ -37,7 +41,7 @@ Deno.test({
 
     assertStringIncludes(
       sw,
-      "psycheros-offline-__VERSION__-expression-sprites-beta-0-1-4",
+      "psycheros-offline-__VERSION__-expression-sprites-beta-0-1-5",
     );
     assertStringIncludes(sw, 'path === "/"');
     assertFalse(sw.includes('  "/",'));

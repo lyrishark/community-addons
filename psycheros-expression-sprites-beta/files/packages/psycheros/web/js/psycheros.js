@@ -3017,6 +3017,43 @@ function renderExpressionStage(expressionState) {
   updateExpressionStageBottom();
 }
 
+async function renderVoiceExpressionStage(expressionState) {
+  const stage = document.getElementById('voice-expression-stage');
+  if (!stage) return;
+  await loadExpressionDisplaySettings();
+
+  if (!expressionState) {
+    stage.hidden = true;
+    stage.innerHTML = '';
+    delete stage.dataset.expressionLabel;
+    return;
+  }
+
+  const display = resolveExpressionDisplay(expressionState);
+  if (!display.sprite) {
+    stage.hidden = true;
+    stage.innerHTML = '';
+    delete stage.dataset.expressionLabel;
+    return;
+  }
+
+  const settings = expressionDisplaySettings || getDefaultExpressionDisplaySettings();
+  const url = '/expression-sprites/' + encodeURIComponent(display.sprite.filename);
+  const subtitle = settings.showSubtitle
+    ? `<div class="voice-expression-stage-label">${escapeHtml(display.displayLabel)}</div>`
+    : '';
+
+  writeExpressionDataset(stage, display.label, expressionState);
+  stage.title = display.title;
+  stage.innerHTML = `
+    <div class="voice-expression-stage-shell">
+      <img class="voice-expression-stage-img" src="${escapeHtml(url)}" alt="${escapeHtml(display.displayLabel)}" loading="lazy">
+      ${subtitle}
+    </div>
+  `;
+  stage.hidden = false;
+}
+
 function hydrateExpressionStageFromDocument() {
   const messages = document.getElementById('messages');
   if (!messages) {
@@ -5455,6 +5492,7 @@ globalThis.Psycheros = {
   autoScrollJump: () => AutoScroll.jumpToBottom(),
   // Voice chat
   startVoiceCall,
+  renderVoiceExpressionStage,
 };
 
 // Show voice call button only inside an open conversation — voice needs a

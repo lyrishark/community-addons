@@ -52,7 +52,7 @@ import { pulseIconSvg } from "../pulse/templates.ts";
 import type { ExtractionHealth } from "../mcp-client/mod.ts";
 import { getWearableConnectionManager } from "../wearable/mod.ts";
 
-const WEB_ASSET_VERSION = "expression-sprites-beta-0.1.4";
+const WEB_ASSET_VERSION = "expression-sprites-beta-0.1.5";
 
 // =============================================================================
 // Utilities
@@ -5950,6 +5950,10 @@ function renderLovenseTab(
       <div id="lovense-toys-list" style="display:none; margin-top: var(--sp-2);">
         <div class="lovense-toys-grid"></div>
       </div>
+      <details id="lovense-raw-response" style="display:none; margin-top: var(--sp-2);">
+        <summary style="cursor:pointer; font-size: 0.85rem; color: var(--c-fg-muted);">Raw API Response</summary>
+        <pre class="lovense-raw-pre" style="background: var(--c-bg); border: 1px solid var(--c-border); border-radius: var(--radius-md); padding: var(--sp-2); font-size: 0.75rem; line-height: 1.4; overflow-x: auto; max-height: 360px; overflow-y: auto; white-space: pre-wrap; word-break: break-word;"></pre>
+      </details>
     </section>
 
     <!-- Custom Instructions -->
@@ -6039,6 +6043,8 @@ function renderLovenseTab(
       const btn = document.getElementById('lovense-test-btn');
       const statusEl = document.getElementById('lovense-test-status');
       const toysEl = document.getElementById('lovense-toys-list');
+      const rawEl = document.getElementById('lovense-raw-response');
+      const rawPre = rawEl?.querySelector('.lovense-raw-pre');
 
       if (!btn || !statusEl || !toysEl) return;
       btn.disabled = true;
@@ -6047,6 +6053,7 @@ function renderLovenseTab(
       statusEl.className = 'llm-status info';
       statusEl.textContent = 'Connecting to Lovense Connect via server...';
       toysEl.style.display = 'none';
+      if (rawEl) rawEl.style.display = 'none';
 
       const domain = document.getElementById('lovense-domain')?.value?.trim() ?? '';
       const port = parseInt(document.getElementById('lovense-port')?.value ?? '20010') || 20010;
@@ -6069,13 +6076,22 @@ function renderLovenseTab(
       })
         .then(r => r.json())
         .then(data => {
+          const showRaw = (payload) => {
+            if (rawEl && rawPre && payload != null) {
+              rawPre.textContent = typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2);
+              rawEl.style.display = 'block';
+            }
+          };
           if (data.error) {
             statusEl.className = 'llm-status error';
             statusEl.textContent = data.error;
+            showRaw(data.raw);
             btn.disabled = false;
             btn.textContent = 'Test Connection';
             return;
           }
+
+          showRaw(data.raw);
 
           const toys = data.toys || [];
           const grid = toysEl.querySelector('.lovense-toys-grid');
@@ -7637,6 +7653,11 @@ export function renderVisionExpressionsTab(
   <style>
     .expression-settings-summary { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4); background: var(--c-bg-hover); border: 1px solid var(--c-border); border-radius: var(--radius-md); margin-bottom: var(--sp-4); color: var(--c-fg-muted); font-size: var(--font-size-sm); }
     .expression-settings-summary strong { color: var(--c-fg); }
+    .expression-display-primary { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-3); padding: var(--sp-4); margin-bottom: var(--sp-4); border: 1px solid var(--c-border); border-radius: var(--radius-md); background: color-mix(in srgb, var(--c-accent) 8%, var(--c-bg-hover)); }
+    .expression-display-primary-copy { min-width: min(100%, 280px); flex: 1 1 320px; }
+    .expression-display-primary-title { color: var(--c-fg); font-size: var(--font-size-lg); font-weight: 700; line-height: 1.2; }
+    .expression-display-primary-desc { margin-top: var(--sp-1); color: var(--c-fg-muted); font-size: var(--font-size-sm); line-height: 1.4; }
+    .expression-display-primary .toggle-label { margin-left: auto; }
     .expression-settings-controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: var(--sp-3); align-items: end; }
     .expression-settings-import { display: flex; flex-wrap: wrap; gap: var(--sp-3); align-items: end; margin-top: var(--sp-4); }
     .expression-settings-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: var(--sp-3); }
@@ -7663,16 +7684,21 @@ export function renderVisionExpressionsTab(
       <span>Transparent PNG/WebP sprites sit cleanest over chat backgrounds.</span>
     </div>
 
-    <div class="expression-settings-controls">
-      <div class="llm-field">
-        <label class="toggle-label">
-          <input type="checkbox" id="expr-enabled" role="switch" aria-label="Show expression display" ${
+    <div class="expression-display-primary">
+      <div class="expression-display-primary-copy">
+        <div class="expression-display-primary-title">Show Expression Display</div>
+        <div class="expression-display-primary-desc">Master switch for expression labels and sprite display in chat and voice.</div>
+      </div>
+      <label class="toggle-label">
+        <input type="checkbox" id="expr-enabled" role="switch" aria-label="Show expression display" ${
     settings.enabled ? "checked" : ""
   }>
-          <span class="toggle-slider"></span>
-          <span class="toggle-text">Show expression display</span>
-        </label>
-      </div>
+        <span class="toggle-slider"></span>
+        <span class="toggle-text">Enabled</span>
+      </label>
+    </div>
+
+    <div class="expression-settings-controls">
       <div class="llm-field">
         <label class="toggle-label">
           <input type="checkbox" id="expr-sprites-enabled" role="switch" aria-label="Use sprite images" ${
@@ -9474,6 +9500,7 @@ export function renderVoiceCallView(
     </div>
 
     <div class="voice-transcript" id="voice-transcript" aria-live="polite"></div>
+    <div class="voice-expression-stage" id="voice-expression-stage" aria-live="polite" hidden></div>
 
     <div class="voice-text-input-area" id="voice-text-input-area" style="display: none;">
       <textarea

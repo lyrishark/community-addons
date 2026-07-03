@@ -142,3 +142,38 @@ Deno.test("expression sprite protocol gives my valid directive labels", () => {
     assertStringIncludes(EXPRESSION_SPRITE_PROTOCOL, label);
   }
 });
+
+Deno.test("voice chat forwards expression state to the overlay sprite stage", async () => {
+  const pipeline = await Deno.readTextFile(
+    new URL("../src/voice/pipeline.ts", import.meta.url),
+  );
+  const sessionManager = await Deno.readTextFile(
+    new URL("../src/voice/session-manager.ts", import.meta.url),
+  );
+  const voiceJs = await Deno.readTextFile(
+    new URL("../web/js/voice.js", import.meta.url),
+  );
+  const psycherosJs = await Deno.readTextFile(
+    new URL("../web/js/psycheros.js", import.meta.url),
+  );
+  const voiceCss = await Deno.readTextFile(
+    new URL("../web/css/voice.css", import.meta.url),
+  );
+  const templates = await Deno.readTextFile(
+    new URL("../src/server/templates.ts", import.meta.url),
+  );
+
+  assertStringIncludes(
+    pipeline,
+    '{ type: "expression_state"; state: ExpressionState }',
+  );
+  assertStringIncludes(pipeline, 'event.type === "expression_state"');
+  assertStringIncludes(sessionManager, 'type: "expression_state"');
+  assertStringIncludes(voiceJs, "case 'expression_state':");
+  assertStringIncludes(
+    psycherosJs,
+    "async function renderVoiceExpressionStage",
+  );
+  assertStringIncludes(templates, 'id="voice-expression-stage"');
+  assertStringIncludes(voiceCss, ".voice-expression-stage");
+});
