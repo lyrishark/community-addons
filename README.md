@@ -32,6 +32,9 @@ This repository currently contains:
 12. **Psycheros More Uploads + Voice Text Resize** - a Psycheros 0.8.23 combo
     file mod for people who want both upload expansion and the resizable Yin
     Yang typed voice box without standalone package overwrite conflicts.
+13. **Psycheros Everything Together** - a Psycheros 0.8.23 release candidate
+    bundle for uploads, voice resize, fonts, Windows shell handling, screen
+    presence, and expression sprites.
 
 These are community addons, not official Psycheros releases.
 
@@ -325,6 +328,32 @@ Start here:
 
 - [More uploads + voice text resize README](psycheros-more-uploads-voice-resize/README.md)
 
+### Psycheros Everything Together
+
+Location:
+
+```text
+psycheros-everything-together/
+```
+
+Current release-candidate features:
+
+- Includes More Uploads and Voice Text Resize behavior in one merged surface.
+- Includes accessible font settings and host-platform shell handling.
+- Includes screen presence alpha for chat and voice.
+- Includes expression sprites, voice expression overlay forwarding, and the
+  missing-response regenerate button.
+- Promotes Settings > Vision > Expressions > Show Expression Display as the
+  expression master toggle.
+- Checks for Psycheros 0.8.23 and backs up replaced files during install.
+
+This package is published as a prerelease while expression/screen-presence QA
+continues.
+
+Start here:
+
+- [Everything Together README](psycheros-everything-together/README.md)
+
 ## Downloads
 
 Release downloads are published through GitHub Releases:
@@ -352,6 +381,11 @@ Release downloads are published through GitHub Releases:
 - [Psycheros More Uploads + Voice Text Resize v0.1.0](https://github.com/lyrishark/community-addons/releases/tag/psycheros-more-uploads-voice-resize-v0.1.0):
   download the ZIP, unzip it, run `install.ps1` on Windows or `install.sh` on
   macOS/Linux, then try uploads and the resizable Yin Yang typed voice input
+- [Psycheros Everything Together v0.1.0-rc.1](https://github.com/lyrishark/community-addons/releases/tag/psycheros-everything-together-v0.1.0-rc.1):
+  prerelease bundle for Psycheros 0.8.23; download the ZIP, unzip it, run
+  `install.ps1` on Windows or `install.sh` on macOS/Linux, then use
+  Settings > Vision > Expressions > Show Expression Display as the expression
+  master toggle
 
 Checksums are in [SHA256SUMS.txt](SHA256SUMS.txt).
 

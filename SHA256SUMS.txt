@@ -17,3 +17,4 @@ a4ccab1dcacc557f7f1a7499a9629aa52a050e8d8adf94a2f0bd5b45a871b4b4  psycheros-voic
 50fb027be377fed801ec9ed87914d2885116dc915a0a417d1995df115b8d815d  psycheros-accessible-font-settings-0.1.3.zip
 44a99e93d17c8aed3e275fb97a142995472a528d85d9f4d0d2cf53b7e85e8a5a  psycheros-more-uploads-0.1.0.zip
 896004e079c9c5b2a96d4660cbdbadc244eab2f257781827a5dbbd86aae5f905  psycheros-more-uploads-voice-resize-0.1.0.zip
+46045ad8c4998a256acf9c18a38e582a01429304276a1122899cc43ab1a1e845  psycheros-everything-together-0.1.0-rc.1.zip
