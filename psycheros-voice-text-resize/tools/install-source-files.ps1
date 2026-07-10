@@ -207,6 +207,7 @@ function Resolve-PsycherosSourceRoot {
   Add-Candidate $Candidates (Join-Path $HOME "Documents\Psycheros")
   Add-Candidate $Candidates (Join-Path $HOME "Code\Psycheros")
   Add-Candidate $Candidates (Join-Path $HOME "Source\Psycheros")
+  Add-Candidate $Candidates "H:\Psycheros\10_local\repo"
   Add-Candidate $Candidates "H:\Psycheros"
   Add-Candidate $Candidates "H:\Cathedral Revamp - Psycheros"
   Add-Candidate $Candidates "H:\Cathedral Current - Psycheros"
