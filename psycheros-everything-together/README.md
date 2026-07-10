@@ -17,7 +17,7 @@ be tested before a stable release.
 - Windows shell fix: shell tool commands run through the host platform shell.
 - Screen presence alpha: optional chat/voice screen context sharing.
 - Expression sprites: expression detection, sprite pack import, chat display,
-  and voice-call sprite display.
+  voice-call sprite display, and the bundled Ember sprite seed pack.
 - Missing assistant turn recovery: latest user-only message can regenerate a
   missing response.
 - Voice expression fix: expression state from voice responses is forwarded to
@@ -52,6 +52,12 @@ On macOS/Linux:
 If the installer can find exactly one compatible Psycheros `0.8.23` source
 folder, the path argument can be omitted. Existing files are backed up under
 `packages/psycheros/_everything_together_backup_<timestamp>`.
+
+The installer records a marker in `packages/psycheros/.addon-installs/` and
+also checks for older backup folders. It warns when replacing More Uploads,
+Voice Text Resize, or their combo package, then removes those narrower markers
+after a successful install. Reinstalling Everything Together over itself is
+allowed.
 
 ## Dependency Note
 

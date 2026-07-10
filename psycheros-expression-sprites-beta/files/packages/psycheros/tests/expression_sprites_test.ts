@@ -1,9 +1,12 @@
-import { assertEquals, assertStringIncludes } from "@std/assert";
+import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import {
   DEFAULT_EXPRESSION_LABELS,
+  ensureBundledExpressionSpritePack,
   EXPRESSION_SPRITE_PROTOCOL,
   ExpressionDirectiveStreamFilter,
   extractExpressionDirectives,
+  getExpressionSpritePath,
+  loadExpressionDisplaySettings,
   matchExpressionLabelFromFilename,
   normalizeExpressionDisplaySettings,
   resolveExpressionDisplay,
@@ -85,6 +88,38 @@ Deno.test("expression display settings default invalid stage sides", () => {
 
   assertEquals(settings.desktopSide, "left");
   assertEquals(settings.mobileSide, "right");
+});
+
+Deno.test("bundled Ember sprite pack seeds a fresh expression data root", async () => {
+  const tempRoot = await Deno.makeTempDir();
+  try {
+    const first = await ensureBundledExpressionSpritePack(tempRoot);
+
+    assertEquals(first.available, true);
+    assertEquals(first.seeded, DEFAULT_EXPRESSION_LABELS.length);
+    assert(first.labels.includes("neutral"));
+
+    const settings = await loadExpressionDisplaySettings(tempRoot);
+    assertEquals(
+      Object.keys(settings.sprites).length,
+      DEFAULT_EXPRESSION_LABELS.length,
+    );
+    assertEquals(
+      settings.sprites.neutral.filename,
+      "ember-default-neutral.png",
+    );
+    assertEquals(settings.sprites.warmth.originalName, "Warmth.png");
+
+    const neutralInfo = await Deno.stat(
+      getExpressionSpritePath(tempRoot, settings.sprites.neutral.filename),
+    );
+    assert(neutralInfo.size > 0);
+
+    const second = await ensureBundledExpressionSpritePack(tempRoot);
+    assertEquals(second.seeded, 0);
+  } finally {
+    await Deno.remove(tempRoot, { recursive: true });
+  }
 });
 
 Deno.test("expression directive is entity-only and produces manual state", () => {

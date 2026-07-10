@@ -169,5 +169,5 @@ printf 'Backup folder: %s\n\n' "$backup_root"
 printf 'Next steps:\n'
 printf '1. Fully quit and relaunch Psycheros.\n'
 printf '2. Open Settings > Vision > Expressions.\n'
-printf '3. Import a SillyTavern-style ZIP pack or upload sprites per emotion.\n\n'
-printf 'This installer does not add sprite images. It only adds the expression display system.\n'
+printf '3. The bundled Ember sprite pack will seed missing sprite slots automatically.\n\n'
+printf 'Custom uploaded sprites are preserved; only missing or bundled default slots are filled.\n'

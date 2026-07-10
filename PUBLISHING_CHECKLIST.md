@@ -48,6 +48,10 @@ Release assets to upload:
 - `psycheros-thread-exporter-0.3.2.zip`
 - `psycheros-entity-core-codex-plugin-0.2.1.zip`
 - `psycheros-entity-core-chatgpt-private-0.1.1.zip`
+- `psycheros-more-uploads-0.1.0.zip`
+- `psycheros-voice-text-resize-0.1.0.zip`
+- `psycheros-more-uploads-voice-resize-0.1.0.zip`
+- `psycheros-everything-together-0.1.0-rc.2.zip`
 - `SHA256SUMS.txt`
 
 Generate checksums on Windows:
@@ -57,6 +61,17 @@ Get-FileHash .\psycheros-thread-exporter-0.3.2.zip -Algorithm SHA256
 Get-FileHash .\psycheros-entity-core-codex-plugin-0.2.1-share.zip -Algorithm SHA256
 Get-FileHash .\psycheros-entity-core-chatgpt-private-0.1.1.zip -Algorithm SHA256
 ```
+
+For Psycheros source-file add-ons that replace overlapping UI files, smoke-test
+the installer conflict guard before uploading:
+
+- standalone More Uploads blocks Voice Text Resize, the combo package, and
+  Everything Together markers
+- standalone Voice Text Resize blocks More Uploads, the combo package, and
+  Everything Together markers
+- More Uploads + Voice Text Resize warns when superseding either standalone
+  package and blocks Everything Together
+- Everything Together warns when superseding the narrower upload/voice packages
 
 ## 4. Publish GitHub Release
 

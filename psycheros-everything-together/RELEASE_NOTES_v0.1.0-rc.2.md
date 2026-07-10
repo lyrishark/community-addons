@@ -17,6 +17,10 @@ Target Psycheros: `0.8.23`.
   reprocessed as browser speech transcripts when the queue drains.
 - Refreshed the Everything Together app-shell/cache stamp to
   `everything-together-0.1.0-rc.2`.
+- Installers now warn when replacing More Uploads, Voice Text Resize, or their
+  combo package, then remove superseded install markers after a successful run.
+- Bundled Rae's current Ember expression sprite seed pack, so fresh installs and
+  repaired data folders can populate missing sprite slots without manual upload.
 
 ## Still Included
 
@@ -25,7 +29,7 @@ Target Psycheros: `0.8.23`.
 - Accessible font settings.
 - Windows shell handling.
 - Screen presence alpha for chat and voice.
-- Expression sprites, including voice overlay forwarding.
+- Expression sprites, including voice overlay forwarding and the Ember seed pack.
 - Missing assistant turn recovery.
 
 ## Verification

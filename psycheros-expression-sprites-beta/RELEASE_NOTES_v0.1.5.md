@@ -10,6 +10,8 @@ Current standalone expression-sprites package for Psycheros 0.8.23.
   voice window.
 - Promotes Settings > Vision > Expressions > Show Expression Display into a
   clearer master toggle above the sprite-specific settings.
+- Bundles Rae's current Ember expression sprite seed pack and auto-populates
+  missing sprite slots on fresh installs while preserving custom uploads.
 - Refreshes the add-on web asset stamp to `expression-sprites-beta-0.1.5` so
   embedded launcher/webview caches pick up the updated UI.
 - Keeps this package expression-only. It does not include More Uploads, Voice

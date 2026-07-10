@@ -7,6 +7,8 @@ Community alpha. Not an official Psycheros release.
 - ChatGPT no longer receives persistent 502 errors after a reboot or an
   accidentally closed bridge window when automatic startup is enabled.
 - The bridge now prefers Psycheros' bundled Deno executable when available.
+- OAuth access tokens that are expired or near expiry now fail quickly with a
+  refresh/reconnect message instead of letting ChatGPT wait for a timeout.
 
 ## Added
 

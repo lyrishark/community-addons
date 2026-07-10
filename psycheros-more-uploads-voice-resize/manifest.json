@@ -8,6 +8,15 @@
     "psycheros_version": "0.8.23",
     "compatible_psycheros_versions": ["0.8.23"]
   },
+  "installer": {
+    "conflicts": [
+      "psycheros-everything-together"
+    ],
+    "supersedes": [
+      "psycheros-more-uploads",
+      "psycheros-voice-text-resize"
+    ]
+  },
   "files": [
     "packages/psycheros/src/server/chat-attachments.ts",
     "packages/psycheros/src/server/routes.ts",

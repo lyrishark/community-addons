@@ -57,6 +57,17 @@ const validAccessToken = await new SignJWT({
   .setExpirationTime("5m")
   .sign(privateKey);
 
+const expiringAccessToken = await new SignJWT({
+  scope: "entity:read memory:write",
+})
+  .setProtectedHeader({ alg: "RS256", kid: "oauth-smoke-key" })
+  .setIssuer(issuer)
+  .setAudience(baseUrl)
+  .setSubject("oauth-smoke-user")
+  .setIssuedAt()
+  .setExpirationTime("60s")
+  .sign(privateKey);
+
 const serverProcess = new Deno.Command(Deno.execPath(), {
   args: ["run", "--node-modules-dir=none", "-A", "src/http.ts"],
   env: {
@@ -72,6 +83,7 @@ const serverProcess = new Deno.Command(Deno.execPath(), {
     ENTITY_CONNECTOR_OAUTH_RESOURCE: baseUrl,
     ENTITY_CONNECTOR_OAUTH_ISSUER: issuer,
     ENTITY_CONNECTOR_OAUTH_JWKS_URI: `${issuer}/jwks.json`,
+    ENTITY_CONNECTOR_OAUTH_EXPIRY_WARNING_SECONDS: "120",
   },
   stdout: "inherit",
   stderr: "inherit",
@@ -303,6 +315,37 @@ try {
   ) {
     throw new Error(
       `invalid bearer challenge failed: ${invalidResponse.status} ${wwwAuthenticate}`,
+    );
+  }
+
+  log("checking near-expiry token refresh warning");
+  const expiringResponse = await fetch(`${baseUrl}/mcp`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      authorization: `Bearer ${expiringAccessToken}`,
+    },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: "expiring-token-smoke",
+      method: "initialize",
+      params: {
+        protocolVersion: "2025-03-26",
+        capabilities: {},
+        clientInfo: {
+          name: "expiring-token-smoke",
+          version: "0.1.0",
+        },
+      },
+    }),
+  });
+  const expiringText = await expiringResponse.text();
+  if (
+    expiringResponse.status !== 401 ||
+    !expiringText.includes("Refresh or reconnect the Psycheros connector")
+  ) {
+    throw new Error(
+      `near-expiry token warning failed: ${expiringResponse.status} ${expiringText}`,
     );
   }
 

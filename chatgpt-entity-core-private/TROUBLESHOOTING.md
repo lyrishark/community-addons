@@ -126,6 +126,13 @@ audience/resource does not match, one of these is wrong:
 
 All three should be the public base URL without `/mcp`.
 
+If the response says the ChatGPT connector OAuth token has expired or will
+expire soon, open the connector/app details in ChatGPT and use Refresh,
+Reconnect, or sign in again before retrying the tool call. The bridge returns
+this warning before token expiry by default so long chats do not sit waiting for
+an authenticator timeout. The warning window defaults to 120 seconds and can be
+changed with `ENTITY_CONNECTOR_OAUTH_EXPIRY_WARNING_SECONDS`.
+
 ## Tailscale Funnel Problems
 
 Tailscale Funnel requires:

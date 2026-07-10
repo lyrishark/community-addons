@@ -327,8 +327,8 @@ background.
 - **Font Size** — slider from 12px to 28px. The setting updates the shared
   font-size CSS tokens so chat messages, controls, and settings scale together.
 - **Font Preset** — Sans, Serif, Dyslexia-friendly, and Handwriting. The
-  presets prefer optional specialty fonts when present, then fall back through
-  Windows, macOS/iOS, Android, and Linux-friendly system fonts.
+  dyslexia-friendly preset prefers OpenDyslexic, Atkinson Hyperlegible, and
+  Lexend when present, then falls back to common readable system fonts.
 
 These settings persist in `.psycheros/appearance-settings.json` alongside the
 existing theme fields: `{ "fontPreset": "sans", "fontSize": 16 }`.
@@ -459,39 +459,55 @@ Implemented in `web/js/psycheros.js` (SSE handler), `src/server/templates.ts`
 (server-side rendering), `web/css/components.css` (`.generated-image-container`,
 `.generated-image`, `.generated-image-meta`, `.generated-image-desc`).
 
-## Chat Image Attachments
+## Chat Attachments
 
-Users can attach images to chat messages for the entity to reference in
-generation or conversation.
+Users can attach images and common document files to chat messages for the
+entity to reference in generation or conversation.
 
 **Features:**
 
 - Clip icon button to the left of the chat input
-- File picker accepts images (JPEG, PNG, GIF, WebP)
-- Thumbnail preview shown below the input after selecting a file
-- Remove button to cancel the attachment before sending
-- On send, the attachment is uploaded and its ID is included in the chat request
-- The attachment is automatically captioned via the configured vision model
-  before being passed to the entity
-- The user message is prefixed with
-  `[USER_IMAGE: /chat-attachments/filename | Caption: description]` so the
-  entity understands the image content
-- If captioning fails or is not configured, falls back to path-only:
-  `[USER_IMAGE: /chat-attachments/filename]`
+- File picker accepts images plus TXT, Markdown, CSV, JSON, PDF, DOCX, and XLSX
+  files
+- Multiple attachments can be selected at once; images appear as thumbnails and
+  documents appear as compact file chips below the input
+- Attachments can also be dragged onto the composer or pasted from the
+  clipboard; these paths append to the same pending strip as picker uploads
+- Remove button on each item to cancel that attachment before sending
+- On send, uploaded attachment IDs are included in the chat request as
+  `attachmentIds`
+- Supported image attachments are automatically captioned in parallel via the
+  configured vision model before being passed to the entity
+- The user message is prefixed with one marker per image:
+  `[USER_IMAGE: /chat-attachments/filename | Image N | Caption: description]` so
+  the entity understands the image content
+- If captioning fails or is not configured, each image falls back to path-only:
+  `[USER_IMAGE: /chat-attachments/filename | Image N]`
+- Text-like and document attachments are prefixed as `[USER_FILE: ...]` blocks
+  with extracted contents for TXT, Markdown, CSV, JSON, PDF, DOCX, and XLSX
+- HTF v2 song sensory-object JSON attachments are detected by
+  `meta.schema_version = "HTF_v2"` and converted into a music playback brief
+  with the reading protocol, song anchors, phase stats, top events, standout
+  windows, chroma emphasis, and any sibling preview graphs whose filenames match
+  the HTF slug (`*_waveform.png`, `*_mel_spectrogram.png`, `*_rms_energy.png`,
+  `*_spectral_centroid.png`)
 - The entity can use `user_image_path` in `generate_image` to incorporate the
   attached image
 - The entity can use `describe_image` with the path to get a more detailed
   description
 
 **API:** `POST /api/chat-attachments` (multipart upload, max 10MB), returns
-`{ id, filename, url }`. Files stored in `.psycheros/chat-attachments/`.
-Captioning is handled server-side in `handleChat` before creating the entity
-turn.
+`{ id, filename, url, name, type, size, kind }`. Files stored in
+`.psycheros/chat-attachments/`. Captioning and document extraction are handled
+server-side in `handleChat` before creating the entity turn.
 
 Implemented in `web/js/psycheros.js` (`handleAttachment()`,
+`uploadAttachments()`, `handleComposerDrop()`, `handleComposerPaste()`,
 `removeAttachment()`), `src/server/routes.ts` (`handleUploadChatAttachment`,
 auto-caption flow), `web/css/components.css` (`.attach-btn`,
-`.attachment-preview`, `.attachment-thumb`, `.attachment-remove`).
+`.input-area.is-attachment-dragover`, `.attachment-preview`,
+`.attachment-thumb`, `.attachment-file-preview`, `.attachment-file-in-message`,
+`.attachment-remove`).
 
 ## Vision Settings
 
@@ -532,6 +548,10 @@ it is a live UI signal, not durable memory.
   title includes the label, confidence, and classifier rationale
 - Uploaded sprites are stored in `.psycheros/expression-sprites/` with settings
   in `.psycheros/expression-display-settings.json`
+- Bundled seed packs under `packages/psycheros/assets/expression-sprites/` can
+  populate missing sprite slots automatically when expression settings load; the
+  Ember seed pack fills fresh installs without overwriting custom uploaded
+  sprites
 - Chat renders the latest sprite in a visual-novel stage: desktop defaults to
   the lower-left third, mobile to the lower-right quarter
 - Entity-only correction uses a hidden `<psycheros-expression>` directive when

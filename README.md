@@ -242,13 +242,15 @@ Current beta features:
 - Forwards expression sprites into the live voice-call overlay.
 - Adds desktop/mobile side settings, a clearer expression master toggle, and
   entity-only hidden expression overrides.
+- Bundles Rae's current Ember expression sprite seed pack and auto-populates
+  missing sprite slots without overwriting custom uploads.
 - Refreshes Psycheros web caches for launcher-embedded desktop views.
 - Checks for Psycheros 0.8.23 and backs up replaced files during install.
 - Includes Windows and macOS/Linux installers with launcher source-folder
   auto-detection.
 
-This package does not include sprite images, screen sharing, More Uploads,
-Voice Text Resize, font settings, or shell fixes.
+This package does not include screen sharing, More Uploads, Voice Text Resize,
+font settings, or shell fixes.
 
 Start here:
 
@@ -273,6 +275,8 @@ Current alpha features:
   document parser.
 - Refreshes Psycheros web caches for launcher-embedded desktop views.
 - Checks for Psycheros 0.8.23 and backs up replaced files during install.
+- Refuses to install over Voice Text Resize, the combo package, or Everything
+  Together when an install marker or legacy backup folder is present.
 
 This package does not include expression sprites, screen sharing, or voice text
 resize changes.
@@ -299,6 +303,8 @@ Current alpha features:
 - Double-clicks a resize handle to return to adaptive sizing.
 - Refreshes Psycheros web caches for launcher-embedded desktop views.
 - Checks for Psycheros 0.8.23 and backs up replaced files during install.
+- Refuses to install over More Uploads, the combo package, or Everything
+  Together when an install marker or legacy backup folder is present.
 
 This package does not include expression sprites, screen sharing, or image
 attachment changes.
@@ -323,6 +329,8 @@ Current alpha features:
   files.
 - Refreshes Psycheros web caches for launcher-embedded desktop views.
 - Checks for Psycheros 0.8.23 and backs up replaced files during install.
+- Warns when superseding either standalone package, removes their install
+  markers after a successful run, and blocks Everything Together mixes.
 - Use this combo instead of installing the two standalone packages together.
 
 This package does not include expression sprites or screen sharing.
@@ -351,6 +359,8 @@ Current release-candidate features:
 - Promotes Settings > Vision > Expressions > Show Expression Display as the
   expression master toggle.
 - Checks for Psycheros 0.8.23 and backs up replaced files during install.
+- Warns when superseding More Uploads, Voice Text Resize, or their combo
+  package, then removes narrower install markers after a successful run.
 
 This package is published as a prerelease while expression/screen-presence QA
 continues.
@@ -423,11 +433,15 @@ Checksums are in [SHA256SUMS.txt](SHA256SUMS.txt).
   expression state as live UI rather than memory.
 - The Voice Text Resize add-on is visibly labeled as a Psycheros 0.8.23 file
   replacement, refuses unsupported versions, backs up files, and changes only
-  the typed voice input resize surface.
+  the typed voice input resize surface. Its installer blocks overlapping upload
+  and bundle packages.
 - The More Uploads + Voice Text Resize combo is visibly labeled as a Psycheros
   0.8.23 file replacement, refuses unsupported versions, backs up files, and
   explains why it should be used instead of installing both standalone packages
-  together.
+  together. Its installer supersedes either standalone marker and blocks
+  Everything Together mixes.
+- The Everything Together prerelease supersedes the narrower upload/voice
+  packages with an installer warning, then records its own marker.
 
 ## Issues
 

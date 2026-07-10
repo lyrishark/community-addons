@@ -26,6 +26,13 @@ versions before changing files.
 This package replaces voice UI, app-shell template, service-worker, and focused
 test files. Close Psycheros and back up local source edits before installing it.
 
+The installer records a marker in `packages/psycheros/.addon-installs/` and
+also checks for older backup folders. It refuses to install over More Uploads,
+the More Uploads + Voice Text Resize combo, or Everything Together, because
+those packages replace overlapping full UI files. Use the combo package when
+you want uploads and voice resize together, or restore the official Psycheros
+0.8.23 source before switching back to this standalone package.
+
 ## Install on Windows
 
 1. Fully quit Psycheros.

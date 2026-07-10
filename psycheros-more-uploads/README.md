@@ -27,9 +27,12 @@ versions before changing files.
 This package replaces chat/voice UI, server route, service-worker, and focused
 test files. Close Psycheros and back up local source edits before installing it.
 
-If you also use another full-file UI add-on that replaces the same files, such
-as the voice text resize add-on, install order matters. This standalone package
-contains only the upload changes.
+The installer records a marker in `packages/psycheros/.addon-installs/` and
+also checks for older backup folders. It refuses to install over Voice Text
+Resize, the More Uploads + Voice Text Resize combo, or Everything Together,
+because those packages replace overlapping full UI files. Use the combo package
+when you want uploads and voice resize together, or restore the official
+Psycheros 0.8.23 source before switching back to this standalone package.
 
 ## Install on Windows
 
@@ -104,4 +107,3 @@ Psycheros identity, memory, database, or state folders.
 
 Official source updates replace tracked mod files. Reinstall a compatible
 version of this add-on after an official update.
-

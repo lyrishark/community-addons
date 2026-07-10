@@ -24,9 +24,11 @@ It is not an official Psycheros release.
 - Promotes Show Expression Display as the master expression toggle in settings.
 - Adds an entity-only hidden directive so the entity can override the automatic
   expression detector without showing a correction prompt to the human.
+- Bundles Rae's current Ember expression sprite seed pack and automatically
+  fills missing sprite slots from it when expression settings load.
 
-No sprite images are bundled. You bring your own transparent PNG/WebP/GIF/JPEG
-sprite set.
+Custom uploaded sprites are preserved. The bundled pack only fills fresh,
+missing, or bundled default slots.
 
 ## Compatibility
 
@@ -103,7 +105,7 @@ If Psycheros says it is running 0.8.23 but the installer reports an older
 source version, point the installer at the launcher-managed `source` folder
 instead of an older downloaded checkout.
 
-## Add sprites
+## Add or replace sprites
 
 Start Psycheros, then open:
 
@@ -113,6 +115,7 @@ Settings > Vision > Expressions
 
 From there you can:
 
+- use the bundled Ember seed pack that installs with this beta
 - import a ZIP containing expression images named like `joy.png`,
   `embarrassment.webp`, `anger.gif`, etc.
 - upload one image per expression slot

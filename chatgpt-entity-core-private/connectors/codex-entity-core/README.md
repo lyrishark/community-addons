@@ -3,11 +3,11 @@
 Local MCP adapter that lets Codex talk to Psycheros `entity-core` without
 turning the connector into a second source of truth.
 
-The connector can check status, retrieve identity context, search memories/graph
-nodes, fetch an item returned by search, and record new daily or significant
-memories. Identity/core mutation is deliberately not exposed yet: ordinary
-memory writes are useful immediately, while identity changes need a review
-workflow.
+The connector can check status, retrieve identity context, read the most recent
+memories, search memories/graph nodes, fetch an item returned by search, and
+record new daily or significant memories. Identity/core mutation is deliberately
+not exposed yet: ordinary memory writes are useful immediately, while identity
+changes need a review workflow.
 
 It has two entrypoints:
 
@@ -40,6 +40,7 @@ the graph directly.
 - `entity_status` - checks the connector and canonical entity-core data path
 - `record_memory` - records a new `daily` or `significant` memory
 - `identity_context` - returns selected identity files from entity-core
+- `recent_memories` - returns newest memories without requiring a keyword
 - `search` - searches memories and knowledge graph nodes
 - `fetch` - fetches a memory, graph node, or identity file by connector ID
 
@@ -48,6 +49,12 @@ output shapes:
 
 - `search(query)` returns `{ results: [{ id, title, url, ... }] }`
 - `fetch(id)` returns `{ id, title, text, url, metadata, ... }`
+
+`recent_memories({ limit, hours, granularities })` is a complementary read-only
+tool for current continuity. Memory results from `recent_memories`, `search`,
+and `fetch` include `chatIds`, `sourceMemoryIds`, participating instances, and
+compact source-memory context when available. Keyword search uses the shared
+SQLite FTS5 index after a one-time backfill, with a filesystem fallback.
 
 Tool responses include the same object as `structuredContent` and as
 JSON-encoded text content for MCP compatibility, while preserving the richer
@@ -223,6 +230,9 @@ Useful environment variables:
 - `ENTITY_CONNECTOR_OAUTH_AUDIENCE` - optional provider API audience; when
   omitted, tokens must contain `aud` or `resource` matching
   `ENTITY_CONNECTOR_OAUTH_RESOURCE`
+- `ENTITY_CONNECTOR_OAUTH_EXPIRY_WARNING_SECONDS` - seconds before token expiry
+  when the connector should fail fast with a ChatGPT reauthorize message;
+  defaults to `120`, set `0` to disable the pre-expiry warning
 - `ENTITY_CONNECTOR_RESOURCE_DOCUMENTATION` - optional documentation URL in
   protected-resource metadata
 - `ENTITY_CONNECTOR_HTTP_ALLOW_UNAUTHENTICATED` - local smoke-test escape hatch;
