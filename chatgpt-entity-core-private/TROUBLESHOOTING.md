@@ -8,8 +8,8 @@ If automatic startup is not installed, check:
 
 1. The local bridge terminal is still open.
 2. The Tailscale Funnel terminal is still open.
-3. The ChatGPT Server URL ends in `/mcp`.
-4. The public base URL in OAuth/Auth0 does not end in `/mcp`.
+3. The ChatGPT Server URL ends in `/mcp-lite` for the lightweight app.
+4. The public base URL in OAuth/Auth0 does not end in `/mcp-lite` or `/mcp`.
 5. The tunnel URL opens from another browser or device.
 
 Run:
@@ -51,7 +51,7 @@ Common causes:
 - the tunnel URL is not reachable
 - the bridge is not running
 - CORS headers are missing because the bridge version is old
-- the ChatGPT URL was pasted without `/mcp`
+- the ChatGPT URL was pasted without `/mcp-lite`
 
 Make sure you are using a bridge version with ChatGPT CORS support.
 
@@ -85,8 +85,8 @@ Click Refresh on the app detail page.
 
 If actions still do not appear:
 
-1. Confirm the public `/mcp` endpoint returns tools.
-2. Confirm the bridge version includes output schemas and tool auth metadata.
+1. Confirm the public `/mcp-lite` endpoint returns tools.
+2. Confirm the bridge version includes tool auth metadata.
 3. Create a fresh private app only after checking the endpoint.
 
 Command-line check:
@@ -98,7 +98,7 @@ $body = @{ jsonrpc = "2.0"; id = "tools"; method = "tools/list"; params = @{} } 
 Invoke-WebRequest `
   -UseBasicParsing `
   -Method Post `
-  -Uri "https://your-machine.your-tailnet.ts.net/mcp" `
+  -Uri "https://your-machine.your-tailnet.ts.net/mcp-lite" `
   -Headers @{ Accept = "application/json" } `
   -ContentType "application/json" `
   -Body $body
@@ -107,12 +107,70 @@ Invoke-WebRequest `
 The response should include:
 
 ```text
-entity_status
-record_memory
-identity_context
 search
 fetch
+remember
 ```
+
+## ChatGPT Worked For A Few Days, Then Crashes While Connecting To App
+
+This usually points to OAuth expiry before it points to the bridge.
+
+First try:
+
+1. Open ChatGPT Settings.
+2. Open Apps.
+3. Open the Psycheros app.
+4. Click `Reconnect`.
+
+If reconnect fixes it, update the Auth0/API setup before recreating the app:
+
+1. Auth0 > Applications > APIs > Psycheros Entity Core > Settings.
+2. Turn `Allow Offline Access` on.
+3. Make sure `User-delegated Access` still allows the ChatGPT/Auth0 app.
+4. When creating the ChatGPT app, set Base scopes to:
+
+```text
+offline_access
+```
+
+Keep Default scopes as:
+
+```text
+entity:read
+memory:write
+```
+
+If ChatGPT does not let you edit OAuth scopes after creation, delete and
+recreate the private app after changing Auth0. Use the `/mcp-lite` server URL
+when you recreate it.
+
+## Browser Console Shows `QuotaExceededError` For `system-connectors`
+
+This happens inside ChatGPT before the bridge is contacted. The local bridge can
+be perfectly healthy and still receive no `/mcp-lite` request.
+
+Use the lightweight endpoint for the normal ChatGPT app:
+
+```text
+https://your-machine.your-tailnet.ts.net/mcp-lite
+```
+
+It exposes only `search`, `fetch`, and `remember`, and avoids the large
+connector inventory that can overflow ChatGPT's local `system-connectors`
+cache.
+
+The full `/mcp` endpoint also supports a smaller tool catalog. Add this line to
+`bridge.env` and restart the bridge:
+
+```text
+ENTITY_CONNECTOR_OMIT_OUTPUT_SCHEMAS=true
+```
+
+Then clear ChatGPT site data once so ChatGPT can rebuild its connector cache
+from the smaller descriptor. If the error returns even with a fresh site cache,
+the remaining problem is in ChatGPT's account-side connector inventory rather
+than the local bridge.
 
 ## Auth0 Login Works But Tool Calls Fail
 
@@ -124,7 +182,7 @@ audience/resource does not match, one of these is wrong:
 - Auth0 API Identifier
 - ChatGPT OAuth Resource field
 
-All three should be the public base URL without `/mcp`.
+All three should be the public base URL without `/mcp-lite` or `/mcp`.
 
 If the response says the ChatGPT connector OAuth token has expired or will
 expire soon, open the connector/app details in ChatGPT and use Refresh,

@@ -9,6 +9,7 @@ import { z } from "zod";
 import type { FileStore } from "../storage/mod.ts";
 import type { GraphStore } from "../graph/mod.ts";
 import type { Granularity, MemoryEntry } from "../types.ts";
+import { memoryReference, stripMemoryMetadata } from "../storage/mod.ts";
 import { getEmbedder } from "../embeddings/mod.ts";
 import type { EmbeddingCache } from "../embeddings/mod.ts";
 import { computeMemoryKey } from "../embeddings/mod.ts";
@@ -33,6 +34,7 @@ export const MemoryCreateSchema = z.object({
   date: z.string().regex(/^\d{4}(-W\d{2}|(-\d{2})?(-\d{2})?)$/),
   content: z.string().min(1),
   chatIds: z.array(z.string()).optional().default([]),
+  sourceMemoryIds: z.array(z.string()).optional(),
   instanceId: z.string().min(1),
   participatingInstances: z.array(z.string()).optional(),
   slug: z.string().optional(),
@@ -47,6 +49,14 @@ export const MemorySearchSchema = z.object({
   queryEmbedding: z.array(z.number()).optional(),
   minScore: z.number().min(0).max(1).optional(),
   maxResults: z.number().min(1).max(50).optional(),
+});
+
+/** Return the newest memories without requiring a keyword query. */
+export const MemoryRecentSchema = z.object({
+  granularities: z.array(GranularitySchema).optional(),
+  limit: z.number().int().min(1).max(50).optional(),
+  hours: z.number().min(1).max(24 * 365).optional(),
+  includeSourceContext: z.boolean().optional(),
 });
 
 /**
@@ -129,11 +139,17 @@ export interface MemoryCreateOutput {
  */
 export interface MemorySearchOutput {
   results: Array<{
+    id: string;
     granularity: string;
     date: string;
+    updatedAt: string;
     score: number;
     excerpt: string;
     sourceInstance: string;
+    slug?: string;
+    chatIds: string[];
+    sourceMemoryIds: string[];
+    sourceContext: MemorySourceExcerpt[];
     tier: string;
     ageDays: number;
     vectorScore: number;
@@ -141,6 +157,72 @@ export interface MemorySearchOutput {
   }>;
   searchMethod: "vector" | "text";
   vectorAvailable: boolean;
+}
+
+export interface MemorySourceExcerpt {
+  id: string;
+  granularity: string;
+  date: string;
+  excerpt: string;
+  sourceInstance: string;
+}
+
+export interface MemoryRecentOutput {
+  results: Array<{
+    id: string;
+    granularity: string;
+    date: string;
+    updatedAt: string;
+    excerpt: string;
+    sourceInstance: string;
+    slug?: string;
+    chatIds: string[];
+    sourceMemoryIds: string[];
+    sourceContext: MemorySourceExcerpt[];
+  }>;
+  total: number;
+  hours?: number;
+}
+
+function compactExcerpt(content: string, maxChars = 1600): string {
+  const clean = stripMemoryMetadata(content).trim();
+  return clean.length <= maxChars
+    ? clean
+    : `${clean.slice(0, maxChars).trimEnd()}...`;
+}
+
+async function sourceContextForMemory(
+  store: FileStore,
+  memory: MemoryEntry,
+  limit = 2,
+): Promise<MemorySourceExcerpt[]> {
+  const results: MemorySourceExcerpt[] = [];
+  for (const sourceId of memory.sourceMemoryIds ?? []) {
+    if (sourceId === memoryReference(memory)) continue;
+    const source = await store.readMemoryByReference(sourceId);
+    if (!source) continue;
+    results.push({
+      id: memoryReference(source),
+      granularity: source.granularity,
+      date: source.date,
+      excerpt: compactExcerpt(source.content, 700),
+      sourceInstance: source.sourceInstance,
+    });
+    if (results.length >= limit) break;
+  }
+  return results;
+}
+
+async function lineageForMemory(store: FileStore, memory: MemoryEntry) {
+  return {
+    id: memoryReference(memory),
+    updatedAt: memory.updatedAt,
+    sourceInstance: memory.sourceInstance,
+    ...(memory.slug ? { slug: memory.slug } : {}),
+    chatIds: memory.chatIds,
+    sourceMemoryIds: memory.sourceMemoryIds ?? [],
+    sourceContext: await sourceContextForMemory(store, memory),
+  };
 }
 
 /**
@@ -171,6 +253,7 @@ export function createMemoryCreateHandler(
       date,
       content,
       chatIds,
+      sourceMemoryIds,
       instanceId,
       participatingInstances,
       slug,
@@ -182,6 +265,7 @@ export function createMemoryCreateHandler(
       date,
       content,
       chatIds,
+      sourceMemoryIds,
       sourceInstance: instanceId,
       participatingInstances: participatingInstances ?? [instanceId],
       version: 1,
@@ -514,6 +598,7 @@ async function vectorSearch(
   ];
 
   const scored: Array<{
+    memory: MemoryEntry;
     memoryId: string;
     granularity: string;
     date: string;
@@ -609,6 +694,7 @@ async function vectorSearch(
         (instanceScore * weights.INSTANCE_WEIGHT);
 
       scored.push({
+        memory,
         memoryId: memory.id,
         granularity: memory.granularity,
         date: memory.date,
@@ -711,6 +797,7 @@ async function vectorSearch(
           (instanceScore * weights.INSTANCE_WEIGHT);
 
         scored.push({
+          memory,
           memoryId: memory.id,
           granularity: memory.granularity,
           date: memory.date,
@@ -728,93 +815,95 @@ async function vectorSearch(
     }
   }
 
-  // Step 3: Keyword retrieval for memories missed by vector search.
-  // Only activates for queries with enough distinctive terms — short
-  // queries ("I miss Jordan") are better handled by vector search alone.
-  const KEYWORD_SCAN_MIN_TERMS = 3;
-  const KEYWORD_SCAN_MATCH_RATIO = 0.5;
+  // Step 3: Indexed keyword retrieval for memories missed by vector search.
+  // FTS avoids reparsing the full memory tree on every turn. The filesystem
+  // scan remains as a graceful fallback for SQLite builds without FTS5.
   const KEYWORD_VECTOR_FLOOR = 0.15; // Small vector floor so keywords
   // supplement vectors, not replace them.
-  if (queryTerms.length >= KEYWORD_SCAN_MIN_TERMS) {
-    // First pass: count term frequency across all memories to identify
-    // distinctive terms (appearing in <20% of memories). Common terms
-    // like entity/user names match too broadly to be useful signals.
-    const allMemories: MemoryEntry[] = [];
-    const termFreq = new Map<string, number>();
-    for (const granularity of granularities) {
-      const memories = await store.listMemories(granularity);
-      allMemories.push(...memories);
-    }
-    const totalMemories = allMemories.length;
-    for (const memory of allMemories) {
-      const lower = memory.content.toLowerCase();
-      for (const term of queryTerms) {
-        if (lower.includes(term)) {
-          termFreq.set(term, (termFreq.get(term) ?? 0) + 1);
-        }
-      }
-    }
-    const distinctiveThreshold = totalMemories * 0.5;
-    const distinctiveTerms = queryTerms.filter(
-      (t) => (termFreq.get(t) ?? 0) < distinctiveThreshold,
+  if (queryTerms.length > 0) {
+    const existingIds = new Set(
+      scored.map((item) => memoryReference(item.memory)),
     );
+    const keywordCandidates: Array<{ memory: MemoryEntry; score: number }> = [];
+    const lexicalAvailable = cache?.isLexicalAvailable() ?? false;
+    const indexed = lexicalAvailable
+      ? cache?.searchLexical(query, Math.max(maxResults * 12, 40)) ?? []
+      : [];
 
-    if (distinctiveTerms.length >= KEYWORD_SCAN_MIN_TERMS) {
-      const existingIds = new Set(scored.map((s) => s.memoryId));
-      for (const memory of allMemories) {
-        if (existingIds.has(memory.id)) continue;
-        const lowerContent = memory.content.toLowerCase();
-        const matched = distinctiveTerms.filter((t) =>
-          lowerContent.includes(t)
-        ).length;
-        if (
-          matched < 2 ||
-          matched / distinctiveTerms.length < KEYWORD_SCAN_MATCH_RATIO
-        ) continue;
-
-        const kwBoost = matched / distinctiveTerms.length;
-        const recencyScore = computeRecencyScore(
-          memory.date,
-          weights.RECENCY_DECAY_RATE,
+    if (lexicalAvailable) {
+      for (const candidate of indexed) {
+        const memory = await store.readMemoryByKey(
+          candidate.memoryKey,
+          candidate.granularity as Granularity,
         );
-
-        let graphBoost = 0;
-        if (relevantEntityLabels.size > 0) {
-          let matchCount = 0;
-          for (const label of relevantEntityLabels) {
-            if (lowerContent.includes(label)) matchCount++;
-          }
-          if (matchCount > 0) {
-            graphBoost = Math.min(1, matchCount / Math.log(matchCount + 2));
+        if (memory) keywordCandidates.push({ memory, score: candidate.score });
+      }
+    } else if (queryTerms.length >= 3) {
+      for (const granularity of granularities) {
+        for (const memory of await store.listMemories(granularity)) {
+          const lower = memory.content.toLowerCase();
+          const matched = queryTerms.filter((term) =>
+            lower.includes(term)
+          ).length;
+          if (matched >= 2 && matched / queryTerms.length >= 0.5) {
+            keywordCandidates.push({
+              memory,
+              score: matched / queryTerms.length,
+            });
           }
         }
-
-        const instanceScore = memory.sourceInstance === instanceId
-          ? weights.instanceBoost
-          : 0;
-
-        const finalScore = (KEYWORD_VECTOR_FLOOR * weights.VECTOR_WEIGHT) +
-          (recencyScore * weights.RECENCY_WEIGHT) +
-          (graphBoost * weights.GRAPH_WEIGHT) +
-          (kwBoost * weights.KEYWORD_WEIGHT) +
-          (instanceScore * weights.INSTANCE_WEIGHT);
-
-        scored.push({
-          memoryId: memory.id,
-          granularity: memory.granularity,
-          date: memory.date,
-          sourceInstance: memory.sourceInstance,
-          content: memory.content,
-          vectorScore: KEYWORD_VECTOR_FLOOR,
-          recencyScore,
-          graphBoost,
-          keywordBoost: kwBoost,
-          instanceScore,
-          finalScore,
-          chunkIndex: 0,
-        });
-        existingIds.add(memory.id);
       }
+    }
+
+    for (const candidate of keywordCandidates) {
+      const memory = candidate.memory;
+      const reference = memoryReference(memory);
+      if (existingIds.has(reference)) continue;
+      const lowerContent = memory.content.toLowerCase();
+      const matched = queryTerms.filter((term) =>
+        lowerContent.includes(term)
+      ).length;
+      const keywordBoost = matched / Math.max(queryTerms.length, 1);
+      const requiredMatches = queryTerms.length >= 3 ? 2 : 1;
+      if (matched < requiredMatches || keywordBoost < 0.4) continue;
+      const recencyScore = computeRecencyScore(
+        memory.date,
+        weights.RECENCY_DECAY_RATE,
+      );
+      let graphBoost = 0;
+      if (relevantEntityLabels.size > 0) {
+        const matchCount = [...relevantEntityLabels].filter((label) =>
+          lowerContent.includes(label)
+        ).length;
+        if (matchCount > 0) {
+          graphBoost = Math.min(1, matchCount / Math.log(matchCount + 2));
+        }
+      }
+      const instanceScore = memory.sourceInstance === instanceId
+        ? weights.instanceBoost
+        : 0;
+      const finalScore = (KEYWORD_VECTOR_FLOOR * weights.VECTOR_WEIGHT) +
+        (recencyScore * weights.RECENCY_WEIGHT) +
+        (graphBoost * weights.GRAPH_WEIGHT) +
+        (keywordBoost * weights.KEYWORD_WEIGHT) +
+        (instanceScore * weights.INSTANCE_WEIGHT);
+
+      scored.push({
+        memory,
+        memoryId: memory.id,
+        granularity: memory.granularity,
+        date: memory.date,
+        sourceInstance: memory.sourceInstance,
+        content: memory.content,
+        vectorScore: KEYWORD_VECTOR_FLOOR,
+        recencyScore,
+        graphBoost,
+        keywordBoost,
+        instanceScore,
+        finalScore,
+        chunkIndex: 0,
+      });
+      existingIds.add(reference);
     }
   }
 
@@ -847,6 +936,7 @@ async function vectorSearch(
     );
 
     results.push({
+      ...(await lineageForMemory(store, item.memory)),
       granularity: item.granularity,
       date: item.date,
       score: Math.round(item.finalScore * 1000) / 1000,
@@ -880,6 +970,7 @@ function findBestExcerpt(
   chunkIndex = 0,
   granularity?: string,
 ): string {
+  content = stripMemoryMetadata(content);
   const MAX_EXCERPT = 2000;
 
   // Significant memories always get full content (capped at 10k as a safety net)
@@ -1015,6 +1106,7 @@ async function textSearch(
         );
 
         results.push({
+          ...(await lineageForMemory(store, memory)),
           granularity: memory.granularity,
           date: memory.date,
           score: Math.min(score, 1),
@@ -1078,6 +1170,58 @@ export function createMemoryListHandler(store: FileStore) {
     const total = memories.length;
 
     return { memories: memories.slice(offset, offset + limit), total };
+  };
+}
+
+/**
+ * Return newest memories in write/update order. Unlike semantic search this
+ * deliberately needs no query, making the current daybook visible to every
+ * embodiment before scheduled consolidation catches up.
+ */
+export function createMemoryRecentHandler(store: FileStore) {
+  return async (
+    input: z.infer<typeof MemoryRecentSchema>,
+  ): Promise<MemoryRecentOutput> => {
+    const granularities = (input.granularities ?? ["daily", "significant"])
+      .map((value) => value as Granularity);
+    const limit = input.limit ?? 8;
+    const includeSourceContext = input.includeSourceContext ?? true;
+    const cutoff = input.hours === undefined
+      ? null
+      : Date.now() - input.hours * 60 * 60 * 1000;
+    const memories: MemoryEntry[] = [];
+
+    for (const granularity of granularities) {
+      memories.push(...await store.listMemories(granularity));
+    }
+
+    const eligible = memories.filter((memory) => {
+      if (cutoff === null) return true;
+      const updatedAt = new Date(memory.updatedAt).getTime();
+      if (Number.isFinite(updatedAt)) return updatedAt >= cutoff;
+      const dated = new Date(memory.date).getTime();
+      return Number.isFinite(dated) && dated >= cutoff;
+    }).sort((a, b) =>
+      b.updatedAt.localeCompare(a.updatedAt) || b.date.localeCompare(a.date)
+    );
+
+    const results: MemoryRecentOutput["results"] = [];
+    for (const memory of eligible.slice(0, limit)) {
+      const lineage = await lineageForMemory(store, memory);
+      results.push({
+        ...lineage,
+        granularity: memory.granularity,
+        date: memory.date,
+        excerpt: compactExcerpt(memory.content),
+        sourceContext: includeSourceContext ? lineage.sourceContext : [],
+      });
+    }
+
+    return {
+      results,
+      total: eligible.length,
+      ...(input.hours !== undefined ? { hours: input.hours } : {}),
+    };
   };
 }
 
@@ -1164,6 +1308,7 @@ export function createMemoryUpdateHandler(
       date,
       content,
       chatIds: existing?.chatIds ?? [],
+      sourceMemoryIds: existing?.sourceMemoryIds,
       sourceInstance: existing?.sourceInstance ?? instanceId ?? editedBy ?? "",
       participatingInstances: existing?.participatingInstances,
       version: (existing?.version ?? 0) + 1,
@@ -1500,6 +1645,11 @@ export const memoryTools = {
     description:
       "Search my memories for relevant content. Uses vector similarity with multi-signal ranking (semantic relevance, recency, graph context, and instance affinity). Falls back to text matching if embeddings are unavailable.",
     inputSchema: MemorySearchSchema,
+  },
+  "memory/recent": {
+    description:
+      "Read my most recently written or updated memories without needing a keyword query. I use this for current continuity before daily consolidation catches up.",
+    inputSchema: MemoryRecentSchema,
   },
   "memory/grep": {
     description:

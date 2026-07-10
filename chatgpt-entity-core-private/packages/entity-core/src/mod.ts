@@ -102,39 +102,41 @@ if (import.meta.main) {
       await cache.initialize();
       const embedder = getEmbedder();
 
-      if (cache.isAvailable() && embedder.isReady()) {
-        const granularities:
-          ("daily" | "weekly" | "monthly" | "yearly" | "significant")[] = [
-            "daily",
-            "weekly",
-            "monthly",
-            "yearly",
-            "significant",
-          ];
+      const granularities:
+        ("daily" | "weekly" | "monthly" | "yearly" | "significant")[] = [
+          "daily",
+          "weekly",
+          "monthly",
+          "yearly",
+          "significant",
+        ];
 
-        let backfilled = 0;
-        for (const granularity of granularities) {
-          const memories = await store.listMemories(granularity);
-          for (const memory of memories) {
+      let backfilled = 0;
+      let lexicalIndexed = 0;
+      for (const granularity of granularities) {
+        const memories = await store.listMemories(granularity);
+        for (const memory of memories) {
+          cache.indexLexical(memory);
+          lexicalIndexed++;
+          if (cache.isAvailable() && embedder.isReady()) {
             const result = await cache.getOrCompute(
-              {
-                granularity,
-                date: memory.date,
-                sourceInstance: memory.sourceInstance,
-                slug: memory.slug,
-                content: memory.content,
-              },
+              memory,
               embedder,
             );
             if (result) backfilled++;
           }
         }
+      }
 
-        if (backfilled > 0) {
-          console.error(
-            `[EmbeddingCache] Backfilled ${backfilled} memory embedding(s) on startup`,
-          );
-        }
+      if (lexicalIndexed > 0) {
+        console.error(
+          `[EmbeddingCache] Indexed ${lexicalIndexed} memory file(s) for lexical search`,
+        );
+      }
+      if (backfilled > 0) {
+        console.error(
+          `[EmbeddingCache] Backfilled ${backfilled} memory embedding(s) on startup`,
+        );
       }
 
       // Close the cache so it doesn't hold graph.db open indefinitely.

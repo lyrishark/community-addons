@@ -47,7 +47,7 @@ Release assets to upload:
 
 - `psycheros-thread-exporter-0.3.2.zip`
 - `psycheros-entity-core-codex-plugin-0.2.1.zip`
-- `psycheros-entity-core-chatgpt-private-0.1.1.zip`
+- `psycheros-entity-core-chatgpt-private-0.1.3.zip`
 - `psycheros-more-uploads-0.1.0.zip`
 - `psycheros-voice-text-resize-0.1.0.zip`
 - `psycheros-more-uploads-voice-resize-0.1.0.zip`
@@ -59,7 +59,7 @@ Generate checksums on Windows:
 ```powershell
 Get-FileHash .\psycheros-thread-exporter-0.3.2.zip -Algorithm SHA256
 Get-FileHash .\psycheros-entity-core-codex-plugin-0.2.1-share.zip -Algorithm SHA256
-Get-FileHash .\psycheros-entity-core-chatgpt-private-0.1.1.zip -Algorithm SHA256
+Get-FileHash .\psycheros-entity-core-chatgpt-private-0.1.3.zip -Algorithm SHA256
 ```
 
 For Psycheros source-file add-ons that replace overlapping UI files, smoke-test

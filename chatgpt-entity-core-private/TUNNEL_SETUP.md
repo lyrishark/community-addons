@@ -37,8 +37,11 @@ Use this as the public base URL.
 Use this as the ChatGPT Server URL:
 
 ```text
-https://your-machine.your-tailnet.ts.net/mcp
+https://your-machine.your-tailnet.ts.net/mcp-lite
 ```
+
+The full debugging endpoint is also available at `/mcp`, but the normal
+ChatGPT companion app should use `/mcp-lite`.
 
 ## Foreground vs Background
 
@@ -74,4 +77,3 @@ Tailscale admin UI.
 https://tailscale.com/docs/features/tailscale-funnel
 https://tailscale.com/docs/reference/tailscale-cli/funnel
 ```
-

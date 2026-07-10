@@ -20,7 +20,7 @@ Public base URL example:
 https://your-machine.your-tailnet.ts.net
 ```
 
-Do not include `/mcp` in the Auth0 API Identifier.
+Do not include `/mcp-lite` or `/mcp` in the Auth0 API Identifier.
 
 ## Create The Application
 
@@ -45,7 +45,7 @@ client_secret_post
 1. Auth0 Dashboard > Applications > APIs.
 2. Create API.
 3. Name it `Psycheros Entity Core`.
-4. Identifier: public base URL, without `/mcp`.
+4. Identifier: public base URL, without `/mcp-lite` or `/mcp`.
 
 Example:
 
@@ -77,9 +77,14 @@ Set:
 
 ```text
 User-delegated Access: All apps allowed
+Allow Offline Access: On
 ```
 
 Save.
+
+Offline access lets Auth0 issue refresh tokens when ChatGPT requests the
+`offline_access` base scope. Without it, the connection may work until the
+access token expires and then require a manual reconnect.
 
 If you choose Per-app authorization instead, open the API Application Access
 tab and explicitly grant the Auth0 application both permissions.
@@ -118,4 +123,3 @@ Good:
 
 If you see `not authorized to access resource server`, the API Identifier,
 permissions, or Application Access settings are wrong.
-

@@ -31,11 +31,16 @@ codex-entity-core-plugin/
 
 ChatGPT can:
 
-- check entity-core status
-- read identity context
 - search memories and graph nodes
-- fetch selected memories, identity files, or graph nodes
+- fetch selected memories or graph nodes
 - record ordinary daily or significant memories when writes are enabled
+
+The recommended ChatGPT app uses the lightweight MCP endpoint. It exposes only
+`search`, `fetch`, and `remember`, which keeps ChatGPT's connector cache small.
+
+The full MCP endpoint is still available for debugging and admin-style use. It
+adds status, identity context, recent-memory controls, and the older
+`record_memory` tool.
 
 ChatGPT cannot:
 
@@ -54,13 +59,20 @@ There are four pieces:
 3. OAuth: lets ChatGPT sign in without exposing the bridge to everyone.
 4. ChatGPT private app: points ChatGPT at the HTTPS MCP URL.
 
-The normal URL shape is:
+The recommended ChatGPT URL shape is:
+
+```text
+https://your-machine.your-tailnet.ts.net/mcp-lite
+```
+
+The full/admin URL shape is:
 
 ```text
 https://your-machine.your-tailnet.ts.net/mcp
 ```
 
-The OAuth resource/API identifier should be the same URL without `/mcp`:
+The OAuth resource/API identifier should be the same URL without `/mcp-lite` or
+`/mcp`:
 
 ```text
 https://your-machine.your-tailnet.ts.net
@@ -171,7 +183,8 @@ TROUBLESHOOTING.md
 Most failures are one of:
 
 - the local bridge is not running
-- the tunnel URL was copied with or without `/mcp` in the wrong field
+- the tunnel URL was copied with or without `/mcp-lite` or `/mcp` in the wrong
+  field
 - the Auth0 API identifier does not exactly match the public base URL
 - Auth0 API permissions are missing `entity:read` or `memory:write`
 - Auth0 Application Access does not allow the ChatGPT OAuth app

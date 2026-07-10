@@ -27,6 +27,13 @@ const client = new Client({
   name: "codex-entity-core-http-smoke",
   version: "0.1.0",
 });
+const liteTransport = new StreamableHTTPClientTransport(
+  new URL(`${baseUrl}/mcp-lite`),
+);
+const liteClient = new Client({
+  name: "codex-entity-core-http-smoke-lite",
+  version: "0.1.0",
+});
 
 function log(stage: string): void {
   console.log(`[http-smoke] ${stage}`);
@@ -41,6 +48,18 @@ function textFromToolResult(result: unknown): string {
   }
 
   return JSON.stringify(result);
+}
+
+function parseToolJson(result: unknown): Record<string, unknown> {
+  const maybeResult = result as { structuredContent?: unknown };
+  if (
+    maybeResult.structuredContent &&
+    typeof maybeResult.structuredContent === "object"
+  ) {
+    return maybeResult.structuredContent as Record<string, unknown>;
+  }
+
+  return JSON.parse(textFromToolResult(result));
 }
 
 async function waitForHealth(timeoutMs = 30_000): Promise<void> {
@@ -97,20 +116,21 @@ try {
   }
 
   log("calling entity_status");
-  const statusText = textFromToolResult(
+  const status = parseToolJson(
     await withTimeout(
       "entity_status",
       client.callTool({ name: "entity_status", arguments: {} }),
       30_000,
     ),
   );
-  if (!statusText.includes("chatgpt-http-smoke")) {
+  const connector = status.connector as { instanceId?: string };
+  if (connector.instanceId !== "chatgpt-http-smoke") {
     throw new Error("entity_status did not return the HTTP smoke instance id");
   }
-  console.log(statusText);
+  console.log(JSON.stringify(status));
 
   log("dry-running record_memory");
-  const dryRunText = textFromToolResult(
+  const dryRun = parseToolJson(
     await withTimeout(
       "record_memory dryRun",
       client.callTool({
@@ -124,11 +144,61 @@ try {
       30_000,
     ),
   );
-  if (!dryRunText.includes('"dryRun": true')) {
+  if (dryRun.dryRun !== true) {
     throw new Error("record_memory dry run did not return dryRun=true");
+  }
+
+  log("checking lite endpoint");
+  await withTimeout("lite connect", liteClient.connect(liteTransport), 30_000);
+  const liteTools = await withTimeout(
+    "lite listTools",
+    liteClient.listTools(),
+    30_000,
+  ) as {
+    tools: Array<{ name: string; outputSchema?: unknown }>;
+  };
+  const liteToolNames = liteTools.tools.map((tool) => tool.name).sort();
+  if (
+    JSON.stringify(liteToolNames) !==
+      JSON.stringify(["fetch", "remember", "search"])
+  ) {
+    throw new Error(
+      `lite endpoint exposed unexpected tools: ${liteToolNames.join(", ")}`,
+    );
+  }
+  if (liteTools.tools.some((tool) => tool.outputSchema)) {
+    throw new Error("lite endpoint should not expose output schemas");
+  }
+  const marker = `lite-http-smoke-${crypto.randomUUID()}`;
+  const rememberText = textFromToolResult(
+    await withTimeout(
+      "lite remember",
+      liteClient.callTool({
+        name: "remember",
+        arguments: { text: `Lite HTTP smoke marker ${marker}` },
+      }),
+      30_000,
+    ),
+  );
+  if (!rememberText.includes('"success":true')) {
+    throw new Error("lite remember did not succeed");
+  }
+  const searchText = textFromToolResult(
+    await withTimeout(
+      "lite search",
+      liteClient.callTool({
+        name: "search",
+        arguments: { query: marker },
+      }),
+      30_000,
+    ),
+  );
+  if (!searchText.includes(marker)) {
+    throw new Error("lite search did not return the remembered marker");
   }
 } finally {
   await client.close().catch(() => {});
+  await liteClient.close().catch(() => {});
   serverProcess.kill("SIGKILL");
   await serverProcess.status.catch(() => {});
   await Deno.remove(tempDataDir, { recursive: true }).catch(() => {});

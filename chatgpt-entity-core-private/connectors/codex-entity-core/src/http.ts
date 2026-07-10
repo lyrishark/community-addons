@@ -11,6 +11,7 @@ import {
 } from "./auth.ts";
 import {
   closeEntityCoreConnectorStores,
+  createEntityCoreLiteMcpServer,
   createEntityCoreMcpServer,
 } from "./core.ts";
 
@@ -19,6 +20,8 @@ const port = Number(
   Deno.env.get("ENTITY_CONNECTOR_HTTP_PORT") ?? Deno.env.get("PORT") ?? "3006",
 );
 const mcpPath = Deno.env.get("ENTITY_CONNECTOR_HTTP_PATH") ?? "/mcp";
+const liteMcpPath = Deno.env.get("ENTITY_CONNECTOR_HTTP_LITE_PATH") ??
+  "/mcp-lite";
 const defaultBaseUrl = Deno.env.get("ENTITY_CONNECTOR_PUBLIC_BASE_URL") ??
   `http://${host}:${port}`;
 const corsOrigins = new Set(
@@ -28,6 +31,10 @@ const corsOrigins = new Set(
     .map((origin) => origin.trim())
     .filter(Boolean),
 );
+const accessLogPath = Deno.env.get("ENTITY_CONNECTOR_HTTP_ACCESS_LOG") ??
+  (Deno.env.get("APPDATA")
+    ? `${Deno.env.get("APPDATA")}\\Psycheros\\logs\\chatgpt-bridge.access.jsonl`
+    : "");
 
 if (!Number.isInteger(port) || port <= 0 || port > 65_535) {
   throw new Error(`Invalid HTTP port: ${port}`);
@@ -39,6 +46,59 @@ const requireAuth = createRequireAuthMiddleware(authContext);
 
 const app = express();
 app.use(express.json({ limit: "2mb" }));
+
+function accessLogAuthState(req: Request): string {
+  const authorization = req.header("authorization");
+  if (!authorization) return "none";
+  if (authorization.toLowerCase().startsWith("bearer ")) return "bearer";
+  return "other";
+}
+
+async function appendAccessLog(entry: Record<string, unknown>): Promise<void> {
+  if (!accessLogPath) return;
+  try {
+    await Deno.writeTextFile(accessLogPath, `${JSON.stringify(entry)}\n`, {
+      append: true,
+      create: true,
+    });
+  } catch (error) {
+    console.error(
+      "Could not write HTTP access log",
+      error instanceof Error ? error.message : String(error),
+    );
+  }
+}
+
+app.use((req: Request, res: Response, next: NextFunction) => {
+  if (req.path === "/healthz") {
+    next();
+    return;
+  }
+
+  const started = Date.now();
+  let logged = false;
+  const log = (event: "finish" | "close") => {
+    if (logged) return;
+    logged = true;
+    void appendAccessLog({
+      t: new Date().toISOString(),
+      event,
+      method: req.method,
+      path: req.path,
+      status: res.statusCode,
+      ms: Date.now() - started,
+      auth: accessLogAuthState(req),
+      origin: req.header("origin") ?? "",
+      userAgent: (req.header("user-agent") ?? "").slice(0, 160),
+    });
+  };
+
+  res.on("finish", () => log("finish"));
+  res.on("close", () => {
+    if (!res.writableEnded) log("close");
+  });
+  next();
+});
 
 function appendVaryHeader(res: Response, value: string): void {
   const existing = res.getHeader("Vary");
@@ -110,6 +170,7 @@ app.get("/healthz", (_req: Request, res: Response) => {
     connector: "codex-entity-core-connector",
     transport: "streamable-http",
     mcpPath,
+    liteMcpPath,
     authMode: authContext.mode,
   });
 });
@@ -141,15 +202,14 @@ app.options(
   },
 );
 
-app.options(mcpPath, (_req: Request, res: Response) => {
-  res.setHeader("Allow", "POST, OPTIONS");
-  res.status(204).end();
-});
-
-app.post(mcpPath, attachAuth, async (req: Request, res: Response) => {
+async function handleMcpPost(
+  req: Request,
+  res: Response,
+  serverFactory: typeof createEntityCoreMcpServer,
+): Promise<void> {
   normalizeMcpAcceptHeader(req);
 
-  const server = createEntityCoreMcpServer({
+  const server = serverFactory({
     auth: authContext.toolAuth,
   });
   const transport = new StreamableHTTPServerTransport({
@@ -165,7 +225,7 @@ app.post(mcpPath, attachAuth, async (req: Request, res: Response) => {
     await server.connect(transport);
     await transport.handleRequest(req, res, req.body);
   } catch (error) {
-    console.error("HTTP MCP request failed", error);
+    console.error(`HTTP MCP request failed for ${req.path}`, error);
     if (!res.headersSent) {
       res.status(500).json({
         jsonrpc: "2.0",
@@ -177,19 +237,35 @@ app.post(mcpPath, attachAuth, async (req: Request, res: Response) => {
       });
     }
   }
-});
+}
 
-app.all(mcpPath, (_req: Request, res: Response) => {
-  res.setHeader("Allow", "POST, OPTIONS");
-  res.status(405).json({
-    error: "method_not_allowed",
-    message: "This MCP endpoint accepts Streamable HTTP POST requests.",
+for (
+  const [path, serverFactory] of [
+    [mcpPath, createEntityCoreMcpServer],
+    [liteMcpPath, createEntityCoreLiteMcpServer],
+  ] as const
+) {
+  app.options(path, (_req: Request, res: Response) => {
+    res.setHeader("Allow", "POST, OPTIONS");
+    res.status(204).end();
   });
-});
+
+  app.post(path, attachAuth, async (req: Request, res: Response) => {
+    await handleMcpPost(req, res, serverFactory);
+  });
+
+  app.all(path, (_req: Request, res: Response) => {
+    res.setHeader("Allow", "POST, OPTIONS");
+    res.status(405).json({
+      error: "method_not_allowed",
+      message: "This MCP endpoint accepts Streamable HTTP POST requests.",
+    });
+  });
+}
 
 const listener = app.listen(port, host, () => {
   console.error(
-    `codex-entity-core HTTP MCP server listening at http://${host}:${port}${mcpPath} (${authContext.mode} auth)`,
+    `codex-entity-core HTTP MCP server listening at http://${host}:${port}${mcpPath} and ${liteMcpPath} (${authContext.mode} auth)`,
   );
 });
 

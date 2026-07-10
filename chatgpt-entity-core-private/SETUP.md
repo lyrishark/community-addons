@@ -21,7 +21,8 @@ You need software installed on your computer:
 
 ## Words Used In This Guide
 
-`Public base URL` means the HTTPS URL for your local bridge without `/mcp`.
+`Public base URL` means the HTTPS URL for your local bridge without
+`/mcp-lite` or `/mcp`.
 
 Example:
 
@@ -29,13 +30,17 @@ Example:
 https://your-machine.your-tailnet.ts.net
 ```
 
-`MCP URL` means the same URL with `/mcp`.
+`MCP URL` means the same URL with `/mcp-lite` for the normal lightweight
+ChatGPT app.
 
 Example:
 
 ```text
-https://your-machine.your-tailnet.ts.net/mcp
+https://your-machine.your-tailnet.ts.net/mcp-lite
 ```
+
+The full debugging endpoint is still available at `/mcp`, but most companion
+users should use `/mcp-lite`.
 
 `OAuth resource` or `API identifier` means the public base URL.
 
@@ -45,8 +50,8 @@ Example:
 https://your-machine.your-tailnet.ts.net
 ```
 
-Do not mix these up. Most setup failures come from putting `/mcp` in the
-OAuth resource/API identifier.
+Do not mix these up. Most setup failures come from putting `/mcp-lite` or
+`/mcp` in the OAuth resource/API identifier.
 
 ## Step 1 - Check The Local Package
 
@@ -115,7 +120,7 @@ https://your-machine.your-tailnet.ts.net
 ChatGPT will use:
 
 ```text
-https://your-machine.your-tailnet.ts.net/mcp
+https://your-machine.your-tailnet.ts.net/mcp-lite
 ```
 
 If Tailscale asks you to approve Funnel in a browser, approve it.
@@ -143,7 +148,7 @@ In Auth0:
 1. Go to Applications > APIs.
 2. Create API.
 3. Name it `Psycheros Entity Core`.
-4. Set Identifier to your public base URL, without `/mcp`.
+4. Set Identifier to your public base URL, without `/mcp-lite` or `/mcp`.
 
 Example:
 
@@ -170,9 +175,14 @@ Open the API Settings tab.
 Set:
 
 - User-delegated Access: All apps allowed
+- Allow Offline Access: On
 
 If you prefer stricter setup, use Per-app authorization, but then you must
 explicitly authorize the Auth0 application and grant both permissions.
+
+Offline access lets Auth0 issue refresh tokens when ChatGPT requests the
+`offline_access` base scope. Without it, the connection may work until the
+access token expires and then require a manual reconnect.
 
 Save changes.
 
@@ -184,13 +194,13 @@ In ChatGPT:
 2. Open Apps.
 3. Open Advanced settings or Developer Mode app creation.
 4. Create a new app.
-5. Name it `Psycheros Entity Core`.
+5. Name it `Psycheros Memory Lite`.
 6. For Server URL, paste the MCP URL.
 
 Example:
 
 ```text
-https://your-machine.your-tailnet.ts.net/mcp
+https://your-machine.your-tailnet.ts.net/mcp-lite
 ```
 
 7. Choose OAuth authentication.
@@ -206,7 +216,15 @@ entity:read
 memory:write
 ```
 
-14. Leave Base scopes blank.
+14. Set Base scopes to:
+
+```text
+offline_access
+```
+
+This lets ChatGPT request a refresh token so the app can survive access-token
+expiry instead of needing a manual reconnect.
+
 15. Copy the Callback URL from ChatGPT.
 
 ## Step 7 - Add ChatGPT Callback URL To Auth0
@@ -270,16 +288,20 @@ Back in ChatGPT:
 Start with a read-only prompt:
 
 ```text
-Use Psycheros Entity Core to check entity status.
+Use Psycheros Memory Lite to search for recent memories.
 ```
 
 Then try:
 
 ```text
-Use Psycheros Entity Core to search memory for "setup".
+Use Psycheros Memory Lite to search memory for "setup".
 ```
 
-Only after reads work, try a dry run memory write if your version supports it.
+Only after reads work and memory writes are enabled, try:
+
+```text
+Use Psycheros Memory Lite to remember that the private ChatGPT app connected.
+```
 
 ## Install Automatic Startup And Recovery
 

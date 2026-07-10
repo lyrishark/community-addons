@@ -40,7 +40,8 @@ the graph directly.
 - `entity_status` - checks the connector and canonical entity-core data path
 - `record_memory` - records a new `daily` or `significant` memory
 - `identity_context` - returns selected identity files from entity-core
-- `recent_memories` - returns newest memories without requiring a keyword
+- `recent_memories` - returns recent memories across surfaces, ordered by the
+  memory's own date by default
 - `search` - searches memories and knowledge graph nodes
 - `fetch` - fetches a memory, graph node, or identity file by connector ID
 
