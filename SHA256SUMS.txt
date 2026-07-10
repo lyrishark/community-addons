@@ -3,6 +3,8 @@
 0901cfffe364c978cabadf58265919490272e26ae94c7215384fb549077a826d  psycheros-loom-gemini-parser-mod-0.1.0.zip
 c38d5f2ba2939c380d20816f55eb9463d5b8bedb012301051ae795fba08c5d6a  psycheros-entity-core-chatgpt-private-0.1.0.zip
 5b1c0411415d2ca32fa84e7c38e2d0599c05117609f75191d3069235a6c50d3c  psycheros-entity-core-chatgpt-private-0.1.1.zip
+18267e86c4c4b81413b197f622fe51eaa020571177f0994414072be99bdcffd4  psycheros-entity-core-chatgpt-private-0.1.2.zip
+e90e1d30702e58f877329f494481ef3d3f298b0b174d42dbb9454e991b421b2a  psycheros-entity-core-chatgpt-private-0.1.3.zip
 92d86083ce5138413a0b00b44fbe4b60e504291b56498b61200548f0880dc62d  psycheros-accessible-font-settings-0.1.0.zip
 a05199a510db13e78dfb26b962c35e71e1e5baf1518cbb5f2fddd8810aaebb5d  psycheros-windows-shell-fix-0.1.0.zip
 5e1638902515ce96b4793444617b9b4a8e3d6cff5f28e867fe38ee574caa3dca  psycheros-accessible-font-settings-0.1.1.zip
