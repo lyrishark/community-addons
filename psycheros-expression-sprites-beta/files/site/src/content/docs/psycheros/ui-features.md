@@ -506,10 +506,11 @@ labels (`affection`, `flirtation`, `tenderness`, `focus`, etc.). Sprite display
 is driven by the latest transient `expression_state` event from the entity turn;
 it is a live UI signal, not durable memory.
 
-- Expression detection uses recent-turn intent plus valence/arousal/intensity
-  scoring. Quoted/story/topic emotion words are dampened so "furious" in a story
-  critique or "sweetheart" during rules discussion does not override the visible
-  emotional posture.
+- Expression detection uses a hybrid stream-and-settle model. Recent-turn intent
+  plus valence/arousal/intensity scoring can change the sprite while a response
+  streams, allowing the visible posture to move naturally across topics. Quoted,
+  story, and topic emotion words are dampened so they do not automatically become
+  the entity's displayed feeling.
 - Missing-sprite fallback can display the emotion label, use the closest related
   available sprite, or display nothing
 - Frame styles include transparent, square, circle, and accent treatment; the
@@ -527,10 +528,11 @@ it is a live UI signal, not durable memory.
   sprites
 - Chat renders the latest sprite in a visual-novel stage: desktop defaults to
   the lower-left third, mobile to the lower-right quarter
-- Entity-only correction uses a hidden `<psycheros-expression>` directive when
-  the entity wants to override the automatic detector. The directive is stripped
-  from streamed and persisted text, so normal use shows no correction prompt to
-  the human.
+- Every final conversational response can end with one hidden
+  `<psycheros-expression>` self-report. It settles the final sprite after the
+  detector's intentional mid-response changes and may include a 0-1 intensity.
+  The directive is stripped from streamed and persisted text, so normal use
+  shows no control syntax to the human and exposes no private reasoning.
 
 **Gallery** — Browse all generated and user-uploaded images. Rendered
 server-side on tab load. Features:

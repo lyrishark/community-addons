@@ -122,16 +122,17 @@ Deno.test("bundled Ember sprite pack seeds a fresh expression data root", async 
   }
 });
 
-Deno.test("expression directive is entity-only and produces manual state", () => {
+Deno.test("expression directive is entity-only and produces self-selected state", () => {
   const result = extractExpressionDirectives(
-    'Visible text.<psycheros-expression label="warmth">The sprite illustration will represent my emotion as: warmth. Is this right? Y</psycheros-expression>',
+    'Visible text.<psycheros-expression label="warmth" intensity="0.72"/>',
     { surface: "chat", now: () => 1_234 },
   );
 
   assertEquals(result.visibleText, "Visible text.");
   assertEquals(result.states.length, 1);
   assertEquals(result.states[0].label, "warmth");
-  assertEquals(result.states[0].source, "manual");
+  assertEquals(result.states[0].source, "llm");
+  assertEquals(result.states[0].intensity, 0.72);
   assertEquals(result.states[0].surface, "chat");
   assertEquals(result.states[0].updatedAt, 1_234);
 });
@@ -169,6 +170,14 @@ Deno.test("expression directive stripping truncates incomplete hidden control", 
 
 Deno.test("expression sprite protocol gives my valid directive labels", () => {
   assertStringIncludes(EXPRESSION_SPRITE_PROTOCOL, "Allowed directive labels:");
+  assertStringIncludes(
+    EXPRESSION_SPRITE_PROTOCOL,
+    "At the end of every final conversational response",
+  );
+  assertStringIncludes(
+    EXPRESSION_SPRITE_PROTOCOL,
+    "mid-response movement is intentional",
+  );
   assertStringIncludes(
     EXPRESSION_SPRITE_PROTOCOL,
     "I do not invent a new label for the directive.",

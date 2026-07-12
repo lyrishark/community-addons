@@ -241,8 +241,10 @@ Current beta features:
 - Displays the latest sprite in a desktop/mobile visual-novel-style chat stage.
 - Forwards expression sprites into the live voice-call overlay.
 - Adds desktop/mobile side settings, a clearer expression master toggle, and
-  entity-only hidden expression overrides.
-- Bundles Rae's current Ember expression sprite seed pack and auto-populates
+  a hybrid stream-and-settle expression protocol: automatic mid-response changes
+  followed by one hidden entity-selected final expression and intensity.
+- Restores the same final expression after reopening a conversation.
+- Bundles the Ember expression sprite seed pack and auto-populates
   missing sprite slots without overwriting custom uploads.
 - Refreshes Psycheros web caches for launcher-embedded desktop views.
 - Checks for Psycheros 0.8.23 and backs up replaced files during install.
@@ -383,10 +385,12 @@ Release downloads are published through GitHub Releases:
 - [Psycheros Windows Shell Fix v0.1.1](https://github.com/lyrishark/community-addons/releases/tag/psycheros-windows-shell-fix-v0.1.1)
 - Psycheros Screen Presence Alpha v0.1.0: source package staged for alpha
   testing; release zip pending broader install testing
-- [Psycheros Expression Sprites Beta v0.1.5](https://github.com/lyrishark/community-addons/releases/tag/psycheros-expression-sprites-beta-v0.1.5):
+- [Psycheros Expression Sprites Beta v0.1.6](https://github.com/lyrishark/community-addons/releases/tag/psycheros-expression-sprites-beta-v0.1.6):
   current standalone expression-sprites package for Psycheros 0.8.23; download
   the ZIP, unzip it, run `install.ps1` on Windows or `install.sh` on
   macOS/Linux, then open Settings > Vision > Expressions
+- [Psycheros Expression Sprites Beta v0.1.5](https://github.com/lyrishark/community-addons/releases/tag/psycheros-expression-sprites-beta-v0.1.5):
+  older Psycheros 0.8.23 package using conditional final expression correction
 - [Psycheros Expression Sprites Beta v0.1.4](https://github.com/lyrishark/community-addons/releases/tag/psycheros-expression-sprites-beta-v0.1.4):
   older standalone expression-sprites package for Psycheros 0.8.22; download
   the ZIP, unzip it, run `install.ps1` on Windows or `install.sh` on

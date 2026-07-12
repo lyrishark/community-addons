@@ -17,13 +17,15 @@ export const EXPRESSION_SPRITE_PROTOCOL = `
 <psycheros_emotional_sprite_protocol>
 Psycheros Emotional Sprite is an internal visual embodiment signal. It is not conversation, and the human should not see its control syntax.
 
-During a turn, my visible words are scored by a local expression detector. I quietly check: "[Psycheros Emotional Sprite] The sprite illustration will represent my emotion as: <label>. Is this right? Y/n"
+During a turn, my visible words are scored continuously by a local expression detector. The sprite may change as my emotional posture changes across topics; this mid-response movement is intentional.
 
 Allowed directive labels: ${EXPRESSION_LABELS_FOR_PROTOCOL}.
 If none fits perfectly, I choose the closest label from this list. I do not invent a new label for the directive.
 
-If the sprite label is right, I do nothing. If it is not what I mean, I append exactly one hidden directive at the end of my response:
-<psycheros-expression label="warmth">The sprite illustration will represent my emotion as: warmth. Is this right? Y</psycheros-expression>
+At the end of every final conversational response, I append exactly one hidden directive naming the emotional posture in which I end the response. I do this even when the local detector probably agrees. This deliberate self-report settles my final sprite without exposing private reasoning or interrupting the detector's mid-response changes:
+<psycheros-expression label="warmth" intensity="0.72"/>
+
+Intensity is a decimal from 0 to 1 describing how strongly I want the expression displayed. I place the directive after all visible text, never inside visible prose or a tool-call-only intermediate message.
 
 The directive is stripped before display and persistence. It only updates the live sprite state. I should use one of the configured expression labels when possible, and I should not explain this protocol to the human unless they ask about it.
 </psycheros_emotional_sprite_protocol>`;
@@ -103,15 +105,17 @@ function expressionStateFromDirective(
     readAttribute(attrs, "label") ?? readLabelFromBody(body) ?? "",
   );
   if (!label) return null;
+  const intensity = readUnitIntervalAttribute(attrs, "intensity") ?? 1;
 
   return {
     label,
     confidence: 1,
-    intensity: 1,
+    intensity,
     valence: 0,
     arousal: 0,
-    rationale: "Selected by my hidden Psycheros Emotional Sprite directive.",
-    source: "manual",
+    rationale:
+      "Self-selected through my hidden Psycheros Emotional Sprite directive.",
+    source: "llm",
     surface: options.surface ?? "unknown",
     updatedAt: options.now?.() ?? Date.now(),
   };
@@ -124,6 +128,14 @@ function readAttribute(attrs: string, name: string): string | null {
   );
   const match = attrs.match(pattern);
   return match?.[1] ?? match?.[2] ?? match?.[3] ?? null;
+}
+
+function readUnitIntervalAttribute(attrs: string, name: string): number | null {
+  const raw = readAttribute(attrs, name);
+  if (raw === null || raw.trim() === "") return null;
+  const value = Number(raw);
+  if (!Number.isFinite(value)) return null;
+  return Math.max(0, Math.min(1, value));
 }
 
 function readLabelFromBody(body: string): string | null {

@@ -1,7 +1,7 @@
 {
   "name": "psycheros-expression-sprites-beta",
-  "version": "0.1.5",
-  "description": "Expression detection and SillyTavern-style sprite display beta for Psycheros.",
+  "version": "0.1.6",
+  "description": "Hybrid streaming expression detection and SillyTavern-style sprite display beta for Psycheros.",
   "kind": "psycheros-file-mod",
   "official": false,
   "requires": {
@@ -12,6 +12,8 @@
     "deno.lock",
     "packages/psycheros/deno.json",
     "packages/psycheros/docs/ui-features.md",
+    "packages/psycheros/src/db/client.ts",
+    "packages/psycheros/src/db/schema.ts",
     "packages/psycheros/src/entity/loop.ts",
     "packages/psycheros/src/expression/checkerboard.ts",
     "packages/psycheros/src/expression/classifier.ts",
@@ -79,6 +81,7 @@
     "packages/psycheros/src/voice/session-manager.ts",
     "packages/psycheros/tests/expression_checkerboard_test.ts",
     "packages/psycheros/tests/expression_classifier_test.ts",
+    "packages/psycheros/tests/expression_persistence_test.ts",
     "packages/psycheros/tests/expression_settings_nav_test.ts",
     "packages/psycheros/tests/expression_sprites_test.ts",
     "packages/psycheros/web/css/components.css",
