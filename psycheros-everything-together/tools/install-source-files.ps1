@@ -9,7 +9,7 @@ $PatchRoot = Split-Path -Parent $PSScriptRoot
 $FilesRoot = Join-Path $PatchRoot "files"
 $AddonName = "Everything Together"
 $AddonId = "psycheros-everything-together"
-$AddonVersion = "0.1.0-rc.2"
+$AddonVersion = "0.1.0-rc.3"
 $SupersededAddonIds = @("psycheros-more-uploads", "psycheros-voice-text-resize", "psycheros-more-uploads-voice-resize")
 
 function Resolve-FullPath {

@@ -23,3 +23,4 @@ a6041a42582758b2d34cc9c0caf29e52398442181b6943e13e394a8e8031059e  psycheros-more
 3846522b09c619fc28728550790dbfff4293937388eb6e836e58813b111e96e9  psycheros-expression-sprites-beta-0.1.5.zip
 0b53374cf8739909293454e48caf7510c5f80bba96eba89847e992430477659d  psycheros-expression-sprites-beta-0.1.6.zip
 2dfbe0d0ed2f93f753636ed0110b64ecca0e023cfab36cb5c96c77a93364c490  psycheros-everything-together-0.1.0-rc.2.zip
+7ce6ed3d9845f098cda3b5dc9264a722d81c0b365db58b9a2e507659b8459414  psycheros-everything-together-0.1.0-rc.3.zip

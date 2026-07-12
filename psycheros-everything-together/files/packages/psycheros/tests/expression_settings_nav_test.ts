@@ -22,11 +22,11 @@ Deno.test({
 
     assertStringIncludes(
       html,
-      "/css/main.css?v=everything-together-0.1.0-rc.2",
+      "/css/main.css?v=everything-together-0.1.0-rc.3",
     );
     assertStringIncludes(
       html,
-      "/js/psycheros.js?v=everything-together-0.1.0-rc.2",
+      "/js/psycheros.js?v=everything-together-0.1.0-rc.3",
     );
   },
 });

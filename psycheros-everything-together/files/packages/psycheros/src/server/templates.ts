@@ -9,6 +9,7 @@
 
 import type {
   Conversation,
+  ExpressionState,
   Message,
   ToolCall,
   ToolResult,
@@ -53,7 +54,7 @@ import { pulseIconSvg } from "../pulse/templates.ts";
 import type { ExtractionHealth } from "../mcp-client/mod.ts";
 import { getWearableConnectionManager } from "../wearable/mod.ts";
 
-const WEB_ASSET_VERSION = "everything-together-0.1.0-rc.2";
+const WEB_ASSET_VERSION = "everything-together-0.1.0-rc.3";
 
 // =============================================================================
 // Utilities
@@ -104,8 +105,14 @@ function renderAttachmentFileIcon(): string {
   </svg>`;
 }
 
-function renderExpressionStateChip(content: string): string {
-  const state = classifyExpressionText(content, { surface: "chat" });
+function renderExpressionStateChip(
+  content: string,
+  persistedState?: ExpressionState,
+): string {
+  // New messages retain the exact expression shown during streaming. Legacy
+  // rows still get the old text-classification fallback.
+  const state = persistedState ??
+    classifyExpressionText(content, { surface: "chat" });
   const label = formatExpressionLabel(state.label);
   const confidence = `${Math.round(state.confidence * 100)}%`;
   const title = `${label} (${confidence}) - ${state.rationale}`;
@@ -2081,7 +2088,10 @@ export function renderAssistantMessage(
     ? `<span class="msg-timestamp">${escapeHtml(timeStr)}</span>`
     : "";
   const displayName = escapeHtml(entityName || "Assistant");
-  const expressionChip = renderExpressionStateChip(msg.content);
+  const expressionChip = renderExpressionStateChip(
+    msg.content,
+    msg.expressionState,
+  );
 
   let html = `<div class="msg msg--assistant" data-message-id="${
     escapeHtml(msg.id)

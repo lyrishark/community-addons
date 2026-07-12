@@ -4,7 +4,7 @@ set -euo pipefail
 supported_version="0.8.23"
 addon_name="Everything Together"
 addon_id="psycheros-everything-together"
-addon_version="0.1.0-rc.2"
+addon_version="0.1.0-rc.3"
 superseded_addon_ids=("psycheros-more-uploads" "psycheros-voice-text-resize" "psycheros-more-uploads-voice-resize")
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 patch_root="$(cd -- "$script_dir/.." && pwd -P)"
