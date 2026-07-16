@@ -35,6 +35,9 @@ This repository currently contains:
 13. **Psycheros Everything Together** - a Psycheros 0.8.23 release candidate
     bundle for uploads, voice resize, fonts, Windows shell handling, screen
     presence, and expression sprites.
+14. **HTF Music Listener** - a trusted local Psycheros plugin that turns an
+    explicitly requested music attachment into a private HTF v2 sensory
+    handoff and optional human-visible entity view.
 
 These are community addons, not official Psycheros releases.
 
@@ -373,6 +376,36 @@ continues.
 Start here:
 
 - [Everything Together README](psycheros-everything-together/README.md)
+
+### HTF Music Listener
+
+Location:
+
+```text
+psycheros-htf-music-listener/
+```
+
+Current release-candidate features:
+
+- Adds one explicit `listen_to_music` action for attached music.
+- Converts FFmpeg-supported audio and video containers to a temporary WAV.
+- Generates HTF v2 JSON plus waveform, mel-spectrogram, RMS-energy, and
+  spectral-centroid graphs locally.
+- Gives the entity a compact sensory handoff designed for a natural listening
+  response rather than a metrics recital.
+- Keeps voice notes and ordinary speech outside the tool boundary.
+- Offers a persistent Display entity view toggle without changing what the
+  entity receives.
+- Ships a self-contained Windows test package so end users do not install
+  Python, scientific packages, or FFmpeg themselves.
+
+This release candidate currently requires the trusted local plugin host in the
+Rae/Ember Psycheros build. Plain upstream Psycheros 0.8.23 does not yet expose
+that host.
+
+Start here:
+
+- [HTF Music Listener README](psycheros-htf-music-listener/README.md)
 
 ## Downloads
 

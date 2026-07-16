@@ -1,0 +1,117 @@
+# HTF Music Listener
+
+HTF Music Listener is a trusted local Psycheros plugin that gives an entity a single,
+natural music-listening action:
+
+1. A human attaches a music file.
+2. The human asks the entity to listen to it.
+3. The entity calls `listen_to_music` and receives an HTF v2 sensory handoff.
+4. The entity answers naturally, without asking the human to convert or analyze anything
+   first.
+
+The plugin accepts every audio or video container that its packaged FFmpeg runtime can
+decode. It extracts the first audio stream, converts it to a private mono WAV, runs the
+local HTF converter, and removes the temporary WAV after the analysis finishes.
+
+## Important boundary
+
+The tool description deliberately says to use this only when the human asks the entity
+to **listen to music**, or clearly identifies an attachment as music. It must not
+automatically analyze voice notes, voice chat, speech recordings, or every audio
+attachment.
+
+## Entity view
+
+The entity always receives the same musical sensory handoff. The saved **Display entity
+view** toggle controls only what the human sees:
+
+- **Off (default):** the chat contains the entity's natural listening response.
+- **On:** the chat also shows the HTF JSON and the waveform, mel spectrogram,
+  RMS-energy, and spectral-centroid graphs.
+
+After installation and restart, open **Settings > Plugins > HTF Music Listener** to
+change the toggle. A human can also explicitly ask to show or hide the entity view for
+one listening turn.
+
+## Lyrics and words
+
+HTF describes time-varying energy, brightness, spectral change, rhythmic structure,
+chroma, phases, and salient events. It does **not** reliably recover spoken or sung
+words.
+
+If lyrics matter, paste them in the same message as the audio or attach an `.lrc` file.
+Timestamped LRC text is ideal:
+
+```text
+[00:14.20] First lyric line
+[00:18.75] Next lyric line
+```
+
+Synced lyrics from a source such as [LRCLIB](https://lrclib.net/) work well, but verify
+that they match the exact recording. Live versions, remasters, and radio edits often
+drift from another release's timestamps. The plugin does not download, transcribe, or
+guess lyrics.
+
+## Requirements
+
+This release candidate requires:
+
+- Windows x64;
+- Psycheros 0.8.23 with the trusted local plugin host used by the Rae/Ember build;
+- Launcher 0.2.42 or newer.
+
+Plain upstream Psycheros 0.8.23 does not yet contain that plugin host. Do not advertise
+version number alone as sufficient compatibility.
+
+The self-contained release zip includes the HTF worker and audio conversion runtime. End
+users do not need to install Python, scientific packages, or edit their PATH.
+
+Source-tree developers may run without packaged binaries when the machine has:
+
+- Python with `numpy`, `scipy`, `matplotlib`, and `soundfile`;
+- `ffmpeg` and `ffprobe` on PATH, configured by plugin environment variables, or
+  installed through WinGet's FFmpeg package.
+
+## Install the test release
+
+1. Open **Settings > Plugins**.
+2. Under **Install Plugin**, choose the release zip.
+3. Inspect the declared tool, routes, and browser assets.
+4. Install it and restart Psycheros when prompted.
+5. In **Settings > Tools > Custom**, confirm `listen_to_music` is enabled.
+
+Then attach a song and say something explicit such as:
+
+> Please listen to this music and tell me what catches you.
+
+## Local files and retention
+
+Generated HTF bundles live under the plugin's local `state/artifacts/` directory. The
+plugin removes expired bundles on startup and before new listening runs; the default
+retention period is seven days. The normalized WAV is deleted immediately after a
+successful analysis. Nothing is uploaded by the plugin.
+
+See [PRIVACY.md](PRIVACY.md) and [SECURITY.md](SECURITY.md) before sharing a release.
+
+## Development
+
+```powershell
+deno task check
+deno task test
+python worker/generate-htf.py --version
+```
+
+Validate the package against the matching Psycheros checkout:
+
+```powershell
+deno task --cwd ..\..\10_local\repo\packages\plugin-api validate .
+```
+
+Create the self-contained Windows release:
+
+```powershell
+.\scripts\Build-Release.ps1
+```
+
+The build writes a zip and SHA-256 file to the community repository's ignored `dist/`
+directory.
