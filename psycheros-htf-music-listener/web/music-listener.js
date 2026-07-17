@@ -181,17 +181,42 @@ function settingRow() {
   return row;
 }
 
-function injectPluginSettings() {
-  if (document.getElementById("htf-music-listener-settings")) return;
-  const removeButton = document.querySelector(
+function findSettingsMount(root = document) {
+  const removeButton = root.querySelector(
     `[data-plugin-id="${PLUGIN_ID}"]`,
   );
-  const card = removeButton?.closest("section");
-  if (!card) return;
+  const pluginCard = removeButton?.closest("section");
+  if (pluginCard) {
+    return {
+      kind: "plugin",
+      container: pluginCard,
+      reference: removeButton,
+    };
+  }
+
+  const customTools = root.querySelector("#tools-tab-custom #cat-custom") ??
+    root.querySelector("#cat-custom");
+  if (!customTools) return null;
+  return {
+    kind: "tools",
+    container: customTools,
+    reference: customTools.querySelector(".tools-category-header"),
+  };
+}
+
+function injectPluginSettings() {
+  if (document.getElementById("htf-music-listener-settings")) return;
+  const mount = findSettingsMount();
+  if (!mount) return;
   const row = settingRow();
-  const remove = card.querySelector(`[data-plugin-id="${PLUGIN_ID}"]`);
-  if (remove) remove.insertAdjacentElement("beforebegin", row);
-  else card.append(row);
+  row.dataset.settingsMount = mount.kind;
+  if (mount.kind === "plugin" && mount.reference) {
+    mount.reference.insertAdjacentElement("beforebegin", row);
+  } else if (mount.reference) {
+    mount.reference.insertAdjacentElement("afterend", row);
+  } else {
+    mount.container.prepend(row);
+  }
 }
 
 function scan() {
@@ -206,3 +231,5 @@ if (document.readyState === "loading") {
 } else {
   scan();
 }
+
+globalThis.__HTF_MUSIC_LISTENER_TEST__ = { findSettingsMount };

@@ -19,6 +19,20 @@ The plugin reduces its input surface in several ways:
 - Browser rendering creates DOM nodes with `textContent`; artifact URLs must remain
   inside the plugin's namespaced route.
 
+The separately labeled legacy package is a source enhancement, not a native trusted
+plugin. Its installer:
+
+- installs one custom tool and its private runtime beneath the configured Psycheros data
+  root;
+- appends only a version-marked browser block to `web/js/psycheros.js`;
+- is idempotent and includes an uninstaller that removes only that marked block and the
+  installed custom-tool code;
+- republishes generated files with a fixed `htf-music-` prefix through Psycheros's
+  existing local chat-attachment route.
+
+Users should uninstall the legacy bridge before installing the trusted-plugin package to
+avoid two tools with the same name.
+
 Release checks:
 
 1. Build the worker from pinned, reviewed sources.

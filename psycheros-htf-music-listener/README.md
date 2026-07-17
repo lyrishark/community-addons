@@ -30,8 +30,9 @@ view** toggle controls only what the human sees:
   RMS-energy, and spectral-centroid graphs.
 
 After installation and restart, open **Settings > Plugins > HTF Music Listener** to
-change the toggle. A human can also explicitly ask to show or hide the entity view for
-one listening turn.
+change the toggle. If a transitional build loads trusted plugins but does not expose
+their settings cards, the same panel falls back to **Settings > Tools > Custom**. A
+human can also explicitly ask to show or hide the entity view for one listening turn.
 
 ## Lyrics and words
 
@@ -63,6 +64,14 @@ This release requires:
 Plain upstream Psycheros 0.8.23 does not yet contain that plugin host. Do not advertise
 version number alone as sufficient compatibility.
 
+Release `0.1.1` also provides a separately named **legacy** Windows package for those
+plain-upstream builds. It uses Psycheros's existing Custom Tools loader and appends one
+marked, removable browser enhancement so the Display entity view toggle appears under
+**Settings > Tools > Custom**. The legacy installer is intentionally not presented as a
+native plugin: source updates can replace its browser enhancement, in which case the
+installer can be run again. Remove the legacy package before moving to the trusted
+plugin version.
+
 The release zip includes the HTF worker. If FFmpeg is not already available, the plugin
 performs a one-time download of Gyan's pinned FFmpeg 8.1.1 Essentials archive directly
 from its official GitHub release, verifies its SHA-256 digest, and keeps the extracted
@@ -77,6 +86,8 @@ Source-tree developers may run without packaged binaries when the machine has:
 
 ## Install
 
+### Trusted plugin host
+
 1. Open **Settings > Plugins**.
 2. Under **Install Plugin**, choose the release zip.
 3. Inspect the declared tool, routes, and browser assets.
@@ -86,6 +97,20 @@ Source-tree developers may run without packaged binaries when the machine has:
 Then attach a song and say something explicit such as:
 
 > Please listen to this music and tell me what catches you.
+
+### Plain upstream without the plugin host
+
+1. Download the release asset whose name contains `legacy-windows-x64`.
+2. Extract it fully.
+3. Double-click `Install Legacy HTF Music Listener.bat`.
+4. Restart Psycheros.
+5. Open **Settings > Tools > Custom**, confirm `listen_to_music` is enabled, and choose
+   whether to display Entity view.
+
+The legacy installer targets the normal Launcher layout automatically. Advanced users
+can pass explicit `-PsycherosRoot` and `-DataRoot` paths to `tools/Install-Legacy.ps1`.
+Its matching uninstaller removes only the marked browser block and the custom-tool code
+it installed.
 
 ## Local files and retention
 
