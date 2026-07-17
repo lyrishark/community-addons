@@ -398,10 +398,14 @@ Current release-candidate features:
   entity receives.
 - Ships a zero-configuration Windows package with a self-contained HTF worker
   and a pinned, SHA-256-verified one-time FFmpeg setup when needed.
+- Falls back to Settings > Tools > Custom on transitional plugin-host builds.
+- Includes a separately labeled legacy Custom Tools package for plain upstream
+  installations that do not have the trusted plugin host yet.
 
-This addon currently requires the trusted local plugin host in the
-Rae/Ember Psycheros build. Plain upstream Psycheros 0.8.23 does not yet expose
-that host.
+The normal addon zip requires the trusted local plugin host in the Rae/Ember
+Psycheros build. Plain upstream Psycheros 0.8.23 can use the legacy Windows
+package instead; its marked browser enhancement may need to be reinstalled
+after a Psycheros source update.
 
 Start here:
 
@@ -419,10 +423,11 @@ Release downloads are published through GitHub Releases:
   database/checkpoint coverage, and update-path tests
 - [Psycheros Accessible Font Settings v0.1.3](https://github.com/lyrishark/community-addons/releases/tag/psycheros-accessible-font-settings-v0.1.3)
 - [Psycheros Windows Shell Fix v0.1.1](https://github.com/lyrishark/community-addons/releases/tag/psycheros-windows-shell-fix-v0.1.1)
-- [HTF Music Listener v0.1.0](https://github.com/lyrishark/community-addons/releases/tag/psycheros-htf-music-listener-v0.1.0):
-  install the ZIP through Settings > Plugins, restart Psycheros, attach a song,
-  and explicitly ask the entity to listen; optional Entity view shows the HTF
-  JSON and four listening graphs
+- [HTF Music Listener v0.1.1](https://github.com/lyrishark/community-addons/releases/tag/psycheros-htf-music-listener-v0.1.1):
+  use the normal ZIP through Settings > Plugins, or the separately labeled
+  legacy ZIP on plain upstream builds; restart Psycheros, attach a song, and
+  explicitly ask the entity to listen. Optional Entity view shows the HTF JSON
+  and four listening graphs.
 - Psycheros Screen Presence Alpha v0.1.0: source package staged for alpha
   testing; release zip pending broader install testing
 - [Psycheros Expression Sprites Beta v0.1.6](https://github.com/lyrishark/community-addons/releases/tag/psycheros-expression-sprites-beta-v0.1.6):

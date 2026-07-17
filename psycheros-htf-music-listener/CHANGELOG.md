@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.1 - 2026-07-17
+
+- Fall back to `Settings > Tools > Custom` when a trusted-plugin host loads the addon
+  but does not expose an installed-plugin settings card.
+- Add a separate Windows legacy package for upstream Psycheros builds that do not have
+  the trusted plugin host yet. It installs the same listening organ through the existing
+  Custom Tools system and adds a browser-local Entity view toggle under the Custom tab.
+- Keep the normal trusted-plugin package and legacy compatibility package explicitly
+  separate so users cannot mistake a source patch for a native plugin installation.
+
 ## 0.1.0 - 2026-07-17
 
 - Add the explicit `listen_to_music` tool boundary.

@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>HTF Music Listener legacy browser fixture</title>
+    <style>
+    :root {
+      --sp-1: 4px;
+      --sp-2: 8px;
+      --sp-3: 12px;
+      --sp-4: 16px;
+      --c-bg: #18120f;
+      --c-bg-elevated: #241913;
+      --c-border: #68462f;
+      --c-fg: #fff5ec;
+      --c-fg-muted: #d8bda9;
+      --c-accent: #ff7540;
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --font-size-xs: 12px;
+      --font-size-sm: 14px;
+    }
+
+    body {
+      max-width: 900px;
+      margin: 30px auto;
+      background: var(--c-bg);
+      color: var(--c-fg);
+      font-family: system-ui, sans-serif;
+    }
+
+    .tools-category-header,
+    .tool {
+      padding: 16px;
+      border: 1px solid var(--c-border);
+      border-radius: var(--radius-md);
+    }
+
+    .toggle-label input {
+      width: 28px;
+      height: 28px;
+    }
+    </style>
+  </head>
+  <body>
+    <div id="tools-tab-custom">
+      <section id="cat-custom">
+        <div class="tools-category-header">
+          <h2>Custom Tools</h2>
+          <p>User-written tools loaded from custom-tools/</p>
+        </div>
+      </section>
+    </div>
+
+    <div class="tool">
+      <strong>listen_to_music</strong>
+      <div class="tool-result"></div>
+    </div>
+
+    <button id="add-listening-turn" type="button">Add finished listening turn</button>
+
+    <script>
+    document.getElementById("add-listening-turn").addEventListener("click", () => {
+      const metadata = {
+        schemaVersion: 1,
+        runId: "11111111-1111-4111-8111-111111111111",
+        title: "Fixture Song",
+        artist: "Compatibility Choir",
+        files: [
+          {
+            kind: "json",
+            filename: "fixture.json",
+            label: "HTF v2 sensory object",
+            url: "/chat-attachments/htf-music-fixture.json",
+          },
+          {
+            kind: "waveform",
+            filename: "waveform.png",
+            label: "Waveform",
+            url: "/chat-attachments/htf-music-waveform.png",
+          },
+        ],
+      };
+      document.querySelector(".tool-result").textContent = `[HTF_LEGACY_ENTITY_VIEW:${
+        JSON.stringify(metadata)
+      }]`;
+    });
+    </script>
+
+    <script src="../../legacy/browser/htf-music-listener-legacy.js"></script>
+  </body>
+</html>
