@@ -1,4 +1,4 @@
-import { extname, join } from "@std/path";
+import { dirname, extname, fromFileUrl, join } from "@std/path";
 import { DEFAULT_EXPRESSION_LABELS, type ExpressionState } from "./types.ts";
 
 export type ExpressionSpriteFallbackMode = "label" | "closest" | "none";
@@ -39,6 +39,15 @@ export interface ResolvedExpressionDisplay {
   sprite?: ExpressionSpriteAsset;
   spriteLabel?: string;
   fallback: "exact" | "closest" | "label" | "none";
+}
+
+export interface BundledExpressionSpriteSeedResult {
+  available: boolean;
+  packName: string | null;
+  packVersion: string | null;
+  seeded: number;
+  skippedCustom: number;
+  labels: string[];
 }
 
 export const SUPPORTED_EXPRESSION_SPRITE_EXTENSIONS = [
@@ -98,14 +107,28 @@ export function getDefaultExpressionDisplaySettings(): ExpressionDisplaySettings
 
 export async function loadExpressionDisplaySettings(
   dataRoot: string,
+  options: { seedBundledSprites?: boolean } = {},
 ): Promise<ExpressionDisplaySettings> {
   const settingsPath = getExpressionDisplaySettingsPath(dataRoot);
+  let settings: ExpressionDisplaySettings;
 
   try {
     const text = await Deno.readTextFile(settingsPath);
-    return normalizeExpressionDisplaySettings(JSON.parse(text));
+    settings = normalizeExpressionDisplaySettings(JSON.parse(text));
   } catch {
-    return getDefaultExpressionDisplaySettings();
+    settings = getDefaultExpressionDisplaySettings();
+  }
+
+  if (options.seedBundledSprites === false) return settings;
+
+  try {
+    return (await seedBundledExpressionSpritePack(dataRoot, settings)).settings;
+  } catch (error) {
+    console.warn(
+      "[Expression] Failed to seed bundled expression sprites:",
+      error,
+    );
+    return settings;
   }
 }
 
@@ -362,6 +385,20 @@ export function getExpressionSpriteMimeType(filename: string): string {
   }
 }
 
+export async function ensureBundledExpressionSpritePack(
+  dataRoot: string,
+  options: { overwrite?: boolean } = {},
+): Promise<BundledExpressionSpriteSeedResult> {
+  const settings = await loadExpressionDisplaySettings(dataRoot, {
+    seedBundledSprites: false,
+  });
+  return (await seedBundledExpressionSpritePack(
+    dataRoot,
+    settings,
+    options.overwrite === true,
+  )).result;
+}
+
 export function isSafeExpressionSpriteFilename(filename: string): boolean {
   return /^[a-zA-Z0-9_.-]+$/.test(filename) &&
     getExpressionSpriteExtension(filename) !== null;
@@ -384,6 +421,136 @@ export function expressionSpriteUrl(filename: string): string {
 
 function getExpressionDisplaySettingsPath(dataRoot: string): string {
   return join(dataRoot, ".psycheros", "expression-display-settings.json");
+}
+
+interface BundledExpressionSpritePack {
+  name: string;
+  version: string;
+  sprites: Record<string, string>;
+}
+
+async function seedBundledExpressionSpritePack(
+  dataRoot: string,
+  settings: ExpressionDisplaySettings,
+  overwrite = false,
+): Promise<{
+  settings: ExpressionDisplaySettings;
+  result: BundledExpressionSpriteSeedResult;
+}> {
+  const pack = await loadBundledExpressionSpritePack();
+  const emptyResult: BundledExpressionSpriteSeedResult = {
+    available: !!pack,
+    packName: pack?.name ?? null,
+    packVersion: pack?.version ?? null,
+    seeded: 0,
+    skippedCustom: 0,
+    labels: [],
+  };
+  if (!pack) return { settings, result: emptyResult };
+
+  const spritesDir = getExpressionSpritesDir(dataRoot);
+  const packDir = getBundledExpressionSpritePackDir();
+  let changed = false;
+  const result = { ...emptyResult };
+
+  for (const [rawLabel, relativeFilename] of Object.entries(pack.sprites)) {
+    const label = normalizeExpressionLabel(rawLabel);
+    const sourceExt = getExpressionSpriteExtension(relativeFilename);
+    if (!label || !sourceExt) continue;
+
+    const current = settings.sprites[label];
+    const currentExists = current
+      ? await fileExists(getExpressionSpritePath(dataRoot, current.filename))
+      : false;
+    const destinationFilename = `ember-default-${label}.${sourceExt}`;
+    const ownsCurrent = current?.filename === destinationFilename;
+
+    if (!overwrite && current && currentExists && !ownsCurrent) {
+      result.skippedCustom++;
+      continue;
+    }
+
+    const sourcePath = join(packDir, relativeFilename);
+    const sourceInfo = await Deno.stat(sourcePath);
+    const destinationPath = getExpressionSpritePath(
+      dataRoot,
+      destinationFilename,
+    );
+    const destinationInfo = await statOrNull(destinationPath);
+    const shouldCopy = overwrite || !destinationInfo ||
+      destinationInfo.size !== sourceInfo.size || !currentExists ||
+      current?.fileSize !== sourceInfo.size;
+
+    if (shouldCopy) {
+      await Deno.mkdir(spritesDir, { recursive: true });
+      await Deno.copyFile(sourcePath, destinationPath);
+      settings.sprites[label] = {
+        label,
+        filename: destinationFilename,
+        originalName: relativeFilename,
+        mimeType: getExpressionSpriteMimeType(relativeFilename),
+        fileSize: sourceInfo.size,
+        updatedAt: new Date().toISOString(),
+      };
+      if (!settings.labels.includes(label)) settings.labels.push(label);
+      changed = true;
+      result.seeded++;
+      result.labels.push(label);
+    }
+  }
+
+  const normalized = normalizeExpressionDisplaySettings(settings);
+  if (changed) await saveExpressionDisplaySettings(dataRoot, normalized);
+  return { settings: normalized, result };
+}
+
+async function loadBundledExpressionSpritePack(): Promise<
+  BundledExpressionSpritePack | null
+> {
+  try {
+    const packDir = getBundledExpressionSpritePackDir();
+    const text = await Deno.readTextFile(join(packDir, "manifest.json"));
+    const parsed = JSON.parse(text);
+    if (!isRecord(parsed) || !isRecord(parsed.sprites)) return null;
+    const name = typeof parsed.name === "string"
+      ? parsed.name
+      : "Bundled expression sprite pack";
+    const version = typeof parsed.version === "string"
+      ? parsed.version
+      : "unknown";
+    const sprites: Record<string, string> = {};
+    for (const [label, filename] of Object.entries(parsed.sprites)) {
+      if (typeof filename !== "string" || filename.includes("..")) continue;
+      if (!getExpressionSpriteExtension(filename)) continue;
+      sprites[label] = filename;
+    }
+    return Object.keys(sprites).length > 0 ? { name, version, sprites } : null;
+  } catch {
+    return null;
+  }
+}
+
+function getBundledExpressionSpritePackDir(): string {
+  return join(
+    dirname(fromFileUrl(import.meta.url)),
+    "..",
+    "..",
+    "assets",
+    "expression-sprites",
+    "ember",
+  );
+}
+
+async function fileExists(path: string): Promise<boolean> {
+  return (await statOrNull(path)) !== null;
+}
+
+async function statOrNull(path: string): Promise<Deno.FileInfo | null> {
+  try {
+    return await Deno.stat(path);
+  } catch {
+    return null;
+  }
 }
 
 function uniqueLabels(labels: string[]): string[] {

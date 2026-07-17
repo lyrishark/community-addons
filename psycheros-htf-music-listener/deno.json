@@ -1,0 +1,16 @@
+{
+  "tasks": {
+    "check": "deno check psycheros.ts",
+    "test": "deno test -A tests/"
+  },
+  "fmt": {
+    "lineWidth": 88
+  },
+  "lint": {
+    "rules": {
+      "exclude": [
+        "no-explicit-any"
+      ]
+    }
+  }
+}

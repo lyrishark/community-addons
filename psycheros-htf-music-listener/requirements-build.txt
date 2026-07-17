@@ -1,0 +1,5 @@
+pyinstaller==6.21.0
+numpy==2.4.3
+scipy==1.18.0
+matplotlib==3.11.0
+soundfile==0.14.0

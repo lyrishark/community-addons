@@ -1,9 +1,12 @@
-import { assertEquals, assertStringIncludes } from "@std/assert";
+import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import {
   DEFAULT_EXPRESSION_LABELS,
+  ensureBundledExpressionSpritePack,
   EXPRESSION_SPRITE_PROTOCOL,
   ExpressionDirectiveStreamFilter,
   extractExpressionDirectives,
+  getExpressionSpritePath,
+  loadExpressionDisplaySettings,
   matchExpressionLabelFromFilename,
   normalizeExpressionDisplaySettings,
   resolveExpressionDisplay,
@@ -87,16 +90,49 @@ Deno.test("expression display settings default invalid stage sides", () => {
   assertEquals(settings.mobileSide, "right");
 });
 
-Deno.test("expression directive is entity-only and produces manual state", () => {
+Deno.test("bundled Ember sprite pack seeds a fresh expression data root", async () => {
+  const tempRoot = await Deno.makeTempDir();
+  try {
+    const first = await ensureBundledExpressionSpritePack(tempRoot);
+
+    assertEquals(first.available, true);
+    assertEquals(first.seeded, DEFAULT_EXPRESSION_LABELS.length);
+    assert(first.labels.includes("neutral"));
+
+    const settings = await loadExpressionDisplaySettings(tempRoot);
+    assertEquals(
+      Object.keys(settings.sprites).length,
+      DEFAULT_EXPRESSION_LABELS.length,
+    );
+    assertEquals(
+      settings.sprites.neutral.filename,
+      "ember-default-neutral.png",
+    );
+    assertEquals(settings.sprites.warmth.originalName, "Warmth.png");
+
+    const neutralInfo = await Deno.stat(
+      getExpressionSpritePath(tempRoot, settings.sprites.neutral.filename),
+    );
+    assert(neutralInfo.size > 0);
+
+    const second = await ensureBundledExpressionSpritePack(tempRoot);
+    assertEquals(second.seeded, 0);
+  } finally {
+    await Deno.remove(tempRoot, { recursive: true });
+  }
+});
+
+Deno.test("expression directive is entity-only and produces self-selected state", () => {
   const result = extractExpressionDirectives(
-    'Visible text.<psycheros-expression label="warmth">The sprite illustration will represent my emotion as: warmth. Is this right? Y</psycheros-expression>',
+    'Visible text.<psycheros-expression label="warmth" intensity="0.72"/>',
     { surface: "chat", now: () => 1_234 },
   );
 
   assertEquals(result.visibleText, "Visible text.");
   assertEquals(result.states.length, 1);
   assertEquals(result.states[0].label, "warmth");
-  assertEquals(result.states[0].source, "manual");
+  assertEquals(result.states[0].source, "llm");
+  assertEquals(result.states[0].intensity, 0.72);
   assertEquals(result.states[0].surface, "chat");
   assertEquals(result.states[0].updatedAt, 1_234);
 });
@@ -134,6 +170,14 @@ Deno.test("expression directive stripping truncates incomplete hidden control", 
 
 Deno.test("expression sprite protocol gives my valid directive labels", () => {
   assertStringIncludes(EXPRESSION_SPRITE_PROTOCOL, "Allowed directive labels:");
+  assertStringIncludes(
+    EXPRESSION_SPRITE_PROTOCOL,
+    "At the end of every final conversational response",
+  );
+  assertStringIncludes(
+    EXPRESSION_SPRITE_PROTOCOL,
+    "mid-response movement is intentional",
+  );
   assertStringIncludes(
     EXPRESSION_SPRITE_PROTOCOL,
     "I do not invent a new label for the directive.",

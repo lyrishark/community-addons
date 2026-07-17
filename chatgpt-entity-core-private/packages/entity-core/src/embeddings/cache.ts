@@ -24,6 +24,7 @@ import type { LocalEmbedder } from "./mod.ts";
 import { EMBEDDING_DIMENSION } from "../graph/types.ts";
 import type { Granularity } from "../types.ts";
 import { chunkContent, shouldChunk } from "./chunker.ts";
+import { stripMemoryMetadata } from "../storage/mod.ts";
 
 // ---- SHA-256 hash utility (Deno built-in) ----
 
@@ -69,6 +70,12 @@ export interface CacheSearchResult {
   chunkIndex: number;
 }
 
+export interface LexicalSearchResult {
+  memoryKey: string;
+  granularity: string;
+  score: number;
+}
+
 // ---- Schema (v2 — chunk support) ----
 //
 // Split into table DDL and index DDL so the migration can run
@@ -110,6 +117,18 @@ const VECTOR_TABLE_SQL = `
   )
 `;
 
+const LEXICAL_TABLE_SQL = `
+  CREATE VIRTUAL TABLE IF NOT EXISTS memory_fts USING fts5(
+    parent_key UNINDEXED,
+    memory_id UNINDEXED,
+    granularity UNINDEXED,
+    date UNINDEXED,
+    source_instance UNINDEXED,
+    content,
+    tokenize = 'unicode61 remove_diacritics 2'
+  )
+`;
+
 // Schema version for the embedding enrichment algorithm.
 // Bump this when the text enrichment logic changes (e.g., date prefix added).
 // The cache auto-detects a version mismatch and triggers a full rebuild.
@@ -121,6 +140,7 @@ export class EmbeddingCache {
   private db: Database;
   private dbPath: string;
   private vectorAvailable = false;
+  private lexicalAvailable = false;
   private initialized = false;
   private rebuildNeeded = false;
 
@@ -161,6 +181,8 @@ export class EmbeddingCache {
     // Now safe to create indexes (parent_key is present)
     this.db.exec(CACHE_INDEX_DDL);
 
+    await this.initializeLexical();
+
     this.initialized = true;
 
     // Check if embedding schema version changed — flag rebuild if so
@@ -172,6 +194,92 @@ export class EmbeddingCache {
    */
   isAvailable(): boolean {
     return this.vectorAvailable;
+  }
+
+  isLexicalAvailable(): boolean {
+    return this.lexicalAvailable;
+  }
+
+  /** Initialize only the lightweight FTS index, without loading sqlite-vec. */
+  async initializeLexical(): Promise<void> {
+    if (this.lexicalAvailable) return;
+    await ensureDir(join(this.dbPath, ".."));
+    try {
+      this.db.exec(LEXICAL_TABLE_SQL);
+      this.lexicalAvailable = true;
+    } catch (error) {
+      this.lexicalAvailable = false;
+      console.error(
+        "[EmbeddingCache] SQLite FTS5 unavailable; lexical search will use the filesystem fallback.",
+        error instanceof Error ? error.message : String(error),
+      );
+    }
+  }
+
+  /** Keep a content-hash-independent FTS row current for exact-name recovery. */
+  indexLexical(entry: {
+    granularity: string;
+    date: string;
+    sourceInstance?: string;
+    slug?: string;
+    content: string;
+  }): void {
+    if (!this.lexicalAvailable) return;
+    const parentKey = computeMemoryKey(entry);
+    const content = stripMemoryMetadata(entry.content);
+    this.transaction(() => {
+      this.db.exec(
+        "DELETE FROM memory_fts WHERE parent_key = ? AND granularity = ?",
+        [parentKey, entry.granularity],
+      );
+      this.db.exec(
+        "INSERT INTO memory_fts (parent_key, memory_id, granularity, date, source_instance, content) VALUES (?, ?, ?, ?, ?, ?)",
+        [
+          parentKey,
+          `${entry.granularity}-${entry.date}`,
+          entry.granularity,
+          entry.date,
+          entry.sourceInstance ?? "",
+          content,
+        ],
+      );
+    });
+  }
+
+  searchLexical(query: string, limit: number): LexicalSearchResult[] {
+    if (!this.lexicalAvailable) return [];
+    const terms = query.toLocaleLowerCase().match(/[\p{L}\p{N}_'-]{2,}/gu) ??
+      [];
+    const uniqueTerms = [...new Set(terms)].slice(0, 12);
+    if (uniqueTerms.length === 0) return [];
+    const matchQuery = uniqueTerms.map((term) =>
+      `"${term.replaceAll('"', '""')}"*`
+    ).join(" OR ");
+    try {
+      const stmt = this.db.prepare(
+        "SELECT parent_key, granularity, bm25(memory_fts) AS rank FROM memory_fts WHERE memory_fts MATCH ? ORDER BY rank LIMIT ?",
+      );
+      const rows = stmt.all<{
+        parent_key: string;
+        granularity: string;
+        rank: number;
+      }>(
+        matchQuery,
+        Math.max(1, limit),
+      );
+      stmt.finalize();
+      return rows.map((row, index) => ({
+        memoryKey: row.parent_key,
+        granularity: row.granularity,
+        score: Math.max(0.1, 1 - index / Math.max(rows.length, 1)),
+      }));
+    } catch (error) {
+      console.error(
+        "[EmbeddingCache] Lexical search failed:",
+        error instanceof Error ? error.message : String(error),
+      );
+      return [];
+    }
   }
 
   /**
@@ -349,6 +457,11 @@ export class EmbeddingCache {
       this.db.exec("DELETE FROM memory_embeddings WHERE parent_key = ?", [
         parentKey,
       ]);
+      if (this.lexicalAvailable) {
+        this.db.exec("DELETE FROM memory_fts WHERE parent_key = ?", [
+          parentKey,
+        ]);
+      }
     });
   }
 
@@ -425,23 +538,26 @@ export class EmbeddingCache {
     if (!this.initialized) return null;
 
     const parentKey = computeMemoryKey(entry);
+    const semanticContent = stripMemoryMetadata(entry.content);
     const enrichedContent = enrichContentWithDate(
       entry.granularity,
       entry.date,
-      entry.content,
+      semanticContent,
     );
     const contentHash = await sha256Hex(enrichedContent);
 
     // Check cache validity by parent key with full content hash
     const cached = this.getByParent(parentKey, contentHash);
     if (cached.length > 0) {
+      this.indexLexical(entry);
       return { memoryKey: parentKey, embedding: cached[0].embedding };
     }
 
     // Cache miss — delete any stale chunks
     this.delete(parentKey);
+    this.indexLexical(entry);
 
-    if (!shouldChunk(entry.content)) {
+    if (!shouldChunk(semanticContent)) {
       // SHORT PATH: single embedding
       const embedding = await embedder.embed(enrichedContent);
       if (!embedding) return null;
@@ -461,7 +577,7 @@ export class EmbeddingCache {
     }
 
     // LONG PATH: chunk and embed each chunk
-    const chunks = chunkContent(entry.content);
+    const chunks = chunkContent(semanticContent);
     let firstEmbedding: number[] | null = null;
 
     for (const chunk of chunks) {
@@ -530,6 +646,7 @@ export class EmbeddingCache {
     }
 
     this.db.exec("DELETE FROM memory_embeddings");
+    if (this.lexicalAvailable) this.db.exec("DELETE FROM memory_fts");
   }
 
   /**
@@ -611,6 +728,7 @@ export class EmbeddingCache {
   close(): void {
     this.db.close();
     this.initialized = false;
+    this.lexicalAvailable = false;
   }
 
   /**
@@ -628,6 +746,7 @@ export class EmbeddingCache {
     this.db.exec("PRAGMA foreign_keys = ON");
     this.db.exec("PRAGMA busy_timeout = 5000");
     this.initialized = false;
+    this.lexicalAvailable = false;
   }
 
   // ---- Private helpers ----

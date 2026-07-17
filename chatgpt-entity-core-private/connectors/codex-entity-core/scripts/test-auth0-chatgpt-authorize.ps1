@@ -11,7 +11,7 @@ param(
   [Parameter(Mandatory = $true)]
   [string] $PublicBaseUrl,
 
-  [string] $Scopes = "entity:read memory:write"
+  [string] $Scopes = "offline_access entity:read memory:write"
 )
 
 $ErrorActionPreference = "Stop"

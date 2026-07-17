@@ -8,8 +8,8 @@ What it does:
 - runs a local MCP bridge on your computer
 - exposes it to your private ChatGPT Developer Mode app through HTTPS
 - uses OAuth so it is not just open on the public internet
-- lets ChatGPT read identity context, search/fetch memories, and record ordinary
-  memories if writes are enabled
+- gives ChatGPT a lightweight `search`, `fetch`, and `remember` surface for
+  ordinary companion memory
 
 What it does not do:
 
@@ -34,7 +34,7 @@ https://github.com/lyrishark/community-addons
 Release:
 
 ```text
-https://github.com/lyrishark/community-addons/releases/tag/chatgpt-entity-core-private-v0.1.1
+https://github.com/lyrishark/community-addons/releases
 ```
 
 Please treat this as careful alpha testing. Start with read-only checks before

@@ -27,6 +27,8 @@ Community alpha add-on for Psycheros 0.8.23.
 - This combo exists because the standalone More Uploads and Voice Text Resize
   packages replace several of the same full UI files. Installing this package is
   the safe path when both behaviors are wanted together.
+- Installers warn when replacing either standalone package, remove superseded
+  install markers after a successful run, and block Everything Together mixes.
 - This package intentionally does not include expression sprites or screen
   presence changes.
 - The add-on includes template and service-worker cache stamps so the desktop

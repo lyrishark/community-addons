@@ -22,6 +22,9 @@ Community alpha add-on for Psycheros 0.8.23.
   is not duplicating an already-shipped upstream feature.
 - This package intentionally does not include the resizable voice text box,
   expression sprites, or screen presence changes.
+- Installers now block overlapping Voice Text Resize, combo, and Everything
+  Together installs using `.addon-installs` markers plus legacy backup-folder
+  detection.
 - The add-on includes a service-worker cache stamp so the desktop app reloads
   updated JS/CSS after install.
 
@@ -37,4 +40,3 @@ deno check --node-modules-dir=none packages/psycheros/src/server/routes.ts packa
 Release asset:
 
 - `psycheros-more-uploads-0.1.0.zip`
-

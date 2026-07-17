@@ -57,6 +57,17 @@ const validAccessToken = await new SignJWT({
   .setExpirationTime("5m")
   .sign(privateKey);
 
+const expiringAccessToken = await new SignJWT({
+  scope: "entity:read memory:write",
+})
+  .setProtectedHeader({ alg: "RS256", kid: "oauth-smoke-key" })
+  .setIssuer(issuer)
+  .setAudience(baseUrl)
+  .setSubject("oauth-smoke-user")
+  .setIssuedAt()
+  .setExpirationTime("60s")
+  .sign(privateKey);
+
 const serverProcess = new Deno.Command(Deno.execPath(), {
   args: ["run", "--node-modules-dir=none", "-A", "src/http.ts"],
   env: {
@@ -72,6 +83,7 @@ const serverProcess = new Deno.Command(Deno.execPath(), {
     ENTITY_CONNECTOR_OAUTH_RESOURCE: baseUrl,
     ENTITY_CONNECTOR_OAUTH_ISSUER: issuer,
     ENTITY_CONNECTOR_OAUTH_JWKS_URI: `${issuer}/jwks.json`,
+    ENTITY_CONNECTOR_OAUTH_EXPIRY_WARNING_SECONDS: "120",
   },
   stdout: "inherit",
   stderr: "inherit",
@@ -96,6 +108,20 @@ const authedClient = new Client({
   name: "codex-entity-core-oauth-smoke-authed",
   version: "0.1.0",
 });
+const authedLiteTransport = new StreamableHTTPClientTransport(
+  new URL(`${baseUrl}/mcp-lite`),
+  {
+    requestInit: {
+      headers: {
+        authorization: `Bearer ${validAccessToken}`,
+      },
+    },
+  },
+);
+const authedLiteClient = new Client({
+  name: "codex-entity-core-oauth-smoke-lite-authed",
+  version: "0.1.0",
+});
 
 function log(stage: string): void {
   console.log(`[oauth-smoke] ${stage}`);
@@ -112,12 +138,28 @@ function textFromToolResult(result: unknown): string {
   return JSON.stringify(result);
 }
 
+function parseToolJson(result: unknown): Record<string, unknown> {
+  const maybeResult = result as { structuredContent?: unknown };
+  if (
+    maybeResult.structuredContent &&
+    typeof maybeResult.structuredContent === "object"
+  ) {
+    return maybeResult.structuredContent as Record<string, unknown>;
+  }
+
+  return JSON.parse(textFromToolResult(result));
+}
+
 function parseRawJsonRpcResponse(text: string): {
   result?: {
     tools?: Array<{
       name?: string;
       securitySchemes?: unknown;
       _meta?: Record<string, unknown>;
+      outputSchema?: unknown;
+      inputSchema?: {
+        properties?: Record<string, { enum?: unknown[] }>;
+      };
     }>;
   };
 } {
@@ -131,16 +173,20 @@ function parseRawJsonRpcResponse(text: string): {
   return JSON.parse(text);
 }
 
-async function rawListTools(): Promise<{
+async function rawListTools(path = "/mcp"): Promise<{
   result?: {
     tools?: Array<{
       name?: string;
       securitySchemes?: unknown;
       _meta?: Record<string, unknown>;
+      outputSchema?: unknown;
+      inputSchema?: {
+        properties?: Record<string, { enum?: unknown[] }>;
+      };
     }>;
   };
 }> {
-  const response = await fetch(`${baseUrl}/mcp`, {
+  const response = await fetch(`${baseUrl}${path}`, {
     method: "POST",
     headers: {
       accept: "application/json, text/event-stream",
@@ -238,6 +284,40 @@ try {
       "entity_status did not advertise top-level securitySchemes",
     );
   }
+  const rawRecentMemories = rawTools.result?.tools?.find((tool) =>
+    tool.name === "recent_memories"
+  );
+  const sortByValues = rawRecentMemories?.inputSchema?.properties?.sortBy?.enum;
+  if (
+    !Array.isArray(sortByValues) ||
+    !["memoryDate", "createdAt", "updatedAt"].every((value) =>
+      sortByValues.includes(value)
+    )
+  ) {
+    throw new Error("recent_memories did not advertise the sortBy enum");
+  }
+  const rawLiteTools = await rawListTools("/mcp-lite");
+  const rawLiteToolNames = rawLiteTools.result?.tools?.map((tool) => tool.name)
+    .sort();
+  if (
+    JSON.stringify(rawLiteToolNames) !==
+      JSON.stringify(["fetch", "remember", "search"])
+  ) {
+    throw new Error(
+      `lite endpoint advertised unexpected tools: ${
+        JSON.stringify(rawLiteToolNames)
+      }`,
+    );
+  }
+  if (rawLiteTools.result?.tools?.some((tool) => tool.outputSchema)) {
+    throw new Error("lite endpoint advertised output schemas");
+  }
+  const rawRemember = rawLiteTools.result?.tools?.find((tool) =>
+    tool.name === "remember"
+  );
+  if (!Array.isArray(rawRemember?.securitySchemes)) {
+    throw new Error("remember did not advertise top-level securitySchemes");
+  }
 
   const tools = await withTimeout("listTools", client.listTools(), 30_000) as {
     tools: Array<{
@@ -306,27 +386,121 @@ try {
     );
   }
 
+  log("checking near-expiry token refresh warning");
+  const expiringResponse = await fetch(`${baseUrl}/mcp`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      authorization: `Bearer ${expiringAccessToken}`,
+    },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: "expiring-token-smoke",
+      method: "initialize",
+      params: {
+        protocolVersion: "2025-03-26",
+        capabilities: {},
+        clientInfo: {
+          name: "expiring-token-smoke",
+          version: "0.1.0",
+        },
+      },
+    }),
+  });
+  const expiringText = await expiringResponse.text();
+  if (
+    expiringResponse.status !== 401 ||
+    !expiringText.includes("Refresh or reconnect the Psycheros connector")
+  ) {
+    throw new Error(
+      `near-expiry token warning failed: ${expiringResponse.status} ${expiringText}`,
+    );
+  }
+
   log("checking valid JWT access token");
   await withTimeout(
     "authorized connect",
     authedClient.connect(authedTransport),
     30_000,
   );
-  const authorizedStatus = textFromToolResult(
+  const authorizedStatus = parseToolJson(
     await withTimeout(
       "authorized entity_status",
       authedClient.callTool({ name: "entity_status", arguments: {} }),
       30_000,
     ),
   );
-  if (!authorizedStatus.includes("chatgpt-oauth-smoke")) {
+  const connector = authorizedStatus.connector as { instanceId?: string };
+  if (connector.instanceId !== "chatgpt-oauth-smoke") {
     throw new Error(
-      `authorized entity_status did not return connector status: ${authorizedStatus}`,
+      `authorized entity_status did not return connector status: ${
+        JSON.stringify(authorizedStatus)
+      }`,
     );
+  }
+  const authorizedRecent = parseToolJson(
+    await withTimeout(
+      "authorized recent_memories",
+      authedClient.callTool({ name: "recent_memories", arguments: {} }),
+      30_000,
+    ),
+  ) as { sortBy?: string };
+  if (authorizedRecent.sortBy !== "memoryDate") {
+    throw new Error("recent_memories did not default to memoryDate over OAuth");
+  }
+
+  log("checking authorized lite remember/search/fetch");
+  await withTimeout(
+    "authorized lite connect",
+    authedLiteClient.connect(authedLiteTransport),
+    30_000,
+  );
+  const liteMarker = `lite-oauth-smoke-${crypto.randomUUID()}`;
+  const liteRemember = parseToolJson(
+    await withTimeout(
+      "authorized lite remember",
+      authedLiteClient.callTool({
+        name: "remember",
+        arguments: {
+          text: `Lite OAuth smoke marker ${liteMarker}`,
+        },
+      }),
+      30_000,
+    ),
+  );
+  if (liteRemember.success !== true || typeof liteRemember.id !== "string") {
+    throw new Error(`lite remember failed: ${JSON.stringify(liteRemember)}`);
+  }
+  const liteSearch = parseToolJson(
+    await withTimeout(
+      "authorized lite search",
+      authedLiteClient.callTool({
+        name: "search",
+        arguments: { query: liteMarker },
+      }),
+      30_000,
+    ),
+  ) as { results?: Array<{ id?: string; text?: string }> };
+  if (!JSON.stringify(liteSearch.results).includes(liteMarker)) {
+    throw new Error("lite search did not return the remembered marker");
+  }
+  const liteFetch = parseToolJson(
+    await withTimeout(
+      "authorized lite fetch",
+      authedLiteClient.callTool({
+        name: "fetch",
+        arguments: { id: liteRemember.id },
+      }),
+      30_000,
+    ),
+  ) as { text?: string; success?: boolean };
+  if (liteFetch.success !== true || !liteFetch.text?.includes(liteMarker)) {
+    throw new Error("lite fetch did not return the remembered marker");
   }
 } finally {
   await client.close().catch(() => {});
   await authedClient.close().catch(() => {});
+  await authedLiteClient.close().catch(() => {});
   serverProcess.kill("SIGKILL");
   await serverProcess.status.catch(() => {});
   await authServer.shutdown().catch(() => {});

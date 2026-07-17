@@ -1,3 +1,5 @@
+import type { ExpressionState } from "./expression/mod.ts";
+
 /**
  * Psycheros Shared Type Definitions
  *
@@ -33,6 +35,11 @@ export interface Message {
    * read time, never stored.
    */
   isVoice?: boolean;
+  /**
+   * The final visible expression for this assistant message. This remains
+   * local UI state rather than a durable feeling or Entity Core memory.
+   */
+  expressionState?: ExpressionState;
 }
 
 // =============================================================================

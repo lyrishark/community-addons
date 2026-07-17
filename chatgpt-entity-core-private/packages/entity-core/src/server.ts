@@ -45,6 +45,7 @@ import {
   createMemoryGrepHandler,
   createMemoryListHandler,
   createMemoryReadHandler,
+  createMemoryRecentHandler,
   createMemorySearchHandler,
   createMemoryUpdateHandler,
   createSnapshotCreateHandler,
@@ -335,6 +336,8 @@ export function createServer(
       date: memoryTools["memory/create"].inputSchema.shape.date,
       content: memoryTools["memory/create"].inputSchema.shape.content,
       chatIds: memoryTools["memory/create"].inputSchema.shape.chatIds,
+      sourceMemoryIds:
+        memoryTools["memory/create"].inputSchema.shape.sourceMemoryIds,
       instanceId: memoryTools["memory/create"].inputSchema.shape.instanceId,
       participatingInstances:
         memoryTools["memory/create"].inputSchema.shape.participatingInstances,
@@ -346,6 +349,7 @@ export function createServer(
         date,
         content,
         chatIds,
+        sourceMemoryIds,
         instanceId,
         participatingInstances,
         slug,
@@ -359,6 +363,7 @@ export function createServer(
         date,
         content,
         chatIds: chatIds ?? [],
+        sourceMemoryIds,
         instanceId,
         participatingInstances,
         slug,
@@ -373,6 +378,7 @@ export function createServer(
             date,
             content,
             chatIds: chatIds ?? [],
+            sourceMemoryIds,
             sourceInstance: instanceId,
             participatingInstances: participatingInstances ?? [instanceId],
             version: 1,
@@ -469,6 +475,35 @@ export function createServer(
             text: JSON.stringify(result, null, 2),
           },
         ],
+      };
+    },
+  );
+
+  server.tool(
+    "memory_recent",
+    memoryTools["memory/recent"].description,
+    {
+      granularities:
+        memoryTools["memory/recent"].inputSchema.shape.granularities,
+      limit: memoryTools["memory/recent"].inputSchema.shape.limit,
+      hours: memoryTools["memory/recent"].inputSchema.shape.hours,
+      includeSourceContext:
+        memoryTools["memory/recent"].inputSchema.shape.includeSourceContext,
+    },
+    async ({ granularities, limit, hours, includeSourceContext }) => {
+      await store.initialize();
+      const handler = createMemoryRecentHandler(store);
+      const result = await handler({
+        granularities,
+        limit,
+        hours,
+        includeSourceContext,
+      });
+      return {
+        content: [{
+          type: "text" as const,
+          text: JSON.stringify(result, null, 2),
+        }],
       };
     },
   );

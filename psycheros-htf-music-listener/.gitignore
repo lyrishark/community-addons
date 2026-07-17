@@ -1,0 +1,5 @@
+/.build/
+/vendor/
+*.spec
+__pycache__/
+*.pyc

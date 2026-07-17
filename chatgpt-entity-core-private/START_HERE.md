@@ -18,14 +18,14 @@ ChatGPT -> private ChatGPT app -> Auth0 login -> Tailscale HTTPS tunnel -> your 
 The important rule:
 
 ```text
-ChatGPT URL ends in /mcp.
-Auth0 API Identifier does not end in /mcp.
+ChatGPT URL ends in /mcp-lite.
+Auth0 API Identifier does not end in /mcp-lite or /mcp.
 ```
 
 Example:
 
 ```text
-ChatGPT Server URL:  https://your-machine.your-tailnet.ts.net/mcp
+ChatGPT Server URL:  https://your-machine.your-tailnet.ts.net/mcp-lite
 Auth0 API Identifier: https://your-machine.your-tailnet.ts.net
 ```
 
@@ -152,7 +152,7 @@ Write it down here:
 PUBLIC_BASE_URL=
 ```
 
-Make the ChatGPT URL by adding `/mcp`:
+Make the ChatGPT URL by adding `/mcp-lite`:
 
 ```text
 CHATGPT_SERVER_URL=
@@ -162,7 +162,7 @@ Example:
 
 ```text
 PUBLIC_BASE_URL=https://my-laptop.my-tailnet.ts.net
-CHATGPT_SERVER_URL=https://my-laptop.my-tailnet.ts.net/mcp
+CHATGPT_SERVER_URL=https://my-laptop.my-tailnet.ts.net/mcp-lite
 ```
 
 Leave the Tailscale window open.
@@ -186,7 +186,7 @@ Psycheros Entity Core
 paste PUBLIC_BASE_URL here
 ```
 
-Do not add `/mcp`.
+Do not add `/mcp-lite` or `/mcp`.
 
 6. Save or create the API.
 7. Open the `Permissions` tab.
@@ -222,7 +222,12 @@ Record ordinary daily or significant memories.
 All apps allowed
 ```
 
-13. Save.
+13. Find `Allow Offline Access`.
+14. Turn it on.
+
+This lets Auth0 issue refresh tokens when ChatGPT asks for `offline_access`.
+
+15. Save.
 
 ## Step 4 - Create The Auth0 Application
 
@@ -290,7 +295,7 @@ paste CHATGPT_SERVER_URL here
 Example:
 
 ```text
-https://my-laptop.my-tailnet.ts.net/mcp
+https://my-laptop.my-tailnet.ts.net/mcp-lite
 ```
 
 6. Authentication:
@@ -334,7 +339,7 @@ memory:write
 13. Base scopes:
 
 ```text
-leave blank
+offline_access
 ```
 
 If ChatGPT asks for OAuth endpoint URLs manually:
@@ -347,6 +352,9 @@ Resource: PUBLIC_BASE_URL
 ```
 
 Replace `AUTH0_DOMAIN` and `PUBLIC_BASE_URL` with your real values.
+
+`offline_access` lets ChatGPT request a refresh token. Without it, the app can
+work for a while and then start failing after the Auth0 access token expires.
 
 14. Find ChatGPT's `Callback URL`.
 15. Copy it.
@@ -436,6 +444,7 @@ Good signs:
 ```text
 Starting Psycheros ChatGPT MCP bridge...
 Public MCP URL: https://your-machine.your-tailnet.ts.net/mcp
+Lite MCP URL: https://your-machine.your-tailnet.ts.net/mcp-lite
 OAuth issuer: https://your-tenant.us.auth0.com
 Writes enabled: false
 ```
@@ -464,16 +473,17 @@ Return to ChatGPT.
 Try this first:
 
 ```text
-Use Psycheros Entity Core to check entity status.
+Use Psycheros Entity Core to search for recent memories.
 ```
 
 Then try:
 
 ```text
-Use Psycheros Entity Core to read identity context for self and relationship.
+Use Psycheros Entity Core to remember that this bridge connected successfully.
 ```
 
-If both work, the read-only bridge is working.
+If the search works, the read path is working. If remember works after writes
+are enabled, ChatGPT can save lightweight memories into Psycheros.
 
 ## Step 10 - Turn Memory Writes On
 
@@ -544,21 +554,17 @@ To turn automatic startup off later, double-click:
 Good first prompts:
 
 ```text
-Use Psycheros Entity Core to check entity status.
+Use Psycheros Entity Core to search for recent memories.
 ```
 
 ```text
 Use Psycheros Entity Core to search memory for "first meeting".
 ```
 
-```text
-Use Psycheros Entity Core to read identity context for self and relationship.
-```
-
 After writes are enabled:
 
 ```text
-Use Psycheros Entity Core to record a daily memory about this setup working.
+Use Psycheros Entity Core to remember that this setup worked.
 ```
 
 ## When You Are Done Without Automatic Startup
@@ -587,8 +593,8 @@ Check:
   finish successfully?
 - Otherwise, is `2 Start Tailscale Funnel.bat` still open?
 - Otherwise, is `4 Start ChatGPT Bridge.bat` still open?
-- Did ChatGPT Server URL end in `/mcp`?
-- Did Auth0 API Identifier not end in `/mcp`?
+- Did ChatGPT Server URL end in `/mcp-lite`?
+- Did Auth0 API Identifier not end in `/mcp-lite` or `/mcp`?
 
 Problem:
 

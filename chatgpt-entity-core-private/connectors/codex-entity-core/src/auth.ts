@@ -1,7 +1,12 @@
 import type { NextFunction, Request, RequestHandler, Response } from "express";
 import type { OAuthTokenVerifier } from "@modelcontextprotocol/sdk/server/auth/provider.js";
 import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
-import { createRemoteJWKSet, type JWTPayload, jwtVerify } from "jose";
+import {
+  createRemoteJWKSet,
+  decodeJwt,
+  type JWTPayload,
+  jwtVerify,
+} from "jose";
 
 export const ENTITY_CORE_READ_SCOPE = "entity:read";
 export const ENTITY_CORE_MEMORY_WRITE_SCOPE = "memory:write";
@@ -43,6 +48,14 @@ function splitScopes(value: string | undefined): string[] {
     [];
 }
 
+function parseNonNegativeInteger(
+  value: string | undefined,
+  fallback: number,
+): number {
+  const parsed = Number(value ?? "");
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
 function quoteHeaderValue(value: string): string {
   return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 }
@@ -70,6 +83,34 @@ function claimContains(value: unknown, expected: string): boolean {
   if (typeof value === "string") return value === expected;
   if (Array.isArray(value)) return value.includes(expected);
   return false;
+}
+
+function readUnverifiedExpiry(token: string): number | null {
+  try {
+    const payload = decodeJwt(token);
+    return typeof payload.exp === "number" && Number.isFinite(payload.exp)
+      ? payload.exp
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function formatRelativeExpiry(secondsUntilExpiry: number): string {
+  if (secondsUntilExpiry <= 0) return "has expired";
+  if (secondsUntilExpiry < 60) {
+    return `expires in ${secondsUntilExpiry} second${
+      secondsUntilExpiry === 1 ? "" : "s"
+    }`;
+  }
+  const minutes = Math.ceil(secondsUntilExpiry / 60);
+  return `expires in about ${minutes} minute${minutes === 1 ? "" : "s"}`;
+}
+
+function buildConnectorRefreshMessage(secondsUntilExpiry: number): string {
+  return `ChatGPT connector OAuth token ${
+    formatRelativeExpiry(secondsUntilExpiry)
+  }. Refresh or reconnect the Psycheros connector in ChatGPT before retrying.`;
 }
 
 async function discoverJwksUri(issuer: string): Promise<string> {
@@ -117,17 +158,17 @@ async function discoverIssuerIdentifier(issuer: string): Promise<string> {
 class StaticBearerVerifier implements OAuthTokenVerifier {
   constructor(private readonly expectedToken: string) {}
 
-  async verifyAccessToken(token: string): Promise<AuthInfo> {
+  verifyAccessToken(token: string): Promise<AuthInfo> {
     if (token !== this.expectedToken) {
-      throw new Error("Invalid static bearer token");
+      return Promise.reject(new Error("Invalid static bearer token"));
     }
 
-    return {
+    return Promise.resolve({
       token,
       clientId: "static-bearer",
       scopes: [...ENTITY_CORE_SUPPORTED_SCOPES],
       expiresAt: Math.floor(Date.now() / 1000) + 31_536_000,
-    };
+    });
   }
 }
 
@@ -142,10 +183,22 @@ class OidcJwtVerifier implements OAuthTokenVerifier {
       resource: string;
       algorithms: string[];
       clockToleranceSeconds: number;
+      expiryWarningSeconds: number;
     },
   ) {}
 
   async verifyAccessToken(token: string): Promise<AuthInfo> {
+    const expiresAt = readUnverifiedExpiry(token);
+    if (
+      expiresAt !== null &&
+      this.config.expiryWarningSeconds > 0
+    ) {
+      const secondsUntilExpiry = expiresAt - Math.floor(Date.now() / 1000);
+      if (secondsUntilExpiry <= this.config.expiryWarningSeconds) {
+        throw new Error(buildConnectorRefreshMessage(secondsUntilExpiry));
+      }
+    }
+
     const jwksUri = this.config.jwksUri ??
       await discoverJwksUri(this.config.issuer);
     this.jwks ??= createRemoteJWKSet(new URL(jwksUri));
@@ -259,6 +312,10 @@ export async function createHttpAuthContext(
   const clockToleranceSeconds = Number(
     Deno.env.get("ENTITY_CONNECTOR_OAUTH_CLOCK_TOLERANCE_SECONDS") ?? "30",
   );
+  const expiryWarningSeconds = parseNonNegativeInteger(
+    Deno.env.get("ENTITY_CONNECTOR_OAUTH_EXPIRY_WARNING_SECONDS"),
+    120,
+  );
 
   return {
     mode,
@@ -289,6 +346,7 @@ export async function createHttpAuthContext(
       clockToleranceSeconds: Number.isFinite(clockToleranceSeconds)
         ? clockToleranceSeconds
         : 30,
+      expiryWarningSeconds,
     }),
   };
 }

@@ -1,7 +1,7 @@
 # Psycheros Everything Together
 
-Release candidate: `0.1.0-rc.2`  
-Compatible with Psycheros: `0.8.23`
+- Release candidate: `0.1.0-rc.3`
+- Compatible with Psycheros: `0.8.23`
 
 This is the combined community bundle for the upgrades that touch the same chat,
 voice, and settings surfaces. It is published as a release candidate so it can
@@ -16,8 +16,12 @@ be tested before a stable release.
 - Accessible font controls: larger UI text and reading-friendly font presets.
 - Windows shell fix: shell tool commands run through the host platform shell.
 - Screen presence alpha: optional chat/voice screen context sharing.
-- Expression sprites: expression detection, sprite pack import, chat display,
-  and voice-call sprite display.
+- Expression sprites: hybrid stream-and-settle detection, sprite pack import,
+  chat display, voice-call sprite display, and the bundled Ember sprite seed
+  pack. The face can move naturally during long responses, then settles on one
+  hidden entity-selected final expression and intensity.
+- Expression reload persistence: reopening a conversation restores the final
+  face that was shown instead of reclassifying old text.
 - Missing assistant turn recovery: latest user-only message can regenerate a
   missing response.
 - Voice expression fix: expression state from voice responses is forwarded to
@@ -53,6 +57,11 @@ If the installer can find exactly one compatible Psycheros `0.8.23` source
 folder, the path argument can be omitted. Existing files are backed up under
 `packages/psycheros/_everything_together_backup_<timestamp>`.
 
+The installer records a marker in `packages/psycheros/.addon-installs/` and also
+checks for older backup folders. It warns when replacing More Uploads, Voice
+Text Resize, or their combo package, then removes those narrower markers after a
+successful install. Reinstalling Everything Together over itself is allowed.
+
 ## Dependency Note
 
 This bundle adds `pngjs` through `packages/psycheros/deno.json` and `deno.lock`.
@@ -65,7 +74,7 @@ Run from `packages/psycheros` after installation if you want to verify the
 source tree:
 
 ```bash
-deno check src/server/server.ts src/entity/loop.ts src/voice/pipeline.ts src/voice/session-manager.ts tests/expression_sprites_test.ts tests/expression_checkerboard_test.ts tests/expression_classifier_test.ts tests/expression_settings_nav_test.ts tests/chat_attachments_test.ts tests/voice_text_resize_addon_test.ts tests/shell_tool_test.ts tests/theme_test.ts
-deno lint src/server/routes.ts src/server/templates.ts src/voice/pipeline.ts src/voice/session-manager.ts tests/expression_sprites_test.ts tests/expression_checkerboard_test.ts tests/expression_classifier_test.ts tests/expression_settings_nav_test.ts tests/chat_attachments_test.ts tests/voice_text_resize_addon_test.ts tests/shell_tool_test.ts tests/theme_test.ts
-deno test -A tests/expression_sprites_test.ts tests/expression_checkerboard_test.ts tests/expression_classifier_test.ts tests/expression_settings_nav_test.ts tests/chat_attachments_test.ts tests/voice_text_resize_addon_test.ts tests/shell_tool_test.ts tests/theme_test.ts tests/screen_presence_test.ts tests/llm_errors_test.ts
+deno check src/server/server.ts src/entity/loop.ts src/db/client.ts src/db/schema.ts src/voice/pipeline.ts src/voice/session-manager.ts tests/expression_sprites_test.ts tests/expression_persistence_test.ts tests/expression_checkerboard_test.ts tests/expression_classifier_test.ts tests/expression_settings_nav_test.ts tests/chat_attachments_test.ts tests/voice_text_resize_addon_test.ts tests/shell_tool_test.ts tests/theme_test.ts
+deno lint src/server/routes.ts src/server/templates.ts src/db/client.ts src/db/schema.ts src/voice/pipeline.ts src/voice/session-manager.ts tests/expression_sprites_test.ts tests/expression_persistence_test.ts tests/expression_checkerboard_test.ts tests/expression_classifier_test.ts tests/expression_settings_nav_test.ts tests/chat_attachments_test.ts tests/voice_text_resize_addon_test.ts tests/shell_tool_test.ts tests/theme_test.ts
+deno test -A tests/expression_sprites_test.ts tests/expression_persistence_test.ts tests/expression_checkerboard_test.ts tests/expression_classifier_test.ts tests/expression_settings_nav_test.ts tests/chat_attachments_test.ts tests/voice_text_resize_addon_test.ts tests/shell_tool_test.ts tests/theme_test.ts tests/screen_presence_test.ts tests/llm_errors_test.ts
 ```

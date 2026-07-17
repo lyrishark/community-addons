@@ -27,11 +27,20 @@ import {
   getPromptLabel,
   loadIdentityMeta,
 } from "../../../packages/entity-core/src/tools/identity-meta.ts";
+import { EmbeddingCache } from "../../../packages/entity-core/src/embeddings/cache.ts";
+import {
+  applyMemoryMetadata,
+  parseMemoryMetadata,
+  stripMemoryMetadata,
+} from "../../../packages/entity-core/src/storage/memory-metadata.ts";
 
-const CONNECTOR_VERSION = "0.2.0";
+const CONNECTOR_VERSION = "0.3.2";
 const INSTANCE_ID = Deno.env.get("ENTITY_CONNECTOR_INSTANCE_ID") ?? "codex";
 const WRITE_ENABLED = Deno.env.get("ENTITY_CONNECTOR_WRITE_ENABLED") !==
   "false";
+const OMIT_OUTPUT_SCHEMAS =
+  Deno.env.get("ENTITY_CONNECTOR_OMIT_OUTPUT_SCHEMAS") === "true" ||
+  Deno.env.get("ENTITY_CONNECTOR_TOOL_PROFILE") === "small-descriptor";
 const srcDir = dirname(fromFileUrl(import.meta.url));
 const repoRoot = join(srcDir, "..", "..", "..");
 const repoDataDir = join(repoRoot, "packages", "entity-core", "data");
@@ -51,6 +60,7 @@ type JsonRecord = Record<string, unknown>;
 type IdentityCategory = "self" | "user" | "relationship" | "custom";
 type Granularity = "daily" | "weekly" | "monthly" | "yearly" | "significant";
 type WritableGranularity = "daily" | "significant";
+type RecentSortBy = "memoryDate" | "createdAt" | "updatedAt";
 type ServerExtra = RequestHandlerExtra<ServerRequest, ServerNotification>;
 type RawRequestHandler = (request: unknown, extra: unknown) => unknown;
 
@@ -75,7 +85,11 @@ interface MemoryRecord {
   content: string;
   filePath: string;
   sourceInstance?: string;
+  chatIds: string[];
+  sourceMemoryIds: string[];
+  participatingInstances: string[];
   slug?: string;
+  createdAt: string;
   updatedAt: string;
 }
 
@@ -95,6 +109,7 @@ interface WritableMemoryRecord {
   date: string;
   content: string;
   chatIds: string[];
+  sourceMemoryIds?: string[];
   sourceInstance: string;
   participatingInstances?: string[];
   version: number;
@@ -104,6 +119,7 @@ interface WritableMemoryRecord {
 }
 
 let graphStore: GraphStore | null = null;
+let lexicalCachePromise: Promise<EmbeddingCache> | null = null;
 
 function firstExistingDataDir(paths: Array<string | null>): string {
   for (const path of paths) {
@@ -129,16 +145,32 @@ async function getGraphStore(): Promise<GraphStore> {
   return graphStore;
 }
 
-function result(data: JsonObject) {
+function result(data: JsonObject, contentText = "Done.") {
   return {
     structuredContent: data,
     content: [
       {
         type: "text" as const,
-        text: JSON.stringify(data, null, 2),
+        text: contentText,
       },
     ],
   };
+}
+
+function jsonCompatResult(data: JsonObject) {
+  return {
+    structuredContent: data,
+    content: [
+      {
+        type: "text" as const,
+        text: JSON.stringify(data),
+      },
+    ],
+  };
+}
+
+function toolOutputSchema<T>(schema: T): { outputSchema?: T } {
+  return OMIT_OUTPUT_SCHEMAS ? {} : { outputSchema: schema };
 }
 
 const JsonRecordSchema = z.record(z.string(), z.unknown());
@@ -157,7 +189,11 @@ const MemoryRecordOutputSchema = z.object({
   content: z.string(),
   filePath: z.string().optional(),
   sourceInstance: z.string().optional(),
+  chatIds: z.array(z.string()),
+  sourceMemoryIds: z.array(z.string()),
+  participatingInstances: z.array(z.string()),
   slug: z.string().optional(),
+  createdAt: z.string().optional(),
   updatedAt: z.string().optional(),
   truncated: z.boolean().optional(),
 }).passthrough();
@@ -168,6 +204,7 @@ const WritableMemoryRecordOutputSchema = z.object({
   date: z.string(),
   content: z.string(),
   chatIds: z.array(z.string()),
+  sourceMemoryIds: z.array(z.string()).optional(),
   sourceInstance: z.string(),
   participatingInstances: z.array(z.string()).optional(),
   version: z.number(),
@@ -242,6 +279,16 @@ const SearchOutputSchema = z.object({
   }).passthrough(),
 }).passthrough();
 
+const RecentMemoriesOutputSchema = z.object({
+  results: z.array(SearchItemOutputSchema),
+  total: z.number(),
+  granularities: z.array(
+    z.enum(["daily", "weekly", "monthly", "yearly", "significant"]),
+  ),
+  sortBy: z.enum(["memoryDate", "createdAt", "updatedAt"]),
+  hours: z.number().optional(),
+}).passthrough();
+
 const FetchOutputSchema = z.object({
   id: z.string(),
   kind: z.enum(["memory", "graph", "identity"]).optional(),
@@ -279,7 +326,7 @@ function localDateString(date = new Date()): string {
 function slugify(value: string, fallback = "memory"): string {
   const slug = value
     .normalize("NFKD")
-    .replace(/[^\x00-\x7F]/g, "")
+    .replace(/[^\p{ASCII}]/gu, "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
@@ -421,15 +468,42 @@ async function writeMemoryDirect(
   await ensureDir(dir);
   const filePath = memoryPath(memory);
   let content = memory.content;
+  let existingChatIds: string[] = [];
+  let existingSourceMemoryIds: string[] = [];
+  let existingParticipatingInstances: string[] = [];
+  let existingCreatedAt: string | undefined;
 
   if (memory.granularity === "daily") {
     try {
-      const existing = await Deno.readTextFile(filePath);
+      const [existing, stat] = await Promise.all([
+        Deno.readTextFile(filePath),
+        Deno.stat(filePath),
+      ]);
+      const metadata = parseMemoryMetadata(existing);
+      existingChatIds = metadata.chatIds;
+      existingSourceMemoryIds = metadata.sourceMemoryIds;
+      existingParticipatingInstances = metadata.participatingInstances;
+      existingCreatedAt = metadata.createdAt ??
+        stat.birthtime?.toISOString() ?? stat.mtime?.toISOString();
       content = mergeDailyContent(existing, memory.content);
     } catch (error) {
       if (!(error instanceof Deno.errors.NotFound)) throw error;
     }
   }
+
+  content = applyMemoryMetadata(content, {
+    chatIds: [...existingChatIds, ...memory.chatIds],
+    sourceMemoryIds: [
+      ...existingSourceMemoryIds,
+      ...(memory.sourceMemoryIds ?? []),
+    ],
+    participatingInstances: [
+      ...existingParticipatingInstances,
+      ...(memory.participatingInstances ?? []),
+    ],
+    sourceInstance: memory.sourceInstance,
+    createdAt: existingCreatedAt ?? memory.createdAt,
+  });
 
   await atomicWriteTextFile(filePath, content);
   return content;
@@ -504,7 +578,18 @@ async function readIdentityFiles(): Promise<IdentityFile[]> {
 function parseMemoryFilename(
   granularity: Granularity,
   filename: string,
-): Omit<MemoryRecord, "content" | "filePath" | "updatedAt"> | null {
+):
+  | Omit<
+    MemoryRecord,
+    | "content"
+    | "filePath"
+    | "createdAt"
+    | "updatedAt"
+    | "chatIds"
+    | "sourceMemoryIds"
+    | "participatingInstances"
+  >
+  | null {
   if (!filename.endsWith(".md")) return null;
   const stem = filename.slice(0, -3);
 
@@ -552,11 +637,19 @@ async function readMemories(): Promise<MemoryRecord[]> {
           Deno.readTextFile(filePath),
           Deno.stat(filePath),
         ]);
+        const metadata = parseMemoryMetadata(content);
+        const updatedAt = stat.mtime?.toISOString() ?? parsed.date;
         memories.push({
           ...parsed,
-          content,
+          content: stripMemoryMetadata(content),
           filePath,
-          updatedAt: stat.mtime?.toISOString() ?? parsed.date,
+          chatIds: metadata.chatIds,
+          sourceMemoryIds: metadata.sourceMemoryIds,
+          participatingInstances: metadata.participatingInstances,
+          sourceInstance: parsed.sourceInstance ?? metadata.sourceInstance,
+          createdAt: metadata.createdAt ?? stat.birthtime?.toISOString() ??
+            updatedAt,
+          updatedAt,
         });
       }
     } catch (error) {
@@ -565,6 +658,53 @@ async function readMemories(): Promise<MemoryRecord[]> {
   }
 
   return memories;
+}
+
+async function readMemoryByIndexKey(
+  granularity: Granularity,
+  key: string,
+): Promise<MemoryRecord | null> {
+  const filename = `${key}.md`;
+  const parsed = parseMemoryFilename(granularity, filename);
+  if (!parsed) return null;
+  const filePath = join(DATA_DIR, "memories", granularity, filename);
+  try {
+    const [content, stat] = await Promise.all([
+      Deno.readTextFile(filePath),
+      Deno.stat(filePath),
+    ]);
+    const metadata = parseMemoryMetadata(content);
+    const updatedAt = stat.mtime?.toISOString() ?? parsed.date;
+    return {
+      ...parsed,
+      content: stripMemoryMetadata(content),
+      filePath,
+      chatIds: metadata.chatIds,
+      sourceMemoryIds: metadata.sourceMemoryIds,
+      participatingInstances: metadata.participatingInstances,
+      sourceInstance: parsed.sourceInstance ?? metadata.sourceInstance,
+      createdAt: metadata.createdAt ?? stat.birthtime?.toISOString() ??
+        updatedAt,
+      updatedAt,
+    };
+  } catch (error) {
+    if (error instanceof Deno.errors.NotFound) return null;
+    throw error;
+  }
+}
+
+async function getLexicalCache(): Promise<EmbeddingCache> {
+  if (!lexicalCachePromise) {
+    lexicalCachePromise = (async () => {
+      const cache = new EmbeddingCache(DATA_DIR);
+      await cache.initializeLexical();
+      if (cache.isLexicalAvailable()) {
+        for (const memory of await readMemories()) cache.indexLexical(memory);
+      }
+      return cache;
+    })();
+  }
+  return await lexicalCachePromise;
 }
 
 function tokenize(query: string): string[] {
@@ -586,16 +726,15 @@ function memoryConnectorId(memory: MemoryRecord): string {
 }
 
 function connectorUrl(id: string): string {
-  if (id.startsWith("memory:")) {
-    return `psycheros://${id}`;
+  // ChatGPT connector citations expect HTTP(S) URLs. These are private local
+  // records, so keep the opaque lookup key in `id` and leave `url` empty.
+  if (
+    id.startsWith("memory:") || id.startsWith("graph:") ||
+    id.startsWith("identity:")
+  ) {
+    return "";
   }
-  if (id.startsWith("graph:")) {
-    return `psycheros://${id}`;
-  }
-  if (id.startsWith("identity:")) {
-    return `psycheros://${id}`;
-  }
-  return `psycheros://item/${encodeURIComponent(id)}`;
+  return "";
 }
 
 function memoryTitle(memory: MemoryRecord): string {
@@ -628,6 +767,60 @@ function memoryExcerpt(
   }`;
 }
 
+async function memorySourceContext(
+  memory: MemoryRecord,
+): Promise<JsonObject[]> {
+  const sources: JsonObject[] = [];
+  for (const reference of memory.sourceMemoryIds.slice(0, 2)) {
+    const slash = reference.indexOf("/");
+    if (slash <= 0) continue;
+    const granularity = reference.slice(0, slash) as Granularity;
+    if (!GRANULARITIES.includes(granularity)) continue;
+    const source = await readMemoryByIndexKey(
+      granularity,
+      reference.slice(slash + 1),
+    );
+    if (!source) continue;
+    sources.push({
+      id: source.id,
+      date: source.date,
+      granularity: source.granularity,
+      sourceInstance: source.sourceInstance,
+      excerpt: memoryExcerpt(source, [], 700),
+    });
+  }
+  return sources;
+}
+
+async function memorySearchItem(
+  memory: MemoryRecord,
+  terms: string[],
+  score?: number,
+): Promise<SearchItem> {
+  const id = memoryConnectorId(memory);
+  return {
+    id,
+    title: memoryTitle(memory),
+    url: connectorUrl(id),
+    text: memoryExcerpt(memory, terms),
+    source: "memory",
+    ...(score === undefined ? {} : { score }),
+    metadata: {
+      memoryKey: memory.id,
+      granularity: memory.granularity,
+      date: memory.date,
+      createdAt: memory.createdAt,
+      updatedAt: memory.updatedAt,
+      slug: memory.slug,
+      sourceInstance: memory.sourceInstance,
+      chatIds: memory.chatIds,
+      sourceMemoryIds: memory.sourceMemoryIds,
+      participatingInstances: memory.participatingInstances,
+      sourceContext: await memorySourceContext(memory),
+    },
+  };
+}
+
 async function searchMemories(
   query: string,
   limit: number,
@@ -635,30 +828,38 @@ async function searchMemories(
   const terms = tokenize(query);
   const matches: Array<{ item: SearchItem; date: string }> = [];
 
-  for (const memory of await readMemories()) {
-    const haystack = `${memory.date} ${memory.granularity} ${memory.content}`
-      .toLowerCase();
-    const score = terms.length > 0 ? countMatches(haystack, terms) : 1;
-    if (score === 0) continue;
-
-    matches.push({
-      item: {
-        id: memoryConnectorId(memory),
-        title: memoryTitle(memory),
-        url: connectorUrl(memoryConnectorId(memory)),
-        text: memoryExcerpt(memory, terms),
-        source: "memory",
-        score: score / Math.max(terms.length, 1),
-        metadata: {
-          memoryKey: memory.id,
-          granularity: memory.granularity,
-          date: memory.date,
-          slug: memory.slug,
-          sourceInstance: memory.sourceInstance,
-        },
-      },
-      date: memory.updatedAt,
-    });
+  const cache = await getLexicalCache();
+  if (cache.isLexicalAvailable()) {
+    for (
+      const candidate of cache.searchLexical(query, Math.max(limit * 4, 24))
+    ) {
+      const granularity = candidate.granularity as Granularity;
+      if (!GRANULARITIES.includes(granularity)) continue;
+      const memory = await readMemoryByIndexKey(
+        granularity,
+        candidate.memoryKey,
+      );
+      if (!memory) continue;
+      matches.push({
+        item: await memorySearchItem(memory, terms, candidate.score),
+        date: memory.updatedAt,
+      });
+    }
+  } else {
+    for (const memory of await readMemories()) {
+      const haystack = `${memory.date} ${memory.granularity} ${memory.content}`
+        .toLowerCase();
+      const score = countMatches(haystack, terms);
+      if (score === 0) continue;
+      matches.push({
+        item: await memorySearchItem(
+          memory,
+          terms,
+          score / Math.max(terms.length, 1),
+        ),
+        date: memory.updatedAt,
+      });
+    }
   }
 
   return matches
@@ -668,6 +869,138 @@ async function searchMemories(
     })
     .slice(0, limit)
     .map((match) => match.item);
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function memoryDateRange(
+  memory: Pick<MemoryRecord, "date" | "granularity">,
+): { start: number; end: number } {
+  const daily = /^(\d{4})-(\d{2})-(\d{2})$/.exec(memory.date);
+  if (daily) {
+    const start = Date.UTC(+daily[1], +daily[2] - 1, +daily[3]);
+    return { start, end: start + DAY_MS - 1 };
+  }
+
+  const weekly = /^(\d{4})-W(\d{2})$/.exec(memory.date);
+  if (weekly) {
+    const year = +weekly[1];
+    const week = +weekly[2];
+    const januaryFourth = Date.UTC(year, 0, 4);
+    const daysSinceMonday = (new Date(januaryFourth).getUTCDay() + 6) % 7;
+    const start = januaryFourth - daysSinceMonday * DAY_MS +
+      (week - 1) * 7 * DAY_MS;
+    return { start, end: start + 7 * DAY_MS - 1 };
+  }
+
+  const monthly = /^(\d{4})-(\d{2})$/.exec(memory.date);
+  if (monthly) {
+    const year = +monthly[1];
+    const month = +monthly[2] - 1;
+    const start = Date.UTC(year, month, 1);
+    const end = Date.UTC(year, month + 1, 1) - 1;
+    return { start, end };
+  }
+
+  const yearly = /^(\d{4})$/.exec(memory.date);
+  if (yearly) {
+    const year = +yearly[1];
+    const start = Date.UTC(year, 0, 1);
+    const end = Date.UTC(year + 1, 0, 1) - 1;
+    return { start, end };
+  }
+
+  const parsed = Date.parse(memory.date);
+  const start = Number.isFinite(parsed) ? parsed : 0;
+  return { start, end: start };
+}
+
+function recentSortTimestamp(
+  memory: MemoryRecord,
+  sortBy: RecentSortBy,
+): number {
+  if (sortBy === "memoryDate") return memoryDateRange(memory).start;
+  const parsed = Date.parse(memory[sortBy]);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function recentFilterTimestamp(
+  memory: MemoryRecord,
+  sortBy: RecentSortBy,
+): number {
+  return sortBy === "memoryDate"
+    ? memoryDateRange(memory).end
+    : recentSortTimestamp(memory, sortBy);
+}
+
+async function recentMemories(input: {
+  granularities: Granularity[];
+  limit: number;
+  sortBy: RecentSortBy;
+  hours?: number;
+}): Promise<{ results: SearchItem[]; total: number }> {
+  const cutoff = input.hours === undefined
+    ? null
+    : Date.now() - input.hours * 60 * 60 * 1000;
+  const eligible = (await readMemories()).filter((memory) =>
+    input.granularities.includes(memory.granularity) &&
+    (cutoff === null ||
+      recentFilterTimestamp(memory, input.sortBy) >= cutoff)
+  ).sort((a, b) =>
+    recentSortTimestamp(b, input.sortBy) -
+      recentSortTimestamp(a, input.sortBy) ||
+    b.createdAt.localeCompare(a.createdAt) ||
+    b.updatedAt.localeCompare(a.updatedAt)
+  );
+  const results: SearchItem[] = [];
+  for (const memory of eligible.slice(0, input.limit)) {
+    results.push(await memorySearchItem(memory, []));
+  }
+  return { results, total: eligible.length };
+}
+
+function wantsRecentMemories(query: string): boolean {
+  return /\b(recent|latest|current|today|yesterday|continuity|memories|memory)\b/i
+    .test(query);
+}
+
+function compactSearchItem(item: SearchItem): JsonObject {
+  const metadata = item.metadata ?? {};
+  return {
+    id: item.id,
+    title: item.title,
+    url: item.url,
+    text: trimText(item.text, 800).text,
+    source: item.source,
+    metadata: {
+      granularity: metadata.granularity,
+      date: metadata.date,
+      slug: metadata.slug,
+      nodeId: metadata.nodeId,
+      type: metadata.type,
+    },
+  };
+}
+
+function normalizeLiteMemoryText(
+  text: string,
+  granularity: WritableGranularity,
+): string {
+  const trimmed = text.trim();
+  if (
+    granularity !== "daily" ||
+    trimmed.startsWith("# ") ||
+    /^\s*-\s+/m.test(trimmed)
+  ) {
+    return trimmed;
+  }
+
+  return trimmed
+    .split(/\r?\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => `- ${line}`)
+    .join("\n");
 }
 
 async function searchGraph(
@@ -798,9 +1131,9 @@ export function createEntityCoreMcpServer(
     {
       title: "Entity Status",
       description:
-        "I use this to check my local connector and canonical entity-core data directory.",
+        "Use this when I need to check my local connector and canonical entity-core data directory.",
       inputSchema: {},
-      outputSchema: EntityStatusOutputSchema,
+      ...toolOutputSchema(EntityStatusOutputSchema),
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
@@ -830,7 +1163,7 @@ export function createEntityCoreMcpServer(
           note:
             "This connector reads canonical entity-core files directly and does not join the daemon's in-memory sync-status registry.",
         },
-      });
+      }, "Connector status loaded.");
     },
   );
 
@@ -841,6 +1174,7 @@ export function createEntityCoreMcpServer(
     content: z.string().min(1).max(50_000),
     slug: z.string().trim().min(1).max(100).optional(),
     chatIds: z.array(z.string().min(1).max(200)).max(50).optional(),
+    sourceMemoryIds: z.array(z.string().min(1).max(240)).max(50).optional(),
     sourceInstance: z.string().min(1).max(80).optional(),
     participatingInstances: z.array(z.string().min(1).max(80)).max(20)
       .optional(),
@@ -852,9 +1186,9 @@ export function createEntityCoreMcpServer(
     {
       title: "Record Memory",
       description:
-        "I use this to write a new daily or significant memory into my canonical entity-core files. It never mutates identity files.",
+        "Use this when I need to write a new daily or significant memory into my canonical entity-core files. It never mutates identity files.",
       inputSchema: RecordMemorySchema.shape,
-      outputSchema: RecordMemoryOutputSchema,
+      ...toolOutputSchema(RecordMemoryOutputSchema),
       annotations: {
         readOnlyHint: false,
         destructiveHint: false,
@@ -905,6 +1239,7 @@ export function createEntityCoreMcpServer(
         date,
         content,
         chatIds: args.chatIds ?? [],
+        sourceMemoryIds: args.sourceMemoryIds,
         sourceInstance,
         participatingInstances: args.participatingInstances ?? [sourceInstance],
         version: 1,
@@ -923,7 +1258,7 @@ export function createEntityCoreMcpServer(
           connectorId: connectorMemoryId(key),
           wouldWritePath: filePath,
           preview: content,
-        });
+        }, "Memory writes are disabled.");
       }
 
       if (dryRun) {
@@ -935,10 +1270,13 @@ export function createEntityCoreMcpServer(
           connectorId: connectorMemoryId(key),
           wouldWritePath: filePath,
           preview: content,
-        });
+        }, "Dry run complete. No memory file was written.");
       }
 
-      memory.content = await writeMemoryDirect(memory);
+      const storedContent = await writeMemoryDirect(memory);
+      memory.content = stripMemoryMetadata(storedContent);
+      const cache = await getLexicalCache();
+      cache.indexLexical(memory);
 
       return result({
         success: true,
@@ -952,7 +1290,7 @@ export function createEntityCoreMcpServer(
           ...memory,
           content: trimText(memory.content, 2_000).text,
         },
-      });
+      }, `Recorded ${granularity} memory ${key}.`);
     },
   );
 
@@ -967,9 +1305,9 @@ export function createEntityCoreMcpServer(
     {
       title: "Identity Context",
       description:
-        "I use this to read selected identity files from my canonical entity-core data.",
+        "Use this when I need to read selected identity files from my canonical entity-core data.",
       inputSchema: IdentityContextSchema.shape,
-      outputSchema: IdentityContextOutputSchema,
+      ...toolOutputSchema(IdentityContextOutputSchema),
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
@@ -1010,7 +1348,66 @@ export function createEntityCoreMcpServer(
         categories: wanted,
         maxCharsPerFile: maxChars,
         files,
+      }, `Loaded ${files.length} identity files.`);
+    },
+  );
+
+  const RecentMemoriesSchema = z.object({
+    granularities: z.array(
+      z.enum(["daily", "weekly", "monthly", "yearly", "significant"]),
+    ).max(5).optional().describe(
+      "Memory granularities to include. Defaults to daily and significant.",
+    ),
+    limit: z.number().int().min(1).max(25).optional().describe(
+      "Maximum results to return. Defaults to 8.",
+    ),
+    sortBy: z.enum(["memoryDate", "createdAt", "updatedAt"]).optional()
+      .describe(
+        "Ordering and recency field. Defaults to memoryDate so edits to old memories do not make them look newly relevant.",
+      ),
+    hours: z.number().min(1).max(24 * 365).optional().describe(
+      "Optional recency window applied to the selected sort field.",
+    ),
+  });
+
+  server.registerTool(
+    "recent_memories",
+    {
+      title: "Recent Memories",
+      description:
+        "Use this when I need my most recent canonical memories across surfaces without guessing a keyword. It defaults to the memory's own date, so later edits to an old conversation do not make old context appear new; createdAt and updatedAt ordering remain available for maintenance views.",
+      inputSchema: RecentMemoriesSchema.shape,
+      ...toolOutputSchema(RecentMemoriesOutputSchema),
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        openWorldHint: false,
+        idempotentHint: true,
+      },
+      securitySchemes: toolSecuritySchemes(auth, [ENTITY_CORE_READ_SCOPE]),
+      _meta: toolSecurityMeta(auth, [ENTITY_CORE_READ_SCOPE]),
+    },
+    async (args: z.infer<typeof RecentMemoriesSchema>, extra: ServerExtra) => {
+      const authError = authErrorFor(auth, extra, [ENTITY_CORE_READ_SCOPE]);
+      if (authError) return authError;
+
+      const granularities = args.granularities ?? ["daily", "significant"];
+      const sortBy = args.sortBy ?? "memoryDate";
+      const recent = await recentMemories({
+        granularities,
+        limit: args.limit ?? 8,
+        sortBy,
+        hours: args.hours,
       });
+      return result(
+        {
+          ...recent,
+          granularities,
+          sortBy,
+          ...(args.hours === undefined ? {} : { hours: args.hours }),
+        },
+        `Loaded ${recent.results.length} recent memories sorted by ${sortBy}.`,
+      );
     },
   );
 
@@ -1023,9 +1420,9 @@ export function createEntityCoreMcpServer(
     {
       title: "Search",
       description:
-        "I use this to search my canonical memories and knowledge graph for relevant context.",
+        "Use this when I need to search my canonical memories and knowledge graph for relevant context.",
       inputSchema: SearchSchema.shape,
-      outputSchema: SearchOutputSchema,
+      ...toolOutputSchema(SearchOutputSchema),
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
@@ -1055,7 +1452,7 @@ export function createEntityCoreMcpServer(
         ...(Array.isArray(graphResult) ? graphResult : []),
       ].sort((a, b) => (b.score ?? 0) - (a.score ?? 0)).slice(0, maxResults);
 
-      return result({
+      return jsonCompatResult({
         query,
         results,
         diagnostics: {
@@ -1079,9 +1476,9 @@ export function createEntityCoreMcpServer(
     {
       title: "Fetch",
       description:
-        "I use this to fetch one identity file, memory, or graph node by connector ID.",
+        "Use this when I need to fetch one identity file, memory, or graph node by connector ID.",
       inputSchema: FetchSchema.shape,
-      outputSchema: FetchOutputSchema,
+      ...toolOutputSchema(FetchOutputSchema),
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
@@ -1104,7 +1501,7 @@ export function createEntityCoreMcpServer(
           entry.id === memoryKey
         );
         if (!memory) {
-          return result({
+          return jsonCompatResult({
             id,
             kind: "memory",
             success: false,
@@ -1113,7 +1510,7 @@ export function createEntityCoreMcpServer(
         }
         const trimmed = trimText(memory.content, limit);
         const title = memoryTitle(memory);
-        return result({
+        return jsonCompatResult({
           id,
           kind: "memory",
           success: true,
@@ -1124,13 +1521,14 @@ export function createEntityCoreMcpServer(
             memoryKey: memory.id,
             granularity: memory.granularity,
             date: memory.date,
+            createdAt: memory.createdAt,
+            updatedAt: memory.updatedAt,
             slug: memory.slug,
             sourceInstance: memory.sourceInstance,
-            truncated: trimmed.truncated,
-          },
-          memory: {
-            ...memory,
-            content: trimmed.text,
+            chatIds: memory.chatIds,
+            sourceMemoryIds: memory.sourceMemoryIds,
+            participatingInstances: memory.participatingInstances,
+            sourceContext: await memorySourceContext(memory),
             truncated: trimmed.truncated,
           },
         });
@@ -1144,7 +1542,7 @@ export function createEntityCoreMcpServer(
           id: graphId,
         });
         const node = payload.node;
-        return result({
+        return jsonCompatResult({
           ...payload,
           id,
           kind: "graph",
@@ -1169,7 +1567,7 @@ export function createEntityCoreMcpServer(
           entry.filename === identityId.filename
         );
         if (!file) {
-          return result({
+          return jsonCompatResult({
             id,
             kind: "identity",
             success: false,
@@ -1179,7 +1577,7 @@ export function createEntityCoreMcpServer(
         }
         const trimmed = trimText(file.content, limit);
         const title = `${file.category}/${file.filename}`;
-        return result({
+        return jsonCompatResult({
           id,
           kind: "identity",
           success: true,
@@ -1192,19 +1590,270 @@ export function createEntityCoreMcpServer(
             promptLabel: file.promptLabel,
             truncated: trimmed.truncated,
           },
-          file: {
-            ...file,
-            content: trimmed.text,
+        });
+      }
+
+      return jsonCompatResult({
+        id,
+        success: false,
+        message:
+          "Unknown connector ID. Expected memory:<encoded-memory-key>, graph:<id>, or identity:<category>/<filename.md>.",
+      });
+    },
+  );
+
+  installToolSecuritySchemesCompat(server);
+
+  return server;
+}
+
+export function createEntityCoreLiteMcpServer(
+  options: EntityCoreMcpServerOptions = {},
+): McpServer {
+  const auth = options.auth;
+  const server = new McpServer({
+    name: "psycheros-memory-lite",
+    version: CONNECTOR_VERSION,
+  });
+
+  const SearchSchema = z.object({
+    query: z.string().min(1).max(200),
+  });
+
+  server.registerTool(
+    "search",
+    {
+      title: "Search",
+      description: "Search recent Psycheros memories and graph notes.",
+      inputSchema: SearchSchema.shape,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        openWorldHint: false,
+        idempotentHint: true,
+      },
+      securitySchemes: toolSecuritySchemes(auth, [ENTITY_CORE_READ_SCOPE]),
+      _meta: toolSecurityMeta(auth, [ENTITY_CORE_READ_SCOPE]),
+    },
+    async (args: z.infer<typeof SearchSchema>, extra: ServerExtra) => {
+      const authError = authErrorFor(auth, extra, [ENTITY_CORE_READ_SCOPE]);
+      if (authError) return authError;
+
+      const query = args.query.trim();
+      const maxResults = 5;
+      const [memoryItems, graphResult] = await Promise.all([
+        wantsRecentMemories(query)
+          ? recentMemories({
+            granularities: ["daily", "significant"],
+            limit: maxResults,
+            sortBy: "memoryDate",
+          }).then((recent) => recent.results)
+          : searchMemories(query, maxResults),
+        searchGraph(query, 3).catch((error) => ({
+          error: error instanceof Error ? error.message : String(error),
+        })),
+      ]);
+
+      const results = [
+        ...memoryItems,
+        ...(Array.isArray(graphResult) ? graphResult : []),
+      ]
+        .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+        .slice(0, maxResults)
+        .map(compactSearchItem);
+
+      return jsonCompatResult({
+        query,
+        results,
+        diagnostics: {
+          graphSearchError: Array.isArray(graphResult)
+            ? undefined
+            : graphResult.error,
+        },
+      });
+    },
+  );
+
+  const FetchSchema = z.object({
+    id: z.string().min(1).max(500),
+  });
+
+  server.registerTool(
+    "fetch",
+    {
+      title: "Fetch",
+      description: "Fetch one Psycheros memory or graph note by ID.",
+      inputSchema: FetchSchema.shape,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        openWorldHint: false,
+        idempotentHint: true,
+      },
+      securitySchemes: toolSecuritySchemes(auth, [ENTITY_CORE_READ_SCOPE]),
+      _meta: toolSecurityMeta(auth, [ENTITY_CORE_READ_SCOPE]),
+    },
+    async (args: z.infer<typeof FetchSchema>, extra: ServerExtra) => {
+      const authError = authErrorFor(auth, extra, [ENTITY_CORE_READ_SCOPE]);
+      if (authError) return authError;
+
+      const { id } = args;
+      const limit = 8_000;
+
+      const memoryKey = parseMemoryKey(id);
+      if (memoryKey) {
+        const memory = (await readMemories()).find((entry) =>
+          entry.id === memoryKey
+        );
+        if (!memory) {
+          return jsonCompatResult({
+            id,
+            kind: "memory",
+            success: false,
+            message: `No memory found for key ${memoryKey}.`,
+          });
+        }
+        const trimmed = trimText(memory.content, limit);
+        return jsonCompatResult({
+          id,
+          kind: "memory",
+          success: true,
+          title: memoryTitle(memory),
+          text: trimmed.text,
+          url: connectorUrl(id),
+          metadata: {
+            memoryKey: memory.id,
+            granularity: memory.granularity,
+            date: memory.date,
+            createdAt: memory.createdAt,
+            updatedAt: memory.updatedAt,
+            slug: memory.slug,
             truncated: trimmed.truncated,
           },
         });
       }
 
-      return result({
+      const graphId = parseGraphId(id);
+      if (graphId) {
+        const payload: GraphNodeGetOutput = createGraphNodeGetHandler(
+          await getGraphStore(),
+        )({
+          id: graphId,
+        });
+        const node = payload.node;
+        return jsonCompatResult({
+          id,
+          kind: "graph",
+          success: payload.success,
+          title: node?.label ?? graphId,
+          text: node?.description ?? "",
+          url: connectorUrl(id),
+          metadata: node
+            ? {
+              nodeId: node.id,
+              type: node.type,
+              confidence: node.confidence,
+            }
+            : undefined,
+        });
+      }
+
+      return jsonCompatResult({
         id,
         success: false,
-        message:
-          "Unknown connector ID. Expected memory:<encoded-memory-key>, graph:<id>, or identity:<category>/<filename.md>.",
+        message: "Unknown ID. Use an ID returned by search.",
+      });
+    },
+  );
+
+  const RememberSchema = z.object({
+    text: z.string().min(1).max(12_000),
+    kind: z.enum(["daily", "significant"]).optional(),
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    title: z.string().trim().min(1).max(120).optional(),
+  });
+
+  server.registerTool(
+    "remember",
+    {
+      title: "Remember",
+      description: "Write a small daily or significant Psycheros memory.",
+      inputSchema: RememberSchema.shape,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        openWorldHint: false,
+        idempotentHint: false,
+      },
+      securitySchemes: toolSecuritySchemes(auth, [
+        ENTITY_CORE_READ_SCOPE,
+        ENTITY_CORE_MEMORY_WRITE_SCOPE,
+      ]),
+      _meta: toolSecurityMeta(auth, [
+        ENTITY_CORE_READ_SCOPE,
+        ENTITY_CORE_MEMORY_WRITE_SCOPE,
+      ]),
+    },
+    async (args: z.infer<typeof RememberSchema>, extra: ServerExtra) => {
+      const authError = authErrorFor(auth, extra, [
+        ENTITY_CORE_READ_SCOPE,
+        ENTITY_CORE_MEMORY_WRITE_SCOPE,
+      ]);
+      if (authError) return authError;
+
+      const granularity = args.kind ?? "daily";
+      const date = args.date ?? localDateString();
+      const sourceInstance = safeInstanceId(INSTANCE_ID);
+      const title = args.title?.trim();
+      const text = normalizeLiteMemoryText(args.text, granularity);
+      const slug = granularity === "significant"
+        ? await uniqueSignificantSlug(date, title ?? text.slice(0, 80), false)
+        : undefined;
+      const key = memoryKey({ granularity, date, sourceInstance, slug });
+      const filePath = memoryPath({ granularity, date, sourceInstance, slug });
+      const content = formatMemoryContent({
+        granularity,
+        date,
+        title,
+        content: text,
+        sourceInstance,
+      });
+      const now = new Date().toISOString();
+      const memory: WritableMemoryRecord = {
+        id: `${granularity}-${date}`,
+        granularity,
+        date,
+        content,
+        chatIds: [],
+        sourceMemoryIds: [],
+        sourceInstance,
+        participatingInstances: [sourceInstance],
+        version: 1,
+        createdAt: now,
+        updatedAt: now,
+        ...(slug ? { slug } : {}),
+      };
+
+      if (!WRITE_ENABLED) {
+        return jsonCompatResult({
+          success: false,
+          message: "Memory writes are disabled.",
+          id: connectorMemoryId(key),
+        });
+      }
+
+      const storedContent = await writeMemoryDirect(memory);
+      memory.content = stripMemoryMetadata(storedContent);
+      const cache = await getLexicalCache();
+      cache.indexLexical(memory);
+
+      return jsonCompatResult({
+        success: true,
+        id: connectorMemoryId(key),
+        kind: granularity,
+        date,
+        message: "Remembered.",
+        filePath,
       });
     },
   );

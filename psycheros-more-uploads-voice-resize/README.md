@@ -32,6 +32,11 @@ The standalone More Uploads and Voice Text Resize packages both replace
 standalones separately can cause the last installed package to overwrite part of
 the first. Use this combo package when you want both behaviors at the same time.
 
+The installer records a marker in `packages/psycheros/.addon-installs/` and
+also checks for older backup folders. It warns when it is replacing either
+standalone package, removes their markers after a successful install, and
+refuses to install over Everything Together.
+
 ## Compatibility
 
 Version 0.1.0 is tested for **Psycheros 0.8.23**. The installer refuses other

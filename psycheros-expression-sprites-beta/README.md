@@ -22,15 +22,19 @@ It is not an official Psycheros release.
 - Forwards expression sprites into the live voice-call overlay.
 - Adds desktop/mobile side settings for the sprite stage.
 - Promotes Show Expression Display as the master expression toggle in settings.
-- Adds an entity-only hidden directive so the entity can override the automatic
-  expression detector without showing a correction prompt to the human.
+- Keeps automatic expression changes active throughout streamed text, then uses
+  one hidden entity-selected expression and intensity to settle the final face.
+- Persists the final expression shown for each assistant message so reopening a
+  conversation restores the same face instead of reclassifying old text.
+- Bundles the Ember expression sprite seed pack and automatically
+  fills missing sprite slots from it when expression settings load.
 
-No sprite images are bundled. You bring your own transparent PNG/WebP/GIF/JPEG
-sprite set.
+Custom uploaded sprites are preserved. The bundled pack only fills fresh,
+missing, or bundled default slots.
 
 ## Compatibility
 
-Version 0.1.5 is tested for **Psycheros 0.8.23**. The installer refuses other
+Version 0.1.6 is tested for **Psycheros 0.8.23**. The installer refuses other
 versions before changing files. Use v0.1.4 for Psycheros 0.8.22.
 
 This package replaces shared chat, server, UI, docs, test, and lock files. Close
@@ -103,7 +107,7 @@ If Psycheros says it is running 0.8.23 but the installer reports an older
 source version, point the installer at the launcher-managed `source` folder
 instead of an older downloaded checkout.
 
-## Add sprites
+## Add or replace sprites
 
 Start Psycheros, then open:
 
@@ -113,6 +117,7 @@ Settings > Vision > Expressions
 
 From there you can:
 
+- use the bundled Ember seed pack that installs with this beta
 - import a ZIP containing expression images named like `joy.png`,
   `embarrassment.webp`, `anger.gif`, etc.
 - upload one image per expression slot
@@ -121,16 +126,19 @@ From there you can:
 - choose which side the stage appears on for desktop and mobile
 - use Show Expression Display as the master expression switch
 
-During a turn, Psycheros gives the entity a private check:
+During a turn, Psycheros continuously scores the visible response so the sprite
+can change naturally as tone and topics shift. At the end of every final
+conversational response, the entity deliberately selects the expression in
+which it wants to settle:
 
 ```text
-[Psycheros Emotional Sprite] The sprite illustration will represent my emotion as: warmth. Is this right? Y/n
+<psycheros-expression label="warmth" intensity="0.72"/>
 ```
 
-There is no human-facing correction prompt during normal use. If the automatic
-detector is wrong, the entity can append a hidden `<psycheros-expression>`
-directive at the end of the response. Psycheros strips that directive before
-display and persistence, then uses it only to update the live sprite state.
+There is no human-facing correction prompt during normal use. Psycheros strips
+the hidden directive before display and persistence, then uses it only to settle
+the live sprite state. The signal contains a label and display intensity, not
+hidden reasoning.
 
 Transparent PNG or WebP files look best over chat backgrounds. If an image was
 generated with a visible gray checkerboard instead of real transparency, leave

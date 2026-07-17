@@ -1,19 +1,19 @@
 export { classifyExpressionText } from "./classifier.ts";
 export {
-  type CheckerboardCleanupResult,
-  removeCheckerboardBackgroundFromPng,
-  shouldAttemptCheckerboardCleanup,
-} from "./checkerboard.ts";
-export {
   EXPRESSION_SPRITE_PROTOCOL,
-  type ExpressionDirectiveExtraction,
-  type ExpressionDirectiveOptions,
   ExpressionDirectiveStreamFilter,
   extractExpressionDirectives,
   stripExpressionDirectives,
 } from "./directive.ts";
 export {
+  type CheckerboardCleanupResult,
+  removeCheckerboardBackgroundFromPng,
+  shouldAttemptCheckerboardCleanup,
+} from "./checkerboard.ts";
+export {
   buildExpressionSpriteFilename,
+  type BundledExpressionSpriteSeedResult,
+  ensureBundledExpressionSpritePack,
   type ExpressionDisplaySettings,
   type ExpressionSpriteAsset,
   type ExpressionSpriteFallbackMode,

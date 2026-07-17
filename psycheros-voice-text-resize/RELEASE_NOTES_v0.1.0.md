@@ -14,6 +14,9 @@ Patch package for Psycheros 0.8.23.
 - Adds double-click reset to return the typed voice input to adaptive sizing.
 - Adds an add-on-specific app-shell asset version and service-worker cache name
   so the updated voice UI files load after install.
+- Adds installer-side conflict detection for More Uploads, the combo package,
+  and Everything Together using `.addon-installs` markers plus legacy
+  backup-folder detection.
 
 ## Compatibility
 

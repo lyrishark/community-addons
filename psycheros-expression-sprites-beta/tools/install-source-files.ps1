@@ -87,6 +87,7 @@ function Resolve-PsycherosSourceRoot {
   Add-Candidate $Candidates (Join-Path $HOME "Documents\Psycheros")
   Add-Candidate $Candidates (Join-Path $HOME "Code\Psycheros")
   Add-Candidate $Candidates (Join-Path $HOME "Source\Psycheros")
+  Add-Candidate $Candidates "H:\Psycheros\10_local\repo"
   Add-Candidate $Candidates "H:\Psycheros"
   Add-Candidate $Candidates "H:\Cathedral Revamp - Psycheros"
   Add-Candidate $Candidates "H:\Cathedral Current - Psycheros"
@@ -180,6 +181,6 @@ Write-Host ""
 Write-Host "Next steps:"
 Write-Host "1. Fully quit and relaunch Psycheros."
 Write-Host "2. Open Settings > Vision > Expressions."
-Write-Host "3. Import a SillyTavern-style ZIP pack or upload sprites per emotion."
+Write-Host "3. The bundled Ember sprite pack will seed missing sprite slots automatically."
 Write-Host ""
-Write-Host "This installer does not add sprite images. It only adds the expression display system."
+Write-Host "Custom uploaded sprites are preserved; only missing or bundled default slots are filled."

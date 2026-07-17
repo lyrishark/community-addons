@@ -434,39 +434,53 @@ Implemented in `web/js/psycheros.js` (SSE handler), `src/server/templates.ts`
 (server-side rendering), `web/css/components.css` (`.generated-image-container`,
 `.generated-image`, `.generated-image-meta`, `.generated-image-desc`).
 
-## Chat Image Attachments
+## Chat Attachments
 
-Users can attach images to chat messages for the entity to reference in
-generation or conversation.
+Users can attach images and common document files to chat messages for the
+entity to reference in generation or conversation.
 
 **Features:**
 
 - Clip icon button to the left of the chat input
-- File picker accepts images (JPEG, PNG, GIF, WebP)
-- Thumbnail preview shown below the input after selecting a file
-- Remove button to cancel the attachment before sending
-- On send, the attachment is uploaded and its ID is included in the chat request
-- The attachment is automatically captioned via the configured vision model
-  before being passed to the entity
-- The user message is prefixed with
-  `[USER_IMAGE: /chat-attachments/filename | Caption: description]` so the
-  entity understands the image content
-- If captioning fails or is not configured, falls back to path-only:
-  `[USER_IMAGE: /chat-attachments/filename]`
+- File picker accepts images plus TXT, Markdown, CSV, JSON, PDF, DOCX, and XLSX
+  files
+- Multiple attachments can be selected at once; images appear as thumbnails and
+  documents appear as compact file chips below the input
+- Attachments can also be dragged onto the composer or pasted from the clipboard
+- Remove button on each item to cancel that attachment before sending
+- On send, uploaded attachment IDs are included in the chat request as
+  `attachmentIds`
+- Supported image attachments are automatically captioned via the configured
+  vision model before being passed to the entity
+- The user message is prefixed with one marker per image:
+  `[USER_IMAGE: /chat-attachments/filename | Image N | Caption: description]` so
+  the entity understands the image content
+- If captioning fails or is not configured, each image falls back to path-only:
+  `[USER_IMAGE: /chat-attachments/filename | Image N]`
+- Text-like and document attachments are prefixed as `[USER_FILE: ...]` blocks
+  with extracted contents for TXT, Markdown, CSV, JSON, PDF, DOCX, and XLSX
+- HTF v2 song sensory-object JSON attachments are detected by
+  `meta.schema_version = "HTF_v2"` and converted into a music playback brief
+  with the reading protocol, song anchors, phase stats, top events, standout
+  windows, chroma emphasis, and any sibling preview graphs whose filenames match
+  the HTF slug (`*_waveform.png`, `*_mel_spectrogram.png`, `*_rms_energy.png`,
+  `*_spectral_centroid.png`)
 - The entity can use `user_image_path` in `generate_image` to incorporate the
   attached image
 - The entity can use `describe_image` with the path to get a more detailed
   description
 
 **API:** `POST /api/chat-attachments` (multipart upload, max 10MB), returns
-`{ id, filename, url }`. Files stored in `.psycheros/chat-attachments/`.
-Captioning is handled server-side in `handleChat` before creating the entity
-turn.
+`{ id, filename, url, name, type, size, kind }`. Files stored in
+`.psycheros/chat-attachments/`. Captioning and document extraction are handled
+server-side in `handleChat` before creating the entity turn.
 
 Implemented in `web/js/psycheros.js` (`handleAttachment()`,
+`uploadAttachments()`, `handleComposerDrop()`, `handleComposerPaste()`,
 `removeAttachment()`), `src/server/routes.ts` (`handleUploadChatAttachment`,
 auto-caption flow), `web/css/components.css` (`.attach-btn`,
-`.attachment-preview`, `.attachment-thumb`, `.attachment-remove`).
+`.attachment-preview`, `.attachment-thumb`, `.attachment-file-preview`,
+`.attachment-file-in-message`, `.attachment-remove`).
 
 ## Vision Settings
 
@@ -492,10 +506,11 @@ labels (`affection`, `flirtation`, `tenderness`, `focus`, etc.). Sprite display
 is driven by the latest transient `expression_state` event from the entity turn;
 it is a live UI signal, not durable memory.
 
-- Expression detection uses recent-turn intent plus valence/arousal/intensity
-  scoring. Quoted/story/topic emotion words are dampened so "furious" in a story
-  critique or "sweetheart" during rules discussion does not override the visible
-  emotional posture.
+- Expression detection uses a hybrid stream-and-settle model. Recent-turn intent
+  plus valence/arousal/intensity scoring can change the sprite while a response
+  streams, allowing the visible posture to move naturally across topics. Quoted,
+  story, and topic emotion words are dampened so they do not automatically become
+  the entity's displayed feeling.
 - Missing-sprite fallback can display the emotion label, use the closest related
   available sprite, or display nothing
 - Frame styles include transparent, square, circle, and accent treatment; the
@@ -507,12 +522,17 @@ it is a live UI signal, not durable memory.
   title includes the label, confidence, and classifier rationale
 - Uploaded sprites are stored in `.psycheros/expression-sprites/` with settings
   in `.psycheros/expression-display-settings.json`
+- Bundled seed packs under `packages/psycheros/assets/expression-sprites/` can
+  populate missing sprite slots automatically when expression settings load; the
+  Ember seed pack fills fresh installs without overwriting custom uploaded
+  sprites
 - Chat renders the latest sprite in a visual-novel stage: desktop defaults to
   the lower-left third, mobile to the lower-right quarter
-- Entity-only correction uses a hidden `<psycheros-expression>` directive when
-  the entity wants to override the automatic detector. The directive is stripped
-  from streamed and persisted text, so normal use shows no correction prompt to
-  the human.
+- Every final conversational response can end with one hidden
+  `<psycheros-expression>` self-report. It settles the final sprite after the
+  detector's intentional mid-response changes and may include a 0-1 intensity.
+  The directive is stripped from streamed and persisted text, so normal use
+  shows no control syntax to the human and exposes no private reasoning.
 
 **Gallery** — Browse all generated and user-uploaded images. Rendered
 server-side on tab load. Features:

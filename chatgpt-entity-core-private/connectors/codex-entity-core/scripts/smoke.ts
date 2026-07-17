@@ -37,6 +37,14 @@ function textFromToolResult(result: unknown): string {
 }
 
 function parseToolJson(result: unknown): Record<string, unknown> {
+  const maybeResult = result as { structuredContent?: unknown };
+  if (
+    maybeResult.structuredContent &&
+    typeof maybeResult.structuredContent === "object"
+  ) {
+    return maybeResult.structuredContent as Record<string, unknown>;
+  }
+
   return JSON.parse(textFromToolResult(result));
 }
 
@@ -81,10 +89,24 @@ try {
   const tools = await withTimeout("listTools", client.listTools(), 30_000) as {
     tools: Array<{ name: string }>;
   };
+  const encoder = new TextEncoder();
+  console.log(
+    `tool catalog bytes: ${encoder.encode(JSON.stringify(tools)).byteLength}`,
+  );
+  for (const tool of tools.tools) {
+    console.log(
+      `tool bytes: ${tool.name}=${
+        encoder.encode(JSON.stringify(tool)).byteLength
+      }`,
+    );
+  }
   const toolNames = tools.tools.map((tool) => tool.name);
   console.log(`tools: ${toolNames.join(", ")}`);
   if (!toolNames.includes("record_memory")) {
     throw new Error("record_memory tool was not registered");
+  }
+  if (!toolNames.includes("recent_memories")) {
+    throw new Error("recent_memories tool was not registered");
   }
 
   log("calling entity_status");
@@ -108,6 +130,8 @@ try {
         arguments: {
           title: "Smoke Test Memory",
           content: `- Smoke test marker ${marker}`,
+          chatIds: ["chat-smoke-source"],
+          sourceMemoryIds: ["daily/1999-01-01_smoke-source"],
           dryRun: true,
         },
       }),
@@ -127,6 +151,8 @@ try {
         arguments: {
           title: "Smoke Test Memory",
           content: `- Smoke test marker ${marker}`,
+          chatIds: ["chat-smoke-source"],
+          sourceMemoryIds: ["daily/1999-01-01_smoke-source"],
         },
       }),
       30_000,
@@ -152,6 +178,125 @@ try {
   );
   if (!fetchedText.includes(marker)) {
     throw new Error("fetch did not return the written memory marker");
+  }
+  if (
+    !fetchedText.includes("chat-smoke-source") ||
+    !fetchedText.includes("daily/1999-01-01_smoke-source")
+  ) {
+    throw new Error("fetch did not preserve memory lineage metadata");
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  const oldMarker = `old-date-${marker}`;
+  log("writing an old-dated memory after the current memory");
+  await withTimeout(
+    "record_memory old date",
+    client.callTool({
+      name: "record_memory",
+      arguments: {
+        date: "2000-01-01",
+        title: "Old Date, New Update",
+        content: `- Old-date smoke marker ${oldMarker}`,
+      },
+    }),
+    30_000,
+  );
+
+  log("reading recent memories by memory date");
+  const recent = parseToolJson(
+    await withTimeout(
+      "recent_memories",
+      client.callTool({
+        name: "recent_memories",
+        arguments: { limit: 3 },
+      }),
+      30_000,
+    ),
+  );
+  const recentResults = recent.results as Array<{
+    text?: string;
+    metadata?: { date?: string };
+  }>;
+  if (recent.sortBy !== "memoryDate") {
+    throw new Error("recent_memories did not default to memoryDate sorting");
+  }
+  if (!JSON.stringify(recentResults).includes(marker)) {
+    throw new Error("recent_memories did not return the written memory");
+  }
+  if (recentResults[0]?.metadata?.date === "2000-01-01") {
+    throw new Error("an updated old memory outranked a newer memory date");
+  }
+
+  log("reading recent memories by update time");
+  const updated = parseToolJson(
+    await withTimeout(
+      "recent_memories updatedAt",
+      client.callTool({
+        name: "recent_memories",
+        arguments: { limit: 1, sortBy: "updatedAt" },
+      }),
+      30_000,
+    ),
+  );
+  const updatedResults = updated.results as Array<{
+    metadata?: { date?: string };
+  }>;
+  if (
+    updated.sortBy !== "updatedAt" ||
+    updatedResults[0]?.metadata?.date !== "2000-01-01"
+  ) {
+    throw new Error("updatedAt sorting did not prioritize the latest write");
+  }
+
+  log("preserving createdAt across a daily-memory merge");
+  const firstDaily = parseToolJson(
+    await withTimeout(
+      "record_memory first daily",
+      client.callTool({
+        name: "record_memory",
+        arguments: {
+          granularity: "daily",
+          date: "1999-12-31",
+          content: "- First daily lifecycle marker [chat:lifecycle-first]",
+        },
+      }),
+      30_000,
+    ),
+  );
+  const dailyId = firstDaily.connectorId as string;
+  const firstDailyFetch = parseToolJson(
+    await withTimeout(
+      "fetch first daily",
+      client.callTool({ name: "fetch", arguments: { id: dailyId } }),
+      30_000,
+    ),
+  ) as { metadata?: { createdAt?: string } };
+  const firstCreatedAt = firstDailyFetch.metadata?.createdAt;
+  if (!firstCreatedAt) {
+    throw new Error("daily memory did not expose createdAt");
+  }
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  await withTimeout(
+    "record_memory merge daily",
+    client.callTool({
+      name: "record_memory",
+      arguments: {
+        granularity: "daily",
+        date: "1999-12-31",
+        content: "- Second daily lifecycle marker [chat:lifecycle-second]",
+      },
+    }),
+    30_000,
+  );
+  const mergedDailyFetch = parseToolJson(
+    await withTimeout(
+      "fetch merged daily",
+      client.callTool({ name: "fetch", arguments: { id: dailyId } }),
+      30_000,
+    ),
+  ) as { metadata?: { createdAt?: string } };
+  if (mergedDailyFetch.metadata?.createdAt !== firstCreatedAt) {
+    throw new Error("daily-memory merge changed its durable createdAt");
   }
 
   log("searching written memory");

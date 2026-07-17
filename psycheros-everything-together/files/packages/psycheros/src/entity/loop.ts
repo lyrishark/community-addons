@@ -1100,6 +1100,7 @@ Discord interaction:
             : "chat",
         });
         let manualExpressionOverride = false;
+        let persistedExpressionState: ExpressionState | undefined;
         const emitContent = function* (
           content: string,
           directiveFilter: ExpressionDirectiveStreamFilter,
@@ -1108,6 +1109,7 @@ Discord interaction:
           const filtered = directiveFilter.push(content);
           for (const state of filtered.states) {
             manualExpressionOverride = true;
+            persistedExpressionState = state;
             yield { type: "expression_state", state };
           }
           if (!filtered.visibleText) return;
@@ -1117,6 +1119,7 @@ Discord interaction:
               filtered.visibleText,
             );
             if (expressionState) {
+              persistedExpressionState = expressionState;
               yield { type: "expression_state", state: expressionState };
             }
           }
@@ -1129,6 +1132,7 @@ Discord interaction:
           toolCalls.length = 0;
           streamError = null;
           manualExpressionOverride = false;
+          persistedExpressionState = undefined;
           // Hold back the first 13 chars (length of "[Voice Chat] ") to
           // detect and strip a parroted leading prefix before it streams
           // to the browser. Persist-side strip still catches mid-message
@@ -1215,6 +1219,7 @@ Discord interaction:
             const remainingExpression = directiveFilter.flush();
             for (const state of remainingExpression.states) {
               manualExpressionOverride = true;
+              persistedExpressionState = state;
               yield { type: "expression_state", state };
             }
             if (remainingExpression.visibleText) {
@@ -1227,6 +1232,7 @@ Discord interaction:
                   remainingExpression.visibleText,
                 );
                 if (expressionState) {
+                  persistedExpressionState = expressionState;
                   yield { type: "expression_state", state: expressionState };
                 }
               }
@@ -1352,6 +1358,7 @@ Discord interaction:
               assistantContent = recoveredExpression.visibleText;
               manualExpressionOverride = true;
               for (const state of recoveredExpression.states) {
+                persistedExpressionState = state;
                 yield { type: "expression_state", state };
               }
             }
@@ -1369,6 +1376,7 @@ Discord interaction:
           ? null
           : expressionTracker.finalize();
         if (finalExpressionState) {
+          persistedExpressionState = finalExpressionState;
           yield { type: "expression_state", state: finalExpressionState };
         }
 
@@ -1405,6 +1413,7 @@ Discord interaction:
               reasoningContent: assistantReasoning || undefined,
               toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
               isVoice: options?.messagePrefix === "[Voice Chat] ",
+              expressionState: persistedExpressionState,
             }, messageId);
 
             // Index the assistant message for chat RAG (non-blocking, non-fatal)

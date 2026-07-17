@@ -150,11 +150,13 @@ export function parseAnyDate(dateStr: string): Date | null {
  * Filter source memory files to those belonging to a specific consolidation period.
  * Handles both standard date strings (YYYY-MM-DD) and week strings (YYYY-WNN).
  */
-export function filterFilesForPeriod(
-  files: Array<{ date: string; content: string }>,
+export function filterFilesForPeriod<
+  T extends { date: string; content: string },
+>(
+  files: T[],
   granularity: "weekly" | "monthly" | "yearly",
   periodDate: Date,
-): Array<{ date: string; content: string }> {
+): T[] {
   switch (granularity) {
     case "weekly": {
       const weekStart = getWeekStart(periodDate);

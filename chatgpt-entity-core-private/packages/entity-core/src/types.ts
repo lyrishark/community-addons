@@ -82,6 +82,8 @@ export interface MemoryEntry {
   content: string;
   /** Chat/conversation IDs referenced in this memory */
   chatIds: string[];
+  /** Canonical memory references used to produce this memory */
+  sourceMemoryIds?: string[];
   /** Which embodiment I was using when I created this memory */
   sourceInstance: string;
   /** Other embodiments that were involved in the conversation */

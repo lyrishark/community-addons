@@ -49,7 +49,7 @@ https://your-machine.your-tailnet.ts.net
 ChatGPT MCP URL:
 
 ```text
-https://your-machine.your-tailnet.ts.net/mcp
+https://your-machine.your-tailnet.ts.net/mcp-lite
 ```
 
 ## 4. Configure Auth0
@@ -59,7 +59,7 @@ Create:
 - one Regular Web Application
 - one API
 
-Auth0 API Identifier must be the public base URL without `/mcp`:
+Auth0 API Identifier must be the public base URL without `/mcp-lite` or `/mcp`:
 
 ```text
 https://your-machine.your-tailnet.ts.net
@@ -107,14 +107,14 @@ Optional: copy `bridge.env.example` to
 
 In ChatGPT private app setup:
 
-- Server URL: `https://your-machine.your-tailnet.ts.net/mcp`
+- Server URL: `https://your-machine.your-tailnet.ts.net/mcp-lite`
 - Authentication: OAuth
 - Registration method: User-Defined OAuth Client
 - Client ID: from Auth0 Application
 - Client Secret: from Auth0 Application
 - Token endpoint auth method: `client_secret_post`
 - Default scopes: `entity:read`, `memory:write`
-- Base scopes: blank
+- Base scopes: `offline_access`
 
 Copy ChatGPT's callback URL into Auth0 Application > Allowed Callback URLs.
 
@@ -141,7 +141,7 @@ Create the app in ChatGPT, click Connect, and sign in through Auth0.
 Try:
 
 ```text
-Use Psycheros Entity Core to check entity status.
+Use Psycheros Entity Core to search for recent memories.
 ```
 
 ## 9. Enable Automatic Startup

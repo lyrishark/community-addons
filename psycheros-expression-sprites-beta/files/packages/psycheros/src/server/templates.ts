@@ -9,6 +9,7 @@
 
 import type {
   Conversation,
+  ExpressionState,
   Message,
   ToolCall,
   ToolResult,
@@ -71,8 +72,14 @@ export function escapeHtml(text: string): string {
     .replace(/'/g, "&#039;");
 }
 
-function renderExpressionStateChip(content: string): string {
-  const state = classifyExpressionText(content, { surface: "chat" });
+function renderExpressionStateChip(
+  content: string,
+  persistedState?: ExpressionState,
+): string {
+  // New messages retain the exact expression shown during streaming. Legacy
+  // rows still get the old text-classification fallback.
+  const state = persistedState ??
+    classifyExpressionText(content, { surface: "chat" });
   const label = formatExpressionLabel(state.label);
   const confidence = `${Math.round(state.confidence * 100)}%`;
   const title = `${label} (${confidence}) - ${state.rationale}`;
@@ -1912,7 +1919,10 @@ export function renderAssistantMessage(
     ? `<span class="msg-timestamp">${escapeHtml(timeStr)}</span>`
     : "";
   const displayName = escapeHtml(entityName || "Assistant");
-  const expressionChip = renderExpressionStateChip(msg.content);
+  const expressionChip = renderExpressionStateChip(
+    msg.content,
+    msg.expressionState,
+  );
 
   let html = `<div class="msg msg--assistant" data-message-id="${
     escapeHtml(msg.id)
