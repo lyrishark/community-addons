@@ -52,6 +52,7 @@ Release assets to upload:
 - `psycheros-voice-text-resize-0.1.0.zip`
 - `psycheros-more-uploads-voice-resize-0.1.0.zip`
 - `psycheros-everything-together-0.1.0-rc.2.zip`
+- `psycheros-htf-music-listener-0.1.0-windows-x64.zip`
 - `SHA256SUMS.txt`
 
 Generate checksums on Windows:

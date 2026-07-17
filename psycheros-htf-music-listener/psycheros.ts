@@ -11,6 +11,13 @@ const DEFAULT_RETENTION_DAYS = 7;
 const MAX_AUDIO_BYTES = 1024 * 1024 * 1024;
 const MAX_DURATION_SECONDS = 2 * 60 * 60;
 const ENTITY_VIEW_PREFIX = "[HTF_ENTITY_VIEW:";
+const FFMPEG_BOOTSTRAP_VERSION = "8.1.1";
+const FFMPEG_BOOTSTRAP_ARCHIVE = "ffmpeg-8.1.1-essentials_build.zip";
+const FFMPEG_BOOTSTRAP_URL =
+  "https://github.com/GyanD/codexffmpeg/releases/download/8.1.1/ffmpeg-8.1.1-essentials_build.zip";
+const FFMPEG_BOOTSTRAP_SHA256 =
+  "6f58ce889f59c311410f7d2b18895b33c03456463486f3b1ebc93d97a0f54541";
+const MAX_BOOTSTRAP_BYTES = 160 * 1024 * 1024;
 
 interface PluginServices {
   statePath: string;
@@ -48,7 +55,14 @@ interface WorkerCommand {
 interface MusicRuntime {
   ffmpeg: string;
   ffprobe: string;
+  ffmpegSource: string;
   worker: WorkerCommand;
+}
+
+interface FfmpegPair {
+  ffmpeg: string;
+  ffprobe: string;
+  source: string;
 }
 
 interface AudioProbe {
@@ -78,6 +92,7 @@ interface ArtifactManifest {
 
 let statePath: string | undefined;
 let runtimePromise: Promise<MusicRuntime> | undefined;
+let ffmpegBootstrapPromise: Promise<FfmpegPair> | undefined;
 let analysisActive = false;
 const analysisWaiters: Array<() => void> = [];
 
@@ -222,48 +237,184 @@ async function commandWorks(
   }
 }
 
-async function resolveBinary(options: {
-  envName: string;
-  packagedName: string;
-  commandName: string;
-  versionArgs: string[];
-}): Promise<string> {
-  const configured = Deno.env.get(options.envName)?.trim();
-  if (configured) {
-    if (!(await exists(configured))) {
-      throw new Error(`${options.envName} points to a missing file.`);
+async function findFfmpegPair(
+  root: string,
+  source: string,
+): Promise<FfmpegPair | undefined> {
+  const executable = Deno.build.os === "windows" ? ".exe" : "";
+  const ffmpeg = await findFileRecursively(root, `ffmpeg${executable}`, 6);
+  if (!ffmpeg) return undefined;
+  const siblingProbe = join(dirname(ffmpeg), `ffprobe${executable}`);
+  const ffprobe = await exists(siblingProbe)
+    ? siblingProbe
+    : await findFileRecursively(root, `ffprobe${executable}`, 6);
+  if (!ffprobe) return undefined;
+  return { ffmpeg, ffprobe, source };
+}
+
+async function resolveExistingFfmpeg(): Promise<FfmpegPair | undefined> {
+  const ffmpegEnv = Deno.env.get(
+    "PSYCHEROS_PLUGIN_HTF_MUSIC_LISTENER_FFMPEG",
+  )?.trim();
+  const ffprobeEnv = Deno.env.get(
+    "PSYCHEROS_PLUGIN_HTF_MUSIC_LISTENER_FFPROBE",
+  )?.trim();
+  if (ffmpegEnv || ffprobeEnv) {
+    if (!ffmpegEnv || !ffprobeEnv) {
+      throw new Error(
+        "Configure both PSYCHEROS_PLUGIN_HTF_MUSIC_LISTENER_FFMPEG and PSYCHEROS_PLUGIN_HTF_MUSIC_LISTENER_FFPROBE together.",
+      );
     }
-    return configured;
+    if (!(await exists(ffmpegEnv)) || !(await exists(ffprobeEnv))) {
+      throw new Error("The configured FFmpeg or FFprobe executable is missing.");
+    }
+    return { ffmpeg: ffmpegEnv, ffprobe: ffprobeEnv, source: "configured" };
   }
 
   const platform = `${Deno.build.os}-${Deno.build.arch}`;
-  const packaged = join(
-    PLUGIN_ROOT,
-    "vendor",
-    platform,
-    options.packagedName,
+  const packaged = await findFfmpegPair(
+    join(PLUGIN_ROOT, "vendor", platform),
+    "packaged",
   );
-  if (await exists(packaged)) return packaged;
+  if (packaged) return packaged;
 
-  if (await commandWorks(options.commandName, options.versionArgs)) {
-    return options.commandName;
-  }
+  const disableSystem = Deno.env.get(
+    "PSYCHEROS_PLUGIN_HTF_MUSIC_LISTENER_DISABLE_SYSTEM_FFMPEG",
+  ) === "1";
+  if (!disableSystem) {
+    const [ffmpegWorks, ffprobeWorks] = await Promise.all([
+      commandWorks("ffmpeg", ["-version"]),
+      commandWorks("ffprobe", ["-version"]),
+    ]);
+    if (ffmpegWorks && ffprobeWorks) {
+      return { ffmpeg: "ffmpeg", ffprobe: "ffprobe", source: "PATH" };
+    }
 
-  if (Deno.build.os === "windows") {
-    const localAppData = Deno.env.get("LOCALAPPDATA");
-    if (localAppData) {
-      const found = await findFileRecursively(
-        join(localAppData, "Microsoft", "WinGet", "Packages"),
-        options.packagedName,
-        6,
-      );
-      if (found) return found;
+    if (Deno.build.os === "windows") {
+      const localAppData = Deno.env.get("LOCALAPPDATA");
+      if (localAppData) {
+        const winget = await findFfmpegPair(
+          join(localAppData, "Microsoft", "WinGet", "Packages"),
+          "WinGet",
+        );
+        if (winget) return winget;
+      }
     }
   }
 
-  throw new Error(
-    `${options.commandName} is not available. Install the self-contained release of this plugin or configure ${options.envName}.`,
+  return undefined;
+}
+
+function bytesToHex(bytes: Uint8Array): string {
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+async function downloadFfmpeg(): Promise<FfmpegPair> {
+  if (Deno.build.os !== "windows" || Deno.build.arch !== "x86_64") {
+    throw new Error(
+      "Automatic FFmpeg setup is currently available only on Windows x64. Configure FFmpeg and FFprobe explicitly on this platform.",
+    );
+  }
+  if (
+    Deno.env.get("PSYCHEROS_PLUGIN_HTF_MUSIC_LISTENER_NO_DOWNLOAD") === "1"
+  ) {
+    throw new Error(
+      "FFmpeg is unavailable and automatic setup is disabled. Configure FFmpeg and FFprobe explicitly.",
+    );
+  }
+  if (!statePath) {
+    throw new Error("The plugin state directory is not ready for FFmpeg setup.");
+  }
+
+  const runtimeParent = join(statePath, "runtime");
+  const finalRoot = join(
+    runtimeParent,
+    `ffmpeg-${FFMPEG_BOOTSTRAP_VERSION}-essentials`,
   );
+  const installed = await findFfmpegPair(finalRoot, "downloaded from Gyan");
+  if (installed) return installed;
+
+  await Deno.mkdir(runtimeParent, { recursive: true });
+  const archivePath = join(runtimeParent, FFMPEG_BOOTSTRAP_ARCHIVE);
+  const partialPath = `${archivePath}.${crypto.randomUUID()}.partial`;
+  const extractingRoot = join(
+    runtimeParent,
+    `.extracting-${crypto.randomUUID()}`,
+  );
+
+  try {
+    const response = await fetch(FFMPEG_BOOTSTRAP_URL, {
+      redirect: "follow",
+      signal: AbortSignal.timeout(5 * 60 * 1000),
+    });
+    if (!response.ok) {
+      throw new Error(`FFmpeg download returned HTTP ${response.status}.`);
+    }
+    const advertisedLength = Number(response.headers.get("content-length"));
+    if (Number.isFinite(advertisedLength) && advertisedLength > MAX_BOOTSTRAP_BYTES) {
+      throw new Error("The FFmpeg download exceeded the pinned size limit.");
+    }
+    const archive = new Uint8Array(await response.arrayBuffer());
+    if (archive.byteLength === 0 || archive.byteLength > MAX_BOOTSTRAP_BYTES) {
+      throw new Error("The FFmpeg download had an unexpected size.");
+    }
+    const digest = bytesToHex(
+      new Uint8Array(await crypto.subtle.digest("SHA-256", archive)),
+    );
+    if (digest !== FFMPEG_BOOTSTRAP_SHA256) {
+      throw new Error(
+        `FFmpeg download failed its SHA-256 check (expected ${FFMPEG_BOOTSTRAP_SHA256}, received ${digest}).`,
+      );
+    }
+    await Deno.writeFile(partialPath, archive);
+    await Deno.rename(partialPath, archivePath);
+
+    await Deno.mkdir(extractingRoot, { recursive: true });
+    const extracted = await runCommand(
+      "tar.exe",
+      ["-xf", archivePath, "-C", extractingRoot],
+      5 * 60 * 1000,
+    );
+    if (!extracted.success) {
+      throw new Error(
+        `Windows could not unpack FFmpeg: ${extracted.stderr || "tar.exe failed."}`,
+      );
+    }
+    const staged = await findFfmpegPair(extractingRoot, "downloaded from Gyan");
+    if (!staged) {
+      throw new Error(
+        "The verified FFmpeg archive did not contain FFmpeg and FFprobe.",
+      );
+    }
+
+    await removeDirectory(finalRoot);
+    await Deno.rename(extractingRoot, finalRoot);
+    const ready = await findFfmpegPair(finalRoot, "downloaded from Gyan");
+    if (!ready) throw new Error("FFmpeg extraction did not finish correctly.");
+    return ready;
+  } finally {
+    for (const path of [partialPath, archivePath, extractingRoot]) {
+      try {
+        const stat = await Deno.stat(path);
+        if (stat.isDirectory) await removeDirectory(path);
+        else await Deno.remove(path);
+      } catch (error) {
+        if (!(error instanceof Deno.errors.NotFound)) {
+          console.warn(`[${PLUGIN_ID}] FFmpeg cleanup failed:`, safeError(error));
+        }
+      }
+    }
+  }
+}
+
+async function resolveFfmpeg(): Promise<FfmpegPair> {
+  const existing = await resolveExistingFfmpeg();
+  if (existing) return existing;
+  ffmpegBootstrapPromise ??= downloadFfmpeg().catch((error) => {
+    ffmpegBootstrapPromise = undefined;
+    throw error;
+  });
+  return ffmpegBootstrapPromise;
 }
 
 async function resolveWorker(): Promise<WorkerCommand> {
@@ -311,23 +462,16 @@ async function resolveWorker(): Promise<WorkerCommand> {
 }
 
 async function resolveRuntime(): Promise<MusicRuntime> {
-  const executable = Deno.build.os === "windows" ? ".exe" : "";
-  const [ffmpeg, ffprobe, worker] = await Promise.all([
-    resolveBinary({
-      envName: "PSYCHEROS_PLUGIN_HTF_MUSIC_LISTENER_FFMPEG",
-      packagedName: `ffmpeg${executable}`,
-      commandName: "ffmpeg",
-      versionArgs: ["-version"],
-    }),
-    resolveBinary({
-      envName: "PSYCHEROS_PLUGIN_HTF_MUSIC_LISTENER_FFPROBE",
-      packagedName: `ffprobe${executable}`,
-      commandName: "ffprobe",
-      versionArgs: ["-version"],
-    }),
+  const [ffmpeg, worker] = await Promise.all([
+    resolveFfmpeg(),
     resolveWorker(),
   ]);
-  return { ffmpeg, ffprobe, worker };
+  return {
+    ffmpeg: ffmpeg.ffmpeg,
+    ffprobe: ffmpeg.ffprobe,
+    ffmpegSource: ffmpeg.source,
+    worker,
+  };
 }
 
 function getRuntime(): Promise<MusicRuntime> {
@@ -788,6 +932,7 @@ async function statusRoute(): Promise<Response> {
       ready: true,
       worker: runtime.worker.label,
       ffmpeg: runtime.ffmpeg,
+      ffmpegSource: runtime.ffmpegSource,
     });
   } catch (error) {
     return Response.json({ ready: false, error: safeError(error) });
@@ -814,5 +959,6 @@ export default {
   stop() {
     statePath = undefined;
     runtimePromise = undefined;
+    ffmpegBootstrapPromise = undefined;
   },
 };

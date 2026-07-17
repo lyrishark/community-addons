@@ -3,7 +3,6 @@ param(
     [string]$OutputDirectory = "",
     [string]$BuildRoot = "",
     [string]$PythonCommand = "python",
-    [string]$FfmpegRoot = "",
     [string]$WorkerExecutable = ""
 )
 
@@ -32,37 +31,6 @@ function Reset-BuildDirectory {
         Remove-Item -LiteralPath $Path -Recurse -Force
     }
     New-Item -ItemType Directory -Path $Path -Force | Out-Null
-}
-
-function Find-FfmpegRoot {
-    param([string]$ConfiguredRoot)
-
-    if ($ConfiguredRoot) {
-        $resolved = (Resolve-Path -LiteralPath $ConfiguredRoot).Path
-        if (Test-Path -LiteralPath (Join-Path $resolved "ffmpeg.exe")) {
-            return $resolved
-        }
-        if (Test-Path -LiteralPath (Join-Path $resolved "bin\ffmpeg.exe")) {
-            return (Join-Path $resolved "bin")
-        }
-        throw "FfmpegRoot does not contain ffmpeg.exe and ffprobe.exe: $resolved"
-    }
-
-    $command = Get-Command ffmpeg.exe -ErrorAction SilentlyContinue
-    if ($command) {
-        return Split-Path -Parent $command.Source
-    }
-
-    $winget = Join-Path $env:LOCALAPPDATA "Microsoft\WinGet\Packages"
-    if (Test-Path -LiteralPath $winget) {
-        $found = Get-ChildItem -LiteralPath $winget -Filter ffmpeg.exe -File -Recurse -ErrorAction SilentlyContinue |
-            Select-Object -First 1
-        if ($found) {
-            return $found.Directory.FullName
-        }
-    }
-
-    throw "FFmpeg was not found. Pass -FfmpegRoot or install Gyan.FFmpeg.Essentials for the release build."
 }
 
 function Copy-LicenseMatches {
@@ -146,14 +114,6 @@ if (-not (Test-Path -LiteralPath $WorkerExecutable)) {
     throw "The HTF worker executable was not created: $WorkerExecutable"
 }
 
-$ffmpegBin = Find-FfmpegRoot -ConfiguredRoot $FfmpegRoot
-$ffmpegExe = Join-Path $ffmpegBin "ffmpeg.exe"
-$ffprobeExe = Join-Path $ffmpegBin "ffprobe.exe"
-if (-not (Test-Path -LiteralPath $ffprobeExe)) {
-    throw "ffprobe.exe was not found beside ffmpeg.exe."
-}
-$ffmpegPackageRoot = Split-Path -Parent $ffmpegBin
-
 $stageRoot = Join-Path $BuildRoot "stage"
 $stagePlugin = Join-Path $stageRoot $manifest.id
 Reset-BuildDirectory -Parent $BuildRoot -Path $stageRoot
@@ -181,19 +141,8 @@ Copy-Item -LiteralPath (Join-Path $communityRoot "LICENSE") -Destination (Join-P
 $vendor = Join-Path $stagePlugin "vendor\windows-x86_64"
 New-Item -ItemType Directory -Path $vendor -Force | Out-Null
 Copy-Item -LiteralPath $WorkerExecutable -Destination (Join-Path $vendor "htf-worker.exe") -Force
-Copy-Item -LiteralPath $ffmpegExe -Destination (Join-Path $vendor "ffmpeg.exe") -Force
-Copy-Item -LiteralPath $ffprobeExe -Destination (Join-Path $vendor "ffprobe.exe") -Force
 
 $thirdParty = Join-Path $stagePlugin "third-party"
-$ffmpegNotices = Join-Path $thirdParty "ffmpeg"
-New-Item -ItemType Directory -Path $ffmpegNotices -Force | Out-Null
-foreach ($name in @("LICENSE", "README.txt")) {
-    $candidate = Join-Path $ffmpegPackageRoot $name
-    if (Test-Path -LiteralPath $candidate) {
-        Copy-Item -LiteralPath $candidate -Destination $ffmpegNotices -Force
-    }
-}
-
 $pythonInfo = & $buildPython -c "import json, pathlib, site, sys; print(json.dumps({'prefix':sys.base_prefix,'sites':site.getsitepackages(),'version':sys.version}))"
 if ($LASTEXITCODE -ne 0) { throw "Could not inspect the Python build runtime." }
 $pythonMetadata = $pythonInfo | ConvertFrom-Json
@@ -207,7 +156,6 @@ Copy-LicenseMatches `
     -PackagePrefixes @("numpy", "scipy", "matplotlib", "soundfile", "cffi", "pycparser") `
     -Destination (Join-Path $thirdParty "python-packages")
 
-$ffmpegVersion = (& $ffmpegExe -version | Select-Object -First 1)
 $workerHash = (Get-FileHash -LiteralPath $WorkerExecutable -Algorithm SHA256).Hash
 $buildInfo = [ordered]@{
     plugin = $manifest.id
@@ -216,7 +164,12 @@ $buildInfo = [ordered]@{
     platform = "windows-x86_64"
     pyInstaller = "6.21.0"
     python = $pythonMetadata.version
-    ffmpeg = $ffmpegVersion
+    ffmpegBootstrap = [ordered]@{
+        version = "8.1.1"
+        archive = "ffmpeg-8.1.1-essentials_build.zip"
+        url = "https://github.com/GyanD/codexffmpeg/releases/download/8.1.1/ffmpeg-8.1.1-essentials_build.zip"
+        sha256 = "6f58ce889f59c311410f7d2b18895b33c03456463486f3b1ebc93d97a0f54541"
+    }
     workerSha256 = $workerHash
 }
 $buildInfo | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $stagePlugin "build-info.json") -Encoding utf8
@@ -235,4 +188,3 @@ Set-Content -LiteralPath $hashPath -Value $hashLine -Encoding ascii
 Write-Output "Release: $zipPath"
 Write-Output "SHA-256: $($hash.Hash.ToLowerInvariant())"
 Write-Output "Worker: $WorkerExecutable"
-Write-Output "FFmpeg: $ffmpegExe"

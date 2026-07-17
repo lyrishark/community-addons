@@ -4,7 +4,8 @@ import { pathToFileURL } from "node:url";
 
 const ffmpeg = Deno.env.get("HTF_E2E_FFMPEG")?.trim();
 const ffprobe = Deno.env.get("HTF_E2E_FFPROBE")?.trim();
-const packagedRuntime = Deno.env.get("HTF_E2E_PACKAGED_RUNTIME") === "1";
+const packagedWorker = Deno.env.get("HTF_E2E_PACKAGED_RUNTIME") === "1";
+const bootstrapRuntime = Deno.env.get("HTF_E2E_BOOTSTRAP") === "1";
 
 Deno.test({
   name: "music attachment converts, produces HTF, and exposes safe artifacts",
@@ -61,7 +62,12 @@ Deno.test({
       }).output();
       assert.equal(generated.success, true);
 
-      if (!packagedRuntime) {
+      if (bootstrapRuntime) {
+        Deno.env.set(
+          "PSYCHEROS_PLUGIN_HTF_MUSIC_LISTENER_DISABLE_SYSTEM_FFMPEG",
+          "1",
+        );
+      } else {
         Deno.env.set("PSYCHEROS_PLUGIN_HTF_MUSIC_LISTENER_FFMPEG", ffmpeg!);
         Deno.env.set("PSYCHEROS_PLUGIN_HTF_MUSIC_LISTENER_FFPROBE", ffprobe!);
       }
@@ -77,6 +83,19 @@ Deno.test({
         env: { get: (name: string) => Deno.env.get(name) },
       };
       await plugin.start(services);
+      if (bootstrapRuntime) {
+        const statusRoute = plugin.routes.find((route: any) =>
+          route.path === "/status"
+        );
+        assert.ok(statusRoute);
+        const statusResponse = await statusRoute.handler(
+          new Request("http://localhost/status"),
+          services,
+        );
+        const status = await statusResponse.json();
+        assert.equal(status.ready, true, status.error);
+        assert.match(status.ffmpegSource, /Gyan/);
+      }
       const tool = plugin.tools[0];
       const result = await tool.execute(
         {
@@ -93,7 +112,7 @@ Deno.test({
       assert.match(result.content, /HTF_V2 MUSIC SENSORY OBJECT/);
       assert.match(result.content, /Synthetic Song - Test Fixture/);
       assert.match(result.content, /\[HTF_ENTITY_VIEW:/);
-      if (packagedRuntime) {
+      if (packagedWorker) {
         assert.match(result.content, /Runtime: packaged HTF worker/);
       }
 
@@ -127,6 +146,9 @@ Deno.test({
     } finally {
       Deno.env.delete("PSYCHEROS_PLUGIN_HTF_MUSIC_LISTENER_FFMPEG");
       Deno.env.delete("PSYCHEROS_PLUGIN_HTF_MUSIC_LISTENER_FFPROBE");
+      Deno.env.delete(
+        "PSYCHEROS_PLUGIN_HTF_MUSIC_LISTENER_DISABLE_SYSTEM_FFMPEG",
+      );
       await Deno.remove(dataRoot, { recursive: true });
     }
   },

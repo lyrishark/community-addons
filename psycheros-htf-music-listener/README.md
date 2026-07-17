@@ -9,9 +9,9 @@ natural music-listening action:
 4. The entity answers naturally, without asking the human to convert or analyze anything
    first.
 
-The plugin accepts every audio or video container that its packaged FFmpeg runtime can
-decode. It extracts the first audio stream, converts it to a private mono WAV, runs the
-local HTF converter, and removes the temporary WAV after the analysis finishes.
+The plugin accepts every audio or video container that FFmpeg can decode. It extracts
+the first audio stream, converts it to a private mono WAV, runs the local HTF converter,
+and removes the temporary WAV after the analysis finishes.
 
 ## Important boundary
 
@@ -54,7 +54,7 @@ guess lyrics.
 
 ## Requirements
 
-This release candidate requires:
+This release requires:
 
 - Windows x64;
 - Psycheros 0.8.23 with the trusted local plugin host used by the Rae/Ember build;
@@ -63,8 +63,11 @@ This release candidate requires:
 Plain upstream Psycheros 0.8.23 does not yet contain that plugin host. Do not advertise
 version number alone as sufficient compatibility.
 
-The self-contained release zip includes the HTF worker and audio conversion runtime. End
-users do not need to install Python, scientific packages, or edit their PATH.
+The release zip includes the HTF worker. If FFmpeg is not already available, the plugin
+performs a one-time download of Gyan's pinned FFmpeg 8.1.1 Essentials archive directly
+from its official GitHub release, verifies its SHA-256 digest, and keeps the extracted
+runtime in local plugin state. End users do not need to install Python, scientific
+packages, FFmpeg, or edit their PATH. The download is about 109 MB.
 
 Source-tree developers may run without packaged binaries when the machine has:
 
@@ -72,7 +75,7 @@ Source-tree developers may run without packaged binaries when the machine has:
 - `ffmpeg` and `ffprobe` on PATH, configured by plugin environment variables, or
   installed through WinGet's FFmpeg package.
 
-## Install the test release
+## Install
 
 1. Open **Settings > Plugins**.
 2. Under **Install Plugin**, choose the release zip.
@@ -89,7 +92,8 @@ Then attach a song and say something explicit such as:
 Generated HTF bundles live under the plugin's local `state/artifacts/` directory. The
 plugin removes expired bundles on startup and before new listening runs; the default
 retention period is seven days. The normalized WAV is deleted immediately after a
-successful analysis. Nothing is uploaded by the plugin.
+successful analysis. Music and HTF artifacts are not uploaded by the plugin; only the
+optional one-time FFmpeg runtime download leaves the machine.
 
 See [PRIVACY.md](PRIVACY.md) and [SECURITY.md](SECURITY.md) before sharing a release.
 
@@ -107,7 +111,7 @@ Validate the package against the matching Psycheros checkout:
 deno task --cwd ..\..\10_local\repo\packages\plugin-api validate .
 ```
 
-Create the self-contained Windows release:
+Create the zero-configuration Windows release:
 
 ```powershell
 .\scripts\Build-Release.ps1

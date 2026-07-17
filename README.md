@@ -352,7 +352,7 @@ Location:
 psycheros-everything-together/
 ```
 
-Current release-candidate features:
+Current release features:
 
 - Includes More Uploads and Voice Text Resize behavior in one merged surface.
 - Includes accessible font settings and host-platform shell handling.
@@ -396,10 +396,10 @@ Current release-candidate features:
 - Keeps voice notes and ordinary speech outside the tool boundary.
 - Offers a persistent Display entity view toggle without changing what the
   entity receives.
-- Ships a self-contained Windows test package so end users do not install
-  Python, scientific packages, or FFmpeg themselves.
+- Ships a zero-configuration Windows package with a self-contained HTF worker
+  and a pinned, SHA-256-verified one-time FFmpeg setup when needed.
 
-This release candidate currently requires the trusted local plugin host in the
+This addon currently requires the trusted local plugin host in the
 Rae/Ember Psycheros build. Plain upstream Psycheros 0.8.23 does not yet expose
 that host.
 
@@ -419,6 +419,10 @@ Release downloads are published through GitHub Releases:
   database/checkpoint coverage, and update-path tests
 - [Psycheros Accessible Font Settings v0.1.3](https://github.com/lyrishark/community-addons/releases/tag/psycheros-accessible-font-settings-v0.1.3)
 - [Psycheros Windows Shell Fix v0.1.1](https://github.com/lyrishark/community-addons/releases/tag/psycheros-windows-shell-fix-v0.1.1)
+- [HTF Music Listener v0.1.0](https://github.com/lyrishark/community-addons/releases/tag/psycheros-htf-music-listener-v0.1.0):
+  install the ZIP through Settings > Plugins, restart Psycheros, attach a song,
+  and explicitly ask the entity to listen; optional Entity view shows the HTF
+  JSON and four listening graphs
 - Psycheros Screen Presence Alpha v0.1.0: source package staged for alpha
   testing; release zip pending broader install testing
 - [Psycheros Expression Sprites Beta v0.1.6](https://github.com/lyrishark/community-addons/releases/tag/psycheros-expression-sprites-beta-v0.1.6):
