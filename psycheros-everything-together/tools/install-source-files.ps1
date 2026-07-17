@@ -1,5 +1,6 @@
 param(
-  [string]$PsycherosRoot
+  [string]$PsycherosRoot,
+  [string]$DataRoot = (Join-Path $env:APPDATA "Psycheros\data")
 )
 
 $ErrorActionPreference = "Stop"
@@ -7,9 +8,11 @@ $ErrorActionPreference = "Stop"
 $SupportedVersions = @("0.8.23")
 $PatchRoot = Split-Path -Parent $PSScriptRoot
 $FilesRoot = Join-Path $PatchRoot "files"
+$MusicBundleRoot = Join-Path $PatchRoot "bundled\htf-music-listener"
+$MusicInstaller = Join-Path $MusicBundleRoot "tools\Install-Legacy.ps1"
 $AddonName = "Everything Together"
 $AddonId = "psycheros-everything-together"
-$AddonVersion = "0.1.0-rc.3"
+$AddonVersion = "0.1.0-rc.4"
 $SupersededAddonIds = @("psycheros-more-uploads", "psycheros-voice-text-resize", "psycheros-more-uploads-voice-resize")
 
 function Resolve-FullPath {
@@ -241,6 +244,9 @@ function Resolve-PsycherosSourceRoot {
 if (-not (Test-Path -LiteralPath $FilesRoot)) {
   throw "Could not find add-on files at $FilesRoot"
 }
+if (-not (Test-Path -LiteralPath $MusicInstaller)) {
+  throw "Could not find the bundled HTF Music Listener runtime at $MusicBundleRoot. Use the published Windows x64 release zip, not a source-only archive."
+}
 
 $ResolvedRoot = Resolve-PsycherosSourceRoot $PsycherosRoot
 $RootFull = (Resolve-Path -LiteralPath $ResolvedRoot).Path
@@ -290,6 +296,8 @@ foreach ($File in $Files) {
   $Patched++
 }
 
+& $MusicInstaller -PsycherosRoot $RootFull -DataRoot $DataRoot
+
 $MarkerPath = Write-AddonInstallMarker $PsycherosPackageDir $RootFull $InstalledVersion
 
 Write-Host ""
@@ -301,7 +309,7 @@ Write-Host "Install marker: $MarkerPath"
 Write-Host ""
 Write-Host "Next steps:"
 Write-Host "1. Fully quit and relaunch Psycheros."
-Write-Host "2. In chat, attach multiple images or a supported document."
+Write-Host "2. In chat, attach multiple images, a document, or a song and ask the entity to listen."
 Write-Host "3. In voice chat, try Yin Yang typed input, screen presence, and expression sprites."
 Write-Host "   The bundled Ember sprite pack will seed missing sprite slots automatically."
 Write-Host "4. If you do not want expression sprites, open Settings > Vision > Expressions and turn off Show Expression Display."

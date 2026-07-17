@@ -1,6 +1,109 @@
 const PLUGIN_ID = "psycheros-htf-music-listener";
 const API_ROOT = `/api/plugins/${PLUGIN_ID}`;
 const ENTITY_VIEW_PREFIX = "[HTF_ENTITY_VIEW:";
+const MUSIC_ATTACHMENT_ACCEPT = [
+  ".mp3",
+  ".mp4",
+  ".mpeg",
+  ".mpga",
+  ".wav",
+  ".flac",
+  ".m4a",
+  ".aac",
+  ".aif",
+  ".aiff",
+  ".ogg",
+  ".opus",
+  ".webm",
+  "audio/*",
+];
+const MUSIC_ATTACHMENT_EXTENSIONS = new Set(
+  MUSIC_ATTACHMENT_ACCEPT.filter((value) => value.startsWith("."))
+    .map((value) => value.slice(1)),
+);
+
+function mergeAttachmentAccept(existing = "") {
+  const values = existing.split(",").map((value) => value.trim()).filter(Boolean);
+  const seen = new Set(values.map((value) => value.toLowerCase()));
+  for (const value of MUSIC_ATTACHMENT_ACCEPT) {
+    if (seen.has(value.toLowerCase())) continue;
+    values.push(value);
+    seen.add(value.toLowerCase());
+  }
+  return values.join(",");
+}
+
+function attachmentExtension(value = "") {
+  const clean = String(value).split(/[?#]/, 1)[0];
+  return clean.split(".").pop()?.toLowerCase() ?? "";
+}
+
+function isMusicAttachment(value) {
+  return MUSIC_ATTACHMENT_EXTENSIONS.has(attachmentExtension(value));
+}
+
+function attachmentLabel(value) {
+  let filename = String(value).split(/[?#]/, 1)[0].split("/").pop() || "Music";
+  try {
+    filename = decodeURIComponent(filename);
+  } catch {
+    // Keep the safe URL segment when it is not valid encoded text.
+  }
+  return filename.replace(/^[0-9a-f-]{36}[-.]?/i, "") || "Music";
+}
+
+function upgradeAttachmentInputs(root = document) {
+  for (
+    const input of root.querySelectorAll?.(
+      '#attach-input, #voice-text-attach-input, input[type="file"][onchange*="handleAttachment"]',
+    ) ?? []
+  ) {
+    input.accept = mergeAttachmentAccept(input.accept);
+    input.dataset.htfMusicUploads = "true";
+    const control = input.closest?.("label") ?? input.previousElementSibling;
+    if (control?.title === "Attach image") control.title = "Attach image or music";
+  }
+}
+
+function musicChip(url, label, inMessage) {
+  const element = document.createElement(inMessage ? "a" : "span");
+  element.className = inMessage
+    ? "htf-music-attachment htf-music-attachment--message"
+    : "htf-music-attachment";
+  if (inMessage) {
+    element.href = url;
+    element.target = "_blank";
+    element.rel = "noopener";
+    element.download = "";
+  }
+  const icon = document.createElement("span");
+  icon.className = "htf-music-attachment__icon";
+  icon.setAttribute("aria-hidden", "true");
+  icon.textContent = "♪";
+  const text = document.createElement("span");
+  text.className = "htf-music-attachment__name";
+  text.textContent = label;
+  element.append(icon, text);
+  return element;
+}
+
+function upgradeMusicAttachmentRendering(root = document) {
+  for (
+    const image of root.querySelectorAll?.(
+      "img.attachment-thumb, img.attachment-in-message",
+    ) ?? []
+  ) {
+    const url = image.getAttribute("src") ?? "";
+    if (!isMusicAttachment(url)) continue;
+    image.replaceWith(
+      musicChip(
+        url,
+        attachmentLabel(url),
+        image.classList.contains("attachment-in-message"),
+      ),
+    );
+  }
+}
 
 function pluginArtifactUrl(value) {
   return typeof value === "string" &&
@@ -220,6 +323,8 @@ function injectPluginSettings() {
 }
 
 function scan() {
+  upgradeAttachmentInputs();
+  upgradeMusicAttachmentRendering();
   scanEntityViews();
   injectPluginSettings();
 }
@@ -232,4 +337,8 @@ if (document.readyState === "loading") {
   scan();
 }
 
-globalThis.__HTF_MUSIC_LISTENER_TEST__ = { findSettingsMount };
+globalThis.__HTF_MUSIC_LISTENER_TEST__ = {
+  findSettingsMount,
+  mergeAttachmentAccept,
+  isMusicAttachment,
+};

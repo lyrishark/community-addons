@@ -350,6 +350,19 @@ const MIME_TYPES: Record<string, string> = {
   ".docx":
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ".mp3": "audio/mpeg",
+  ".mp4": "audio/mp4",
+  ".mpeg": "audio/mpeg",
+  ".mpga": "audio/mpeg",
+  ".wav": "audio/wav",
+  ".flac": "audio/flac",
+  ".m4a": "audio/mp4",
+  ".aac": "audio/aac",
+  ".aif": "audio/aiff",
+  ".aiff": "audio/aiff",
+  ".ogg": "audio/ogg",
+  ".opus": "audio/opus",
+  ".webm": "audio/webm",
   ".woff": "font/woff",
   ".woff2": "font/woff2",
   ".ttf": "font/ttf",
@@ -376,7 +389,7 @@ const JSON_HEADERS = {
  */
 const MAX_BACKGROUND_SIZE = 5 * 1024 * 1024;
 
-const CHAT_ATTACHMENT_MAX_SIZE = 10 * 1024 * 1024;
+const CHAT_ATTACHMENT_MAX_SIZE = 512 * 1024 * 1024;
 const CHAT_ATTACHMENT_EXTRACT_LIMIT = 24_000;
 
 const CHAT_ATTACHMENT_IMAGE_EXTENSIONS = new Set([
@@ -397,8 +410,24 @@ const CHAT_ATTACHMENT_FILE_EXTENSIONS = new Set([
   "docx",
   "xlsx",
 ]);
+const CHAT_ATTACHMENT_AUDIO_EXTENSIONS = new Set([
+  "mp3",
+  "mp4",
+  "mpeg",
+  "mpga",
+  "wav",
+  "flac",
+  "m4a",
+  "aac",
+  "aif",
+  "aiff",
+  "ogg",
+  "opus",
+  "webm",
+]);
 const CHAT_ATTACHMENT_ALLOWED_EXTENSIONS = new Set([
   ...CHAT_ATTACHMENT_IMAGE_EXTENSIONS,
+  ...CHAT_ATTACHMENT_AUDIO_EXTENSIONS,
   ...CHAT_ATTACHMENT_FILE_EXTENSIONS,
 ]);
 const CHAT_ATTACHMENT_TEXT_EXTENSIONS = new Set(["txt", "md", "csv", "json"]);
@@ -417,6 +446,20 @@ const CHAT_ATTACHMENT_MIME_TO_EXTENSION: Record<string, string> = {
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
     "docx",
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
+  "audio/mpeg": "mp3",
+  "audio/mp3": "mp3",
+  "audio/mp4": "mp4",
+  "audio/mpga": "mpga",
+  "audio/wav": "wav",
+  "audio/x-wav": "wav",
+  "audio/flac": "flac",
+  "audio/x-m4a": "m4a",
+  "audio/aac": "aac",
+  "audio/aiff": "aiff",
+  "audio/x-aiff": "aiff",
+  "audio/ogg": "ogg",
+  "audio/opus": "opus",
+  "audio/webm": "webm",
 };
 
 /**
@@ -1204,7 +1247,7 @@ interface ChatRequestBody {
   deviceType?: "desktop" | "mobile";
 }
 
-type ChatAttachmentKind = "image" | "file";
+type ChatAttachmentKind = "image" | "audio" | "file";
 
 function getExtensionFromName(name: string): string {
   const ext = name.split(".").pop()?.toLowerCase() ?? "";
@@ -1227,7 +1270,9 @@ function resolveChatAttachmentExtension(file: File): string | null {
 
 function getChatAttachmentKind(filename: string): ChatAttachmentKind {
   const ext = getExtensionFromName(filename);
-  return CHAT_ATTACHMENT_IMAGE_EXTENSIONS.has(ext) ? "image" : "file";
+  if (CHAT_ATTACHMENT_IMAGE_EXTENSIONS.has(ext)) return "image";
+  if (CHAT_ATTACHMENT_AUDIO_EXTENSIONS.has(ext)) return "audio";
+  return "file";
 }
 
 function canCaptionChatImage(filename: string): boolean {
@@ -1403,6 +1448,31 @@ async function buildUserFileMarker(
     : `${marker}\n[/USER_FILE]`;
 }
 
+async function buildUserAudioMarker(
+  ctx: RouteContext,
+  attachmentFilename: string,
+  idx: number,
+): Promise<string> {
+  const audioPath = `/chat-attachments/${attachmentFilename}`;
+  const attachmentPath =
+    `${ctx.dataRoot}/.psycheros/chat-attachments/${attachmentFilename}`;
+  let size = 0;
+  try {
+    size = (await Deno.stat(attachmentPath)).size;
+  } catch {
+    // Size is only metadata for the marker.
+  }
+  const displayName = attachmentFilename.replace(
+    /^[0-9a-fA-F-]{36}[-.]?/,
+    "",
+  );
+  return `[USER_AUDIO: ${audioPath} | Audio ${idx + 1} | Name: ${
+    sanitizeAttachmentMarkerValue(displayName || attachmentFilename)
+  } | Type: ${
+    sanitizeAttachmentMarkerValue(getMimeType(attachmentFilename))
+  } | Size: ${size} bytes]`;
+}
+
 async function buildUserAttachmentMarkers(
   ctx: RouteContext,
   attachmentIds: string[],
@@ -1416,11 +1486,13 @@ async function buildUserAttachmentMarkers(
     );
     if (!attachmentFilename) continue;
     const kind = getChatAttachmentKind(attachmentFilename);
-    markers.push(
-      kind === "image"
-        ? await buildUserImageMarker(ctx, attachmentFilename, idx)
-        : await buildUserFileMarker(ctx, attachmentFilename, idx),
-    );
+    if (kind === "image") {
+      markers.push(await buildUserImageMarker(ctx, attachmentFilename, idx));
+    } else if (kind === "audio") {
+      markers.push(await buildUserAudioMarker(ctx, attachmentFilename, idx));
+    } else {
+      markers.push(await buildUserFileMarker(ctx, attachmentFilename, idx));
+    }
   }
   return markers;
 }
@@ -7981,14 +8053,7 @@ export async function handleServeImageFile(
   const filePath = `${ctx.dataRoot}/.psycheros/${dirName}/${filename}`;
   try {
     const data = await Deno.readFile(filePath);
-    const ext = filename.split(".").pop()?.toLowerCase();
-    const mediaType = ext === "jpg" || ext === "jpeg"
-      ? "image/jpeg"
-      : ext === "webp"
-      ? "image/webp"
-      : ext === "gif"
-      ? "image/gif"
-      : "image/png";
+    const mediaType = getMimeType(filename);
 
     return new Response(data, {
       headers: {
@@ -8006,6 +8071,127 @@ export async function handleServeImageFile(
 // Chat Attachments API Routes
 // =============================================================================
 
+class ChatAttachmentTooLargeError extends Error {}
+
+async function writeAllToFile(
+  file: Deno.FsFile,
+  chunk: Uint8Array,
+): Promise<void> {
+  let offset = 0;
+  while (offset < chunk.length) {
+    const written = await file.write(chunk.subarray(offset));
+    if (written <= 0) throw new Error("Attachment upload write stalled");
+    offset += written;
+  }
+}
+
+async function handleRawChatAttachmentUpload(
+  ctx: RouteContext,
+  request: Request,
+  encodedName: string,
+): Promise<Response> {
+  let originalName: string;
+  try {
+    originalName = decodeURIComponent(encodedName).trim();
+  } catch {
+    originalName = "";
+  }
+  if (!originalName || originalName.length > 255) {
+    return new Response(JSON.stringify({ error: "Invalid attachment name" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  const declaredSize = Number(request.headers.get("content-length"));
+  if (
+    Number.isFinite(declaredSize) && declaredSize > CHAT_ATTACHMENT_MAX_SIZE
+  ) {
+    return new Response(
+      JSON.stringify({ error: "Attachment is larger than 512MB" }),
+      { status: 413, headers: { "Content-Type": "application/json" } },
+    );
+  }
+
+  const mimeType = (request.headers.get("content-type") ||
+    "application/octet-stream").split(";", 1)[0].trim().toLowerCase();
+  const ext = resolveChatAttachmentExtension(
+    new File([], originalName, { type: mimeType }),
+  );
+  if (!ext) {
+    return new Response(
+      JSON.stringify({
+        error:
+          "Unsupported attachment type. Use images, audio, text, Markdown, CSV, JSON, PDF, DOCX, or XLSX.",
+      }),
+      { status: 400, headers: { "Content-Type": "application/json" } },
+    );
+  }
+  if (!request.body) {
+    return new Response(JSON.stringify({ error: "No file provided" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  const id = crypto.randomUUID();
+  const safeName = sanitizeAttachmentFilenamePart(originalName);
+  const filename = `${id}-${safeName}.${ext}`;
+  const attachmentsDir = `${ctx.dataRoot}/.psycheros/chat-attachments`;
+  const tempPath = `${attachmentsDir}/.${id}.uploading`;
+  const finalPath = `${attachmentsDir}/${filename}`;
+  await Deno.mkdir(attachmentsDir, { recursive: true });
+
+  let size = 0;
+  let output: Deno.FsFile | undefined;
+  try {
+    output = await Deno.open(tempPath, { createNew: true, write: true });
+    for await (const chunk of request.body) {
+      size += chunk.byteLength;
+      if (size > CHAT_ATTACHMENT_MAX_SIZE) {
+        throw new ChatAttachmentTooLargeError();
+      }
+      await writeAllToFile(output, chunk);
+    }
+    output.close();
+    output = undefined;
+    await Deno.rename(tempPath, finalPath);
+  } catch (error) {
+    try {
+      output?.close();
+    } catch {
+      // Already closed.
+    }
+    try {
+      await Deno.remove(tempPath);
+    } catch {
+      // Nothing partial remains if creation failed before the temp file existed.
+    }
+    if (error instanceof ChatAttachmentTooLargeError) {
+      return new Response(
+        JSON.stringify({ error: "Attachment is larger than 512MB" }),
+        { status: 413, headers: { "Content-Type": "application/json" } },
+      );
+    }
+    throw error;
+  }
+
+  return new Response(
+    JSON.stringify({
+      id,
+      filename,
+      url: `/chat-attachments/${filename}`,
+      name: originalName,
+      type: mimeType !== "application/octet-stream"
+        ? mimeType
+        : getMimeType(filename),
+      size,
+      kind: getChatAttachmentKind(filename),
+    }),
+    { headers: { "Content-Type": "application/json" } },
+  );
+}
+
 /**
  * Handle POST /api/chat-attachments - Upload a chat attachment.
  */
@@ -8014,6 +8200,11 @@ export async function handleUploadChatAttachment(
   request: Request,
 ): Promise<Response> {
   try {
+    const rawFilename = request.headers.get("x-psycheros-filename");
+    if (rawFilename !== null) {
+      return await handleRawChatAttachmentUpload(ctx, request, rawFilename);
+    }
+
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
 
@@ -8032,9 +8223,9 @@ export async function handleUploadChatAttachment(
 
     if (file.size > CHAT_ATTACHMENT_MAX_SIZE) {
       return new Response(
-        JSON.stringify({ error: "Attachment is larger than 10MB" }),
+        JSON.stringify({ error: "Attachment is larger than 512MB" }),
         {
-          status: 400,
+          status: 413,
           headers: {
             "Content-Type": "application/json",
             "Access-Control-Allow-Origin": "*",
@@ -8048,7 +8239,7 @@ export async function handleUploadChatAttachment(
       return new Response(
         JSON.stringify({
           error:
-            "Unsupported attachment type. Use images, text, Markdown, CSV, JSON, PDF, DOCX, or XLSX.",
+            "Unsupported attachment type. Use images, audio, text, Markdown, CSV, JSON, PDF, DOCX, or XLSX.",
         }),
         {
           status: 400,

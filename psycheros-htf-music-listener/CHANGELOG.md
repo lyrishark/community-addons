@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.2 - 2026-07-17
+
+- Widen image-only Psycheros attachment pickers to common FFmpeg-decodable music
+  formats so the listening action is self-contained on a stock host.
+- Replace stock broken-image previews for audio attachments with a compact music-file
+  chip.
+- Apply the same upload-picker bridge to both the trusted-plugin and legacy packages.
+- Document exact compatibility and install order for More Uploads, the voice-resize
+  combo, and Everything Together.
+
 ## 0.1.1 - 2026-07-17
 
 - Fall back to `Settings > Tools > Custom` when a trusted-plugin host loads the addon

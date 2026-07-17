@@ -25,8 +25,8 @@ This repository currently contains:
 9. **Psycheros Expression Sprites Beta** - a Psycheros 0.8.23 file mod that adds
    live expression detection and SillyTavern-style sprite display.
 10. **Psycheros More Uploads** - a Psycheros 0.8.23 file mod that adds
-    multiple image uploads and document attachments to chat and Yin Yang typed
-    voice.
+    multiple image, document, and music uploads to chat and Yin Yang typed
+    voice, with streamed files up to 512 MB.
 11. **Psycheros Voice Text Resize** - a Psycheros 0.8.23 file mod that makes
     the Yin Yang typed voice input resizable while preserving auto-grow.
 12. **Psycheros More Uploads + Voice Text Resize** - a Psycheros 0.8.23 combo
@@ -34,7 +34,7 @@ This repository currently contains:
     Yang typed voice box without standalone package overwrite conflicts.
 13. **Psycheros Everything Together** - a Psycheros 0.8.23 release candidate
     bundle for uploads, voice resize, fonts, Windows shell handling, screen
-    presence, and expression sprites.
+    presence, expression sprites, and comprehensive local music listening.
 14. **HTF Music Listener** - a trusted local Psycheros plugin that turns an
     explicitly requested music attachment into a private HTF v2 sensory
     handoff and optional human-visible entity view.
@@ -272,8 +272,10 @@ psycheros-more-uploads/
 Current alpha features:
 
 - Adds multiple attachments to the main chat composer.
-- Supports image uploads plus `.txt`, `.md`, `.csv`, `.json`, `.pdf`, `.docx`,
-  and `.xlsx` files.
+- Supports image and document uploads plus common music formats including MP3,
+  WAV, FLAC, M4A, AAC, AIFF, OGG, Opus, and WebM.
+- Streams uploads to disk with a 512 MB host limit instead of buffering whole
+  songs in browser/server memory.
 - Adds the same attachment flow to Yin Yang typed voice mode.
 - Renders uploaded images and file chips cleanly in chat history.
 - Extracts supported document text for the entity where Psycheros already has a
@@ -355,6 +357,8 @@ psycheros-everything-together/
 Current release features:
 
 - Includes More Uploads and Voice Text Resize behavior in one merged surface.
+- Includes music-capable uploads and, on Windows x64, the bundled HTF Music
+  Listener 0.1.2 legacy organ for a complete ask-to-listen flow.
 - Includes accessible font settings and host-platform shell handling.
 - Includes screen presence alpha for chat and voice.
 - Includes expression sprites, voice expression overlay forwarding, and the
@@ -423,7 +427,7 @@ Release downloads are published through GitHub Releases:
   database/checkpoint coverage, and update-path tests
 - [Psycheros Accessible Font Settings v0.1.3](https://github.com/lyrishark/community-addons/releases/tag/psycheros-accessible-font-settings-v0.1.3)
 - [Psycheros Windows Shell Fix v0.1.1](https://github.com/lyrishark/community-addons/releases/tag/psycheros-windows-shell-fix-v0.1.1)
-- [HTF Music Listener v0.1.1](https://github.com/lyrishark/community-addons/releases/tag/psycheros-htf-music-listener-v0.1.1):
+- [HTF Music Listener v0.1.2](https://github.com/lyrishark/community-addons/releases/tag/psycheros-htf-music-listener-v0.1.2):
   use the normal ZIP through Settings > Plugins, or the separately labeled
   legacy ZIP on plain upstream builds; restart Psycheros, attach a song, and
   explicitly ask the entity to listen. Optional Entity view shows the HTF JSON
@@ -443,19 +447,21 @@ Release downloads are published through GitHub Releases:
 - [Psycheros Voice Text Resize v0.1.0](https://github.com/lyrishark/community-addons/releases/tag/psycheros-voice-text-resize-v0.1.0):
   download the ZIP, unzip it, run `install.ps1` on Windows or `install.sh` on
   macOS/Linux, then open a voice call and switch to Yin Yang mode
-- [Psycheros More Uploads v0.1.0](https://github.com/lyrishark/community-addons/releases/tag/psycheros-more-uploads-v0.1.0):
+- [Psycheros More Uploads v0.1.1](https://github.com/lyrishark/community-addons/releases/tag/psycheros-more-uploads-v0.1.1):
   download the ZIP, unzip it, run `install.ps1` on Windows or `install.sh` on
-  macOS/Linux, then attach multiple images or supported documents in chat or
-  Yin Yang typed voice mode
-- [Psycheros More Uploads + Voice Text Resize v0.1.0](https://github.com/lyrishark/community-addons/releases/tag/psycheros-more-uploads-voice-resize-v0.1.0):
+  macOS/Linux, then attach images, documents, or music in chat or Yin Yang
+  typed voice mode
+- [Psycheros More Uploads + Voice Text Resize v0.1.1](https://github.com/lyrishark/community-addons/releases/tag/psycheros-more-uploads-voice-resize-v0.1.1):
   download the ZIP, unzip it, run `install.ps1` on Windows or `install.sh` on
   macOS/Linux, then try uploads and the resizable Yin Yang typed voice input
-- [Psycheros Everything Together v0.1.0-rc.3](https://github.com/lyrishark/community-addons/releases/tag/psycheros-everything-together-v0.1.0-rc.3):
+- [Psycheros Everything Together v0.1.0-rc.4](https://github.com/lyrishark/community-addons/releases/tag/psycheros-everything-together-v0.1.0-rc.4):
   prerelease bundle for Psycheros 0.8.23; download the ZIP, unzip it, run
   `install.ps1` on Windows or `install.sh` on macOS/Linux, then use
   Settings > Vision > Expressions > Show Expression Display as the expression
-  master toggle. RC3 adds hybrid stream-and-settle expressions and restores the
-  final shown face when a conversation is reopened.
+  master toggle. RC4 adds music-capable uploads and bundles the complete HTF
+  Music Listener 0.1.2 legacy organ on Windows x64.
+- [Psycheros Everything Together v0.1.0-rc.3](https://github.com/lyrishark/community-addons/releases/tag/psycheros-everything-together-v0.1.0-rc.3):
+  previous Psycheros 0.8.23 release candidate
 - [Psycheros Everything Together v0.1.0-rc.2](https://github.com/lyrishark/community-addons/releases/tag/psycheros-everything-together-v0.1.0-rc.2):
   previous Psycheros 0.8.23 release candidate
 

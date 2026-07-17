@@ -4,7 +4,7 @@ set -euo pipefail
 supported_version="0.8.23"
 addon_name="More Uploads"
 addon_id="psycheros-more-uploads"
-addon_version="0.1.0"
+addon_version="0.1.1"
 superseded_addon_ids=()
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 patch_root="$(cd -- "$script_dir/.." && pwd -P)"

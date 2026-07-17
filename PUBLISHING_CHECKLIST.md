@@ -48,12 +48,12 @@ Release assets to upload:
 - `psycheros-thread-exporter-0.3.2.zip`
 - `psycheros-entity-core-codex-plugin-0.2.1.zip`
 - `psycheros-entity-core-chatgpt-private-0.1.3.zip`
-- `psycheros-more-uploads-0.1.0.zip`
+- `psycheros-more-uploads-0.1.1.zip`
 - `psycheros-voice-text-resize-0.1.0.zip`
-- `psycheros-more-uploads-voice-resize-0.1.0.zip`
-- `psycheros-everything-together-0.1.0-rc.2.zip`
-- `psycheros-htf-music-listener-0.1.1-windows-x64.zip`
-- `psycheros-htf-music-listener-0.1.1-legacy-windows-x64.zip`
+- `psycheros-more-uploads-voice-resize-0.1.1.zip`
+- `psycheros-everything-together-0.1.0-rc.4.zip`
+- `psycheros-htf-music-listener-0.1.2-windows-x64.zip`
+- `psycheros-htf-music-listener-0.1.2-legacy-windows-x64.zip`
 - `SHA256SUMS.txt`
 
 Generate checksums on Windows:

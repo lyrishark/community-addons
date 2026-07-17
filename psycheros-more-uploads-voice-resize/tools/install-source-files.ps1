@@ -9,7 +9,7 @@ $PatchRoot = Split-Path -Parent $PSScriptRoot
 $FilesRoot = Join-Path $PatchRoot "files"
 $AddonName = "More Uploads + Voice Text Resize"
 $AddonId = "psycheros-more-uploads-voice-resize"
-$AddonVersion = "0.1.0"
+$AddonVersion = "0.1.1"
 $SupersededAddonIds = @("psycheros-more-uploads", "psycheros-voice-text-resize")
 
 function Resolve-FullPath {
@@ -301,5 +301,5 @@ Write-Host "Install marker: $MarkerPath"
 Write-Host ""
 Write-Host "Next steps:"
 Write-Host "1. Fully quit and relaunch Psycheros."
-Write-Host "2. In chat, attach more than one image or attach a supported document."
+Write-Host "2. In chat, attach multiple images, a document, or a music file."
 Write-Host "3. In voice chat, switch to Yin Yang mode, attach a file, and drag the typed-message box larger."

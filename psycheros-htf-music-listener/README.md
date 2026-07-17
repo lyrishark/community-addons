@@ -9,9 +9,11 @@ natural music-listening action:
 4. The entity answers naturally, without asking the human to convert or analyze anything
    first.
 
-The plugin accepts every audio or video container that FFmpeg can decode. It extracts
-the first audio stream, converts it to a private mono WAV, runs the local HTF converter,
-and removes the temporary WAV after the analysis finishes.
+The listening runtime accepts every audio or video container that FFmpeg can decode. The
+browser picker explicitly exposes common music formats: MP3, MP4/MPEG audio, WAV, FLAC,
+M4A, AAC, AIFF, OGG, Opus, and WebM. It extracts the first audio stream, converts it to a
+private mono WAV, runs the local HTF converter, and removes the temporary WAV after the
+analysis finishes.
 
 ## Important boundary
 
@@ -64,13 +66,28 @@ This release requires:
 Plain upstream Psycheros 0.8.23 does not yet contain that plugin host. Do not advertise
 version number alone as sufficient compatibility.
 
-Release `0.1.1` also provides a separately named **legacy** Windows package for those
+Release `0.1.2` also provides a separately named **legacy** Windows package for those
 plain-upstream builds. It uses Psycheros's existing Custom Tools loader and appends one
 marked, removable browser enhancement so the Display entity view toggle appears under
 **Settings > Tools > Custom**. The legacy installer is intentionally not presented as a
 native plugin: source updates can replace its browser enhancement, in which case the
 installer can be run again. Remove the legacy package before moving to the trusted
 plugin version.
+
+### Compatibility with the upload bundles
+
+- **Stock Psycheros 0.8.23:** use the `legacy-windows-x64` package. Version 0.1.2 adds
+  its own music picker support; More Uploads is not required.
+- **Rae/Ember trusted-plugin fork:** use the normal plugin package only. Do not install
+  the upstream source-file upload bundles over that fork; its music upload path is
+  already merged and the replacement bundles could erase newer fork work.
+- **Older More Uploads 0.1.0 packages:** update them first. Their closed browser filter
+  rejects audio even when another addon widens the visible picker.
+- **Legacy listener plus a source-file upload bundle:** install the upload bundle first,
+  then the legacy listener. Reinstall the legacy listener after any source addon or
+  Launcher update that replaces `web/js/psycheros.js`.
+- **Everything Together 0.1.0-rc.4:** already includes this legacy listening organ and
+  the expanded music-upload path. Do not install a second copy of HTF Music Listener.
 
 The release zip includes the HTF worker. If FFmpeg is not already available, the plugin
 performs a one-time download of Gyan's pinned FFmpeg 8.1.1 Essentials archive directly

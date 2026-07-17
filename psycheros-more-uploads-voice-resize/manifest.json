@@ -1,7 +1,7 @@
 {
   "name": "psycheros-more-uploads-voice-resize",
-  "version": "0.1.0",
-  "description": "Multiple uploads plus resizable Yin Yang typed voice input for Psycheros.",
+  "version": "0.1.1",
+  "description": "Multiple image, document, and music uploads plus resizable Yin Yang typed voice input for Psycheros.",
   "kind": "psycheros-file-mod",
   "official": false,
   "requires": {
