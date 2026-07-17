@@ -55,17 +55,25 @@ let voiceTextAttachments = [];
 const VOICE_CHAT_ATTACHMENT_ACCEPT = [
   '.png', '.jpg', '.jpeg', '.gif', '.webp', '.avif', '.svg',
   '.txt', '.md', '.csv', '.json', '.pdf', '.docx', '.xlsx',
-  'image/*', 'text/plain', 'text/markdown', 'text/csv',
+  '.mp3', '.mp4', '.mpeg', '.mpga', '.wav', '.flac', '.m4a', '.aac',
+  '.aif', '.aiff', '.ogg', '.opus', '.webm',
+  'image/*', 'audio/*', 'text/plain', 'text/markdown', 'text/csv',
   'application/json', 'application/pdf',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 ].join(',');
 const VOICE_CHAT_ATTACHMENT_EXTENSIONS = new Set([
   'png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'svg',
-  'txt', 'md', 'csv', 'json', 'pdf', 'docx', 'xlsx'
+  'txt', 'md', 'csv', 'json', 'pdf', 'docx', 'xlsx',
+  'mp3', 'mp4', 'mpeg', 'mpga', 'wav', 'flac', 'm4a', 'aac',
+  'aif', 'aiff', 'ogg', 'opus', 'webm'
 ]);
 const VOICE_CHAT_IMAGE_EXTENSIONS = new Set([
   'png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'svg'
+]);
+const VOICE_CHAT_AUDIO_EXTENSIONS = new Set([
+  'mp3', 'mp4', 'mpeg', 'mpga', 'wav', 'flac', 'm4a', 'aac',
+  'aif', 'aiff', 'ogg', 'opus', 'webm'
 ]);
 const VOICE_CHAT_ATTACHMENT_MIME_TYPES = new Set([
   'image/png',
@@ -74,6 +82,20 @@ const VOICE_CHAT_ATTACHMENT_MIME_TYPES = new Set([
   'image/webp',
   'image/avif',
   'image/svg+xml',
+  'audio/mpeg',
+  'audio/mp3',
+  'audio/mp4',
+  'audio/mpga',
+  'audio/wav',
+  'audio/x-wav',
+  'audio/flac',
+  'audio/x-m4a',
+  'audio/aac',
+  'audio/aiff',
+  'audio/x-aiff',
+  'audio/ogg',
+  'audio/opus',
+  'audio/webm',
   'text/plain',
   'text/markdown',
   'text/csv',
@@ -2215,9 +2237,15 @@ async function uploadVoiceTextAttachments(files, options = {}) {
 }
 
 async function uploadVoiceTextAttachment(file) {
-  const formData = new FormData();
-  formData.append('file', file);
-  const resp = await fetch('/api/chat-attachments', { method: 'POST', body: formData });
+  const resp = await fetch('/api/chat-attachments', {
+    method: 'POST',
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': file.type || 'application/octet-stream',
+      'X-Psycheros-Filename': encodeURIComponent(file.name)
+    },
+    body: file
+  });
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({}));
     throw new Error(err.error || 'Failed to upload attachment');
@@ -2236,11 +2264,17 @@ async function uploadVoiceTextAttachment(file) {
 
 function inferVoiceAttachmentKind(name) {
   const ext = getVoiceAttachmentExtension(name);
-  return VOICE_CHAT_IMAGE_EXTENSIONS.has(ext) ? 'image' : 'file';
+  if (VOICE_CHAT_IMAGE_EXTENSIONS.has(ext)) return 'image';
+  if (VOICE_CHAT_AUDIO_EXTENSIONS.has(ext)) return 'audio';
+  return 'file';
 }
 
 function isVoiceImageAttachment(attachment) {
   return attachment.kind === 'image' || inferVoiceAttachmentKind(attachment.filename || attachment.url || '') === 'image';
+}
+
+function isVoiceAudioAttachment(attachment) {
+  return attachment.kind === 'audio' || inferVoiceAttachmentKind(attachment.filename || attachment.url || '') === 'audio';
 }
 
 function voiceAttachmentFileIconSvg() {
@@ -2341,10 +2375,13 @@ function handleVoiceTextPaste(event) {
 
 function voiceAttachmentFallbackText(attachments) {
   const imageCount = attachments.filter(isVoiceImageAttachment).length;
-  const fileCount = attachments.length - imageCount;
-  if (imageCount > 0 && fileCount > 0) return '(attachments attached)';
+  const audioCount = attachments.filter(isVoiceAudioAttachment).length;
+  const fileCount = attachments.length - imageCount - audioCount;
+  if ((imageCount > 0 && (audioCount > 0 || fileCount > 0)) || (audioCount > 0 && fileCount > 0)) return '(attachments attached)';
   if (imageCount > 1) return '(images attached)';
   if (imageCount === 1) return '(image attached)';
+  if (audioCount > 1) return '(audio clips attached)';
+  if (audioCount === 1) return '(audio clip attached)';
   if (fileCount > 1) return '(files attached)';
   return '(file attached)';
 }

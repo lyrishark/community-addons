@@ -5,7 +5,7 @@
  * conversation rendering and retry paths can reconstruct the visible files.
  */
 
-export type UserAttachmentKind = "image" | "file";
+export type UserAttachmentKind = "image" | "audio" | "file";
 
 export interface UserAttachmentMarker {
   kind: UserAttachmentKind;
@@ -41,6 +41,7 @@ export function extractLeadingUserAttachments(
   let textContent = content;
   const attachments: UserAttachmentMarker[] = [];
   const imagePattern = /^\[USER_IMAGE:\s*(\/[^\s\]]+)(?:\s*\|([^\]]*))?\]\s*/;
+  const audioPattern = /^\[USER_AUDIO:\s*(\/[^\s\]]+)(?:\s*\|([^\]]*))?\]\s*/;
   const filePattern =
     /^\[USER_FILE:\s*(\/[^\s\]]+)(?:\s*\|([^\]]*))?\]\s*([\s\S]*?)\s*\[\/USER_FILE\]\s*/;
 
@@ -53,6 +54,17 @@ export function extractLeadingUserAttachments(
         label: extractLabel(imageMatch[2]),
       });
       textContent = textContent.slice(imageMatch[0].length);
+      continue;
+    }
+
+    const audioMatch = textContent.match(audioPattern);
+    if (audioMatch) {
+      attachments.push({
+        kind: "audio",
+        path: audioMatch[1],
+        label: extractLabel(audioMatch[2]),
+      });
+      textContent = textContent.slice(audioMatch[0].length);
       continue;
     }
 

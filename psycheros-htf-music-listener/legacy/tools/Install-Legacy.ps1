@@ -15,8 +15,10 @@ $browserTarget = Join-Path $PsycherosRoot "packages\psycheros\web\js\psycheros.j
 $customToolsRoot = Join-Path $DataRoot ".psycheros\custom-tools"
 $toolTarget = Join-Path $customToolsRoot "htf-music-listener.js"
 $bundleTarget = Join-Path $customToolsRoot "htf-music-listener"
-$beginMarker = "// BEGIN HTF MUSIC LISTENER LEGACY 0.1.1"
-$endMarker = "// END HTF MUSIC LISTENER LEGACY 0.1.1"
+$beginMarker = "// BEGIN HTF MUSIC LISTENER LEGACY 0.1.2"
+$endMarker = "// END HTF MUSIC LISTENER LEGACY 0.1.2"
+$oldBeginMarker = "// BEGIN HTF MUSIC LISTENER LEGACY 0.1.1"
+$oldEndMarker = "// END HTF MUSIC LISTENER LEGACY 0.1.1"
 
 foreach ($required in @($browserSource, $toolSource, $bundleSource, $browserTarget)) {
     if (-not (Test-Path -LiteralPath $required)) {
@@ -33,6 +35,8 @@ Copy-Item -LiteralPath $bundleSource -Destination $bundleTarget -Recurse -Force
 
 $browserCode = Get-Content -LiteralPath $browserSource -Raw
 $targetCode = Get-Content -LiteralPath $browserTarget -Raw
+$oldPattern = "(?ms)\r?\n?" + [regex]::Escape($oldBeginMarker) + ".*?" + [regex]::Escape($oldEndMarker) + "\r?\n?"
+$targetCode = [regex]::Replace($targetCode, $oldPattern, "`r`n")
 $block = "$beginMarker`r`n$browserCode`r`n$endMarker"
 $pattern = "(?ms)\r?\n?" + [regex]::Escape($beginMarker) + ".*?" + [regex]::Escape($endMarker) + "\r?\n?"
 if ($targetCode.Contains($beginMarker)) {

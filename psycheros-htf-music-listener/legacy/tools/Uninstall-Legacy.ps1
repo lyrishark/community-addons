@@ -12,13 +12,17 @@ $browserTarget = Join-Path $PsycherosRoot "packages\psycheros\web\js\psycheros.j
 $customToolsRoot = Join-Path $DataRoot ".psycheros\custom-tools"
 $toolTarget = Join-Path $customToolsRoot "htf-music-listener.js"
 $bundleTarget = Join-Path $customToolsRoot "htf-music-listener"
-$beginMarker = "// BEGIN HTF MUSIC LISTENER LEGACY 0.1.1"
-$endMarker = "// END HTF MUSIC LISTENER LEGACY 0.1.1"
+$markerVersions = @("0.1.2", "0.1.1")
 
 if (Test-Path -LiteralPath $browserTarget) {
     $targetCode = Get-Content -LiteralPath $browserTarget -Raw
-    $pattern = "(?ms)\r?\n?" + [regex]::Escape($beginMarker) + ".*?" + [regex]::Escape($endMarker) + "\r?\n?"
-    $updated = [regex]::Replace($targetCode, $pattern, "`r`n")
+    $updated = $targetCode
+    foreach ($version in $markerVersions) {
+        $beginMarker = "// BEGIN HTF MUSIC LISTENER LEGACY $version"
+        $endMarker = "// END HTF MUSIC LISTENER LEGACY $version"
+        $pattern = "(?ms)\r?\n?" + [regex]::Escape($beginMarker) + ".*?" + [regex]::Escape($endMarker) + "\r?\n?"
+        $updated = [regex]::Replace($updated, $pattern, "`r`n")
+    }
     $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
     [IO.File]::WriteAllText($browserTarget, $updated.TrimEnd() + "`r`n", $utf8NoBom)
 }

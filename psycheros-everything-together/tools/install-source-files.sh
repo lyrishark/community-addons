@@ -4,7 +4,7 @@ set -euo pipefail
 supported_version="0.8.23"
 addon_name="Everything Together"
 addon_id="psycheros-everything-together"
-addon_version="0.1.0-rc.3"
+addon_version="0.1.0-rc.4"
 superseded_addon_ids=("psycheros-more-uploads" "psycheros-voice-text-resize" "psycheros-more-uploads-voice-resize")
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 patch_root="$(cd -- "$script_dir/.." && pwd -P)"
@@ -312,7 +312,8 @@ printf 'Backup folder: %s\n\n' "$backup_root"
 printf 'Install marker: %s\n\n' "$marker_path"
 printf 'Next steps:\n'
 printf '1. Fully quit and relaunch Psycheros.\n'
-printf '2. In chat, attach multiple images or a supported document.\n'
+printf '2. In chat, attach multiple images, a document, or a music file.\n'
 printf '3. In voice chat, try Yin Yang typed input, screen presence, and expression sprites.\n'
 printf '   The bundled Ember sprite pack will seed missing sprite slots automatically.\n'
 printf '4. If you do not want expression sprites, open Settings > Vision > Expressions and turn off Show Expression Display.\n'
+printf 'Note: the compiled HTF listening organ is currently included only by the Windows x64 installer.\n'

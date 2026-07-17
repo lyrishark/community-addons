@@ -54,7 +54,7 @@ import { pulseIconSvg } from "../pulse/templates.ts";
 import type { ExtractionHealth } from "../mcp-client/mod.ts";
 import { getWearableConnectionManager } from "../wearable/mod.ts";
 
-const WEB_ASSET_VERSION = "everything-together-0.1.0-rc.3";
+const WEB_ASSET_VERSION = "everything-together-0.1.0-rc.4";
 
 // =============================================================================
 // Utilities
@@ -88,7 +88,21 @@ const CHAT_ATTACHMENT_ACCEPT = [
   ".pdf",
   ".docx",
   ".xlsx",
+  ".mp3",
+  ".mp4",
+  ".mpeg",
+  ".mpga",
+  ".wav",
+  ".flac",
+  ".m4a",
+  ".aac",
+  ".aif",
+  ".aiff",
+  ".ogg",
+  ".opus",
+  ".webm",
   "image/*",
+  "audio/*",
   "text/plain",
   "text/markdown",
   "text/csv",
@@ -1987,7 +2001,7 @@ export function renderUserMessage(
   let textContent = parsedAttachments.textContent;
   if (
     parsedAttachments.attachments.length > 0 &&
-    /^\((?:image|images|file|files|attachment|attachments) attached\)$/i.test(
+    /^\((?:image|images|audio clip|audio clips|file|files|attachment|attachments) attached\)$/i.test(
       textContent,
     )
   ) {
@@ -2000,6 +2014,10 @@ export function renderUserMessage(
       }" class="attachment-in-message" alt="Attached image ${
         idx + 1
       }" loading="lazy"/>`
+      : attachment.kind === "audio"
+      ? `<audio src="${
+        escapeHtml(attachment.path)
+      }" class="attachment-audio-in-message" controls preload="metadata"></audio>`
       : `<a href="${
         escapeHtml(attachment.path)
       }" class="attachment-file-in-message" target="_blank" rel="noopener" download>

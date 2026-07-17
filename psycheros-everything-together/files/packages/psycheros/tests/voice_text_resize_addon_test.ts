@@ -14,7 +14,7 @@ Deno.test("everything-together addon includes adaptive and manual voice text res
     new URL("../web/sw.js", import.meta.url),
   );
 
-  assertStringIncludes(templates, "everything-together-0.1.0-rc.3");
+  assertStringIncludes(templates, "everything-together-0.1.0-rc.4");
   assertStringIncludes(templates, 'class="voice-text-input-frame"');
   assertStringIncludes(templates, 'id="voice-text-attach-input"');
   assertStringIncludes(templates, "data-voice-text-resize-handle");
@@ -34,7 +34,7 @@ Deno.test("everything-together addon includes adaptive and manual voice text res
 
   assertStringIncludes(
     serviceWorker,
-    "psycheros-offline-__VERSION__-everything-together-0-1-0-rc-2",
+    "psycheros-offline-__VERSION__-everything-together-0-1-0-rc-4",
   );
 });
 

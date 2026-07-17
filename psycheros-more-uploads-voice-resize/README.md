@@ -8,8 +8,9 @@ It is not an official Psycheros release.
 ## What changes
 
 - Adds multiple attachments to the main chat composer.
-- Supports image uploads plus `.txt`, `.md`, `.csv`, `.json`, `.pdf`, `.docx`,
-  and `.xlsx` files.
+- Supports image and document uploads plus MP3, MP4/MPEG audio, WAV, FLAC,
+  M4A, AAC, AIFF, OGG, Opus, and WebM music files.
+- Streams large uploads to disk with a 512 MB attachment ceiling.
 - Adds file attachments to Yin Yang typed voice mode.
 - Lets the Yin Yang typed voice input be resized horizontally, vertically, or
   both.
@@ -17,7 +18,7 @@ It is not an official Psycheros release.
   manually resizes that dimension.
 - Holds a manually chosen width or height across voice calls.
 - Adds a double-click reset on the resize handles to return to adaptive sizing.
-- Renders uploaded images and file chips cleanly in chat history.
+- Renders uploaded images, audio players, and file chips cleanly in chat history.
 - Sends extractable document text to the entity for supported document types.
 - Refreshes the app shell asset/cache stamp so the embedded desktop view loads
   the updated upload and voice UI files.
@@ -39,11 +40,16 @@ refuses to install over Everything Together.
 
 ## Compatibility
 
-Version 0.1.0 is tested for **Psycheros 0.8.23**. The installer refuses other
+Version 0.1.1 is tested for **Psycheros 0.8.23**. The installer refuses other
 versions before changing files.
 
 This package replaces chat/voice UI, server route, service-worker, and focused
 test files. Close Psycheros and back up local source edits before installing it.
+
+For HTF Music Listener on plain upstream Psycheros, install this combo first and the
+**HTF Music Listener 0.1.2 legacy** package second. Version 0.1.0 rejects audio; update
+before trying music. Do not install this upstream file-replacement package over the
+Rae/Ember trusted-plugin fork, which already contains these upload features.
 
 ## Install on Windows
 
@@ -100,6 +106,7 @@ Start Psycheros and try:
 
 - Attach two images to a normal chat message.
 - Attach a supported document, such as a `.txt`, `.pdf`, or `.docx` file.
+- Attach an MP3, M4A, FLAC, or WAV music file.
 - Open a voice call, switch to Yin Yang mode, attach a file, and send typed
   text.
 - Type a long Yin Yang message before dragging anything: the box should grow

@@ -2227,6 +2227,12 @@
   text-decoration: none;
 }
 
+.attachment-audio-in-message {
+  display: block;
+  width: min(100%, 320px);
+  margin-bottom: var(--sp-2);
+}
+
 .attachment-file-preview {
   max-width: 220px;
 }

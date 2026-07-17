@@ -1,7 +1,7 @@
 {
   "name": "psycheros-everything-together",
-  "version": "0.1.0-rc.3",
-  "description": "Combined Psycheros community bundle: uploads, voice resize, fonts, Windows shell, screen presence, and expression sprites.",
+  "version": "0.1.0-rc.4",
+  "description": "Combined Psycheros community bundle with uploads, comprehensive HTF music listening, voice resize, fonts, Windows shell, screen presence, and expression sprites.",
   "kind": "psycheros-file-mod",
   "official": false,
   "release_status": "release-candidate",

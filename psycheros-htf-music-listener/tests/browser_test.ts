@@ -35,10 +35,12 @@ Deno.test("browser settings choose plugin card, tools fallback, then no mount", 
     const scriptPath = fileURLToPath(
       new URL("../web/music-listener.js", import.meta.url),
     );
-    await import(`${pathToFileURL(scriptPath).href}?browser-test=0.1.1`);
+    await import(`${pathToFileURL(scriptPath).href}?browser-test=0.1.2`);
     const hook = (globalThis as typeof globalThis & {
       __HTF_MUSIC_LISTENER_TEST__?: {
         findSettingsMount(root: unknown): SettingsMount | null;
+        mergeAttachmentAccept(existing: string): string;
+        isMusicAttachment(value: string): boolean;
       };
     }).__HTF_MUSIC_LISTENER_TEST__;
     if (!hook) throw new Error("Browser test hook was not installed.");
@@ -74,6 +76,14 @@ Deno.test("browser settings choose plugin card, tools fallback, then no mount", 
 
     const emptyRoot = { querySelector: () => null };
     assert.equal(hook.findSettingsMount(emptyRoot), null);
+
+    const accept = hook.mergeAttachmentAccept("image/*,.png,audio/*");
+    assert.match(accept, /image\/\*/);
+    assert.match(accept, /\.wav/);
+    assert.match(accept, /\.m4a/);
+    assert.equal((accept.match(/audio\/\*/g) ?? []).length, 1);
+    assert.equal(hook.isMusicAttachment("/chat-attachments/example.FLAC?x=1"), true);
+    assert.equal(hook.isMusicAttachment("/chat-attachments/example.png"), false);
   } finally {
     if (originalDocument === undefined) {
       Reflect.deleteProperty(globalThis, "document");

@@ -1,7 +1,7 @@
 {
   "name": "psycheros-more-uploads",
-  "version": "0.1.0",
-  "description": "Multiple image uploads and document attachments for Psycheros chat and Yin Yang typed voice.",
+  "version": "0.1.1",
+  "description": "Multiple image, document, and music uploads for Psycheros chat and Yin Yang typed voice.",
   "kind": "psycheros-file-mod",
   "official": false,
   "requires": {
