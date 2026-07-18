@@ -7,7 +7,7 @@ Checked 2026-07-18 against upstream `psycheros-v0.9.0`
 
 The running Rae/Ember runtime is Psycheros `0.9.0` plus the preserved Ember
 feature set and durable Codex App Server continuity. It is deployed from
-integration commit `737e1f8` and reports Entity Core `0.5.0` from `/health`.
+integration commit `180cae2` and reports Entity Core `0.5.0` from `/health`.
 The two installed API-v1 plugins are active and non-degraded:
 
 - HTF Music Listener `0.1.3`
