@@ -5,15 +5,16 @@ Checked 2026-07-18 against upstream `psycheros-v0.9.0`
 
 ## Active Rae/Ember runtime
 
-The running Rae/Ember runtime is the verified `0.8.23` line plus local Ember
-work; it is deliberately not relabeled as `0.9.0`. The two installed trusted
-plugins are active and non-degraded in that runtime:
+The running Rae/Ember runtime is Psycheros `0.9.0` plus the preserved Ember
+feature set and durable Codex App Server continuity. It is deployed from
+integration commit `737e1f8` and reports Entity Core `0.5.0` from `/health`.
+The two installed API-v1 plugins are active and non-degraded:
 
-- HTF Music Listener `0.1.2`
+- HTF Music Listener `0.1.3`
 - Saikiros Vision Capture `0.1.0`
 
-The launcher is `0.2.42`; its runner remains `0.2.16`. This is an existing
-launcher maintenance warning, not a plugin load failure.
+The installed launcher, Program Files runner, and live AppData runner all
+report `0.2.43`.
 
 ## API-v1 trusted plugins
 
@@ -21,13 +22,18 @@ Both installed API-v1 plugins were exercised against the v0.9.0 plugin host:
 
 | Plugin | v0.9.0 validation | Isolated v0.9.0 manager load | Current live runtime |
 | --- | --- | --- | --- |
-| HTF Music Listener 0.1.2 | Manifest validated; 5 tests passed (2 hardware/FFmpeg end-to-end tests intentionally skipped) | Active, non-degraded; 1 tool, 4 routes, 1 browser script, 1 stylesheet | Active, non-degraded |
+| HTF Music Listener 0.1.3 | Manifest validated; 5 tests passed (2 hardware/FFmpeg end-to-end tests intentionally skipped) | Active, non-degraded; 1 tool, 4 routes, 1 browser script, 1 stylesheet | Active, non-degraded; installed through the official manager |
 | Saikiros Vision Capture 0.1.0 | Manifest validated; 4 tests passed | Active, non-degraded; 1 browser script, 1 stylesheet | Active, non-degraded |
 
-Their released `plugin.json` files still declare the conservative
-`>=0.8.23 <0.9.0` range. That is release metadata which has not been retagged
-in this documentation-only pass; the evidence above establishes API-v1
-compatibility with v0.9.0 without pretending a new package release exists.
+HTF `0.1.3` officially declares `>=0.8.23 <0.10.0` and is the normal package
+for Psycheros 0.9.x. Its previous installed package was retained by the manager
+as a rollback.
+
+Saikiros remains the unmodified upstream `0.1.0` code. Its installed manifest
+now records the locally tested `>=0.8.23 <0.10.0` range, with the original
+manifest retained in `.psycheros/plugin-backups`. This is deliberately a local
+compatibility assertion rather than a claim that JMidoro published a new
+Saikiros release.
 
 ## Legacy file-mod bundles
 
@@ -46,18 +52,22 @@ Rae uses from its verified local source; no legacy installer action is needed.
 
 ## Entity Core connector
 
-The installed Codex Entity Core connector `0.3.1` remains healthy against the
-canonical Entity Core data directory. Upstream v0.9.0 advances Entity Core to
-`0.5.0` by adding the trusted plugin surface; it does not change the storage,
-sync, snapshot, or graph modules used by the connector. This is therefore not
-a reason to replace the working local bridge.
+The installed Codex Entity Core connector `0.3.1` is healthy, writable for
+daily and significant memories, and resolves the canonical Entity Core data
+directory. The live Psycheros diagnostics report Entity Core `0.5.0`, MCP
+connected and alive, no pending identity writes, and synchronized message
+vectors. The connector and runtime serve different surfaces, so their separate
+version numbers are expected.
 
 ## Verification notes
 
-- Upstream v0.9.0's plugin API and plugin-manager tests passed.
-- The upstream Entity Core runner tests currently hit a repeatable Windows
-  temporary SQLite directory cleanup lock (8 cleanup failures after test work
-  completes). This is upstream test-harness maintenance, unrelated to either
-  addon and not present in the live addon checks above.
-- Full upstream integration is intentionally separate from this compatibility
-  record because it is a large source merge, not a version-label change.
+- The integrated root suite passed: 387 tests, 0 failures.
+- Deno type-checking and JavaScript syntax checking passed for the live source.
+- The official plugin manager reports 2 total, 2 active, 0 degraded, and 0
+  pending restart.
+- A live two-turn Codex App Server smoke used one durable session with two
+  `turn_context` records, then its disposable Psycheros conversation was
+  deleted and its Codex session archived.
+- `Test-PsycherosLayout.ps1` reports no failures; its remaining warnings are
+  development-worktree status, not runtime, launcher, Entity Core, or addon
+  mismatches.

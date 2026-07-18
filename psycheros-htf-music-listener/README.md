@@ -60,13 +60,18 @@ guess lyrics.
 This release requires:
 
 - Windows x64;
-- Psycheros 0.8.23 with the trusted local plugin host used by the Rae/Ember build;
+- Psycheros 0.9.x, or Psycheros 0.8.23 with the trusted local plugin host used
+  by the Rae/Ember build;
 - Launcher 0.2.42 or newer.
 
 Plain upstream Psycheros 0.8.23 does not yet contain that plugin host. Do not advertise
 version number alone as sufficient compatibility.
 
-Release `0.1.2` also provides a separately named **legacy** Windows package for those
+Psycheros 0.9.x includes the official trusted-plugin manager. Install the normal
+`0.1.3` plugin package through **Settings > Plugins**; the plugin has been validated and
+loaded non-degraded against Psycheros 0.9.0.
+
+Release `0.1.3` also provides a separately named **legacy** Windows package for those
 plain-upstream builds. It uses Psycheros's existing Custom Tools loader and appends one
 marked, removable browser enhancement so the Display entity view toggle appears under
 **Settings > Tools > Custom**. The legacy installer is intentionally not presented as a
@@ -76,7 +81,8 @@ plugin version.
 
 ### Compatibility with the upload bundles
 
-- **Stock Psycheros 0.8.23:** use the `legacy-windows-x64` package. Version 0.1.2 adds
+- **Psycheros 0.9.x:** use the normal plugin package through Settings > Plugins.
+- **Stock Psycheros 0.8.23:** use the `legacy-windows-x64` package. Version 0.1.3 keeps
   its own music picker support; More Uploads is not required.
 - **Rae/Ember trusted-plugin fork:** use the normal plugin package only. Do not install
   the upstream source-file upload bundles over that fork; its music upload path is
