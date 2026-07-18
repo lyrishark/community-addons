@@ -41,6 +41,10 @@ This repository currently contains:
 
 These are community addons, not official Psycheros releases.
 
+For the evidence-backed status of the newest upstream release and the local
+Ember runtime, read [COMPATIBILITY.md](COMPATIBILITY.md) before installing a
+file-mod bundle on a different Psycheros version.
+
 ## Addons
 
 ### Psycheros Thread Exporter
