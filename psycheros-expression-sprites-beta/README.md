@@ -5,6 +5,13 @@ sprites to Psycheros chat.
 
 It is not an official Psycheros release.
 
+> **Psycheros 0.9.0 status:** Not compatible. Version `0.1.6` is an exact
+> Psycheros 0.8.23 source-replacement package, not a trusted `plugin.json`
+> package or a managed tools add-on. Reinstalling it through either 0.9 manager
+> will not repair sprites, and its version guard must not be bypassed. Existing
+> custom images and expression settings stay in the Psycheros data directory
+> and can be reused by a future 0.9-compatible port.
+
 ## What changes
 
 - Adds a transient expression signal to entity turns. It is for live display

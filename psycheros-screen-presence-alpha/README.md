@@ -5,6 +5,10 @@ and voice mode.
 
 It is not an official Psycheros release.
 
+> **Psycheros 0.9.0 status:** Not compatible and not publicly released.
+> Version `0.1.0` is a staged Psycheros 0.8.20 source-replacement package; do
+> not force it onto 0.9.0 or install it through either 0.9 manager.
+
 ## What changes
 
 - Adds screen-share controls to chat and voice surfaces.

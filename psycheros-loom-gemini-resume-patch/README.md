@@ -6,6 +6,10 @@
 > newly created Loom databases. The update/reimport paths also need focused
 > database and checkpoint tests before release.
 
+> **Psycheros 0.9.0 status:** Superseded and still unpublished. Psycheros 0.9.0
+> now includes stale-stage recovery, updated-thread replacement, voice-schema
+> safety, and focused tests for these paths. Do not install this package.
+
 This is an optional modded Entity Loom file set for people testing Gemini imports
 with Psycheros Thread Exporter.
 

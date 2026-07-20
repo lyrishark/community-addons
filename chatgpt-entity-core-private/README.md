@@ -5,6 +5,11 @@ record memories in a local Psycheros entity-core through MCP.
 
 This is not an official Psycheros release.
 
+> **Psycheros 0.9.0 status:** Compatible. The current `0.1.3` source passed
+> type-check, stdio and HTTP MCP smoke tests, and a live OAuth bridge health
+> check on 2026-07-19. The public GitHub release is still `0.1.1`; `0.1.3` is
+> prepared but must not be described as publicly released yet.
+
 This is also not a public ChatGPT app. Each user runs the bridge on their own
 computer and connects it to their own ChatGPT account.
 

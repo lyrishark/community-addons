@@ -1,6 +1,6 @@
 {
   "name": "@local/codex-entity-core-connector",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "exports": "./src/server.ts",
   "nodeModulesDir": "none",
   "imports": {

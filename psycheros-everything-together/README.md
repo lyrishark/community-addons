@@ -3,6 +3,11 @@
 - Release candidate: `0.1.0-rc.4`
 - Compatible with Psycheros: `0.8.23`
 
+> **Psycheros 0.9.0 status:** Not compatible. This is an exact 0.8.23
+> source-replacement bundle. Do not force it onto 0.9.0 or install it through
+> either 0.9 manager; each feature needs a deliberate 0.9 rebase or native
+> replacement.
+
 This is the combined community bundle for the upgrades that touch the same chat,
 voice, and settings surfaces. It is published as a release candidate so it can
 be tested before a stable release.
