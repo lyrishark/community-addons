@@ -9,6 +9,10 @@ This community add-on adds a **Text** tab to General Settings with:
 
 It is not an official Psycheros release.
 
+> **Psycheros 0.9.0 status:** Not compatible. Version `0.1.3` is an exact
+> Psycheros 0.8.23 source-replacement package. Do not force it onto 0.9.0 or
+> install it through either 0.9 manager; a separately rebased package is needed.
+
 ## Compatibility
 
 Version 0.1.3 is tested for **Psycheros 0.8.23**. It keeps the same font

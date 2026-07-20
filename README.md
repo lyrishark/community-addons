@@ -45,6 +45,12 @@ For the evidence-backed status of the newest upstream release and the local
 Ember runtime, read [COMPATIBILITY.md](COMPATIBILITY.md) before installing a
 file-mod bundle on a different Psycheros version.
 
+> **Psycheros 0.9.0:** HTF Music Listener `0.1.3`, the Thread Exporter, and the
+> local Entity Core connectors are compatible. The older UI/source-replacement
+> ZIPs remain pinned to their named 0.8.x versions and must not be installed or
+> force-applied over 0.9.0. Psycheros's plugin/add-on managers do not convert
+> those legacy packages. See the [complete 0.9.0 matrix](COMPATIBILITY.md).
+
 ## Addons
 
 ### Psycheros Thread Exporter
@@ -425,23 +431,29 @@ Release downloads are published through GitHub Releases:
 
 - [Psycheros Thread Exporter v0.3.2](https://github.com/lyrishark/community-addons/releases/tag/browser-thread-exporter-v0.3.2)
 - [Psycheros Entity Core for Codex v0.2.1](https://github.com/lyrishark/community-addons/releases/tag/codex-entity-core-plugin-v0.2.1)
-- [Psycheros Entity Core for ChatGPT v0.1.3](https://github.com/lyrishark/community-addons/releases/tag/chatgpt-entity-core-private-v0.1.3)
-- [Psycheros Loom Gemini Parser Mod v0.1.1](https://github.com/lyrishark/community-addons/releases/tag/psycheros-loom-gemini-parser-mod-v0.1.1)
-- Psycheros Loom Gemini Resume Patch v0.1.0: blocked pending a current rebase,
-  database/checkpoint coverage, and update-path tests
+- Psycheros Entity Core for ChatGPT v0.1.3: current source and release package
+  are prepared locally; the latest public GitHub release is still
+  [v0.1.1](https://github.com/lyrishark/community-addons/releases/tag/chatgpt-entity-core-private-v0.1.1)
+- [Psycheros Loom Gemini Parser Mod v0.1.1](https://github.com/lyrishark/community-addons/releases/tag/psycheros-loom-gemini-parser-mod-v0.1.1):
+  historical 0.8.9-0.8.11 package; Gemini merged-batch parsing is built into
+  Psycheros 0.9.0
+- Psycheros Loom Gemini Resume Patch v0.1.0: never published; its intended
+  resume/reimport fixes and tests are built into Psycheros 0.9.0
 - [Psycheros Accessible Font Settings v0.1.3](https://github.com/lyrishark/community-addons/releases/tag/psycheros-accessible-font-settings-v0.1.3)
-- [Psycheros Windows Shell Fix v0.1.1](https://github.com/lyrishark/community-addons/releases/tag/psycheros-windows-shell-fix-v0.1.1)
-- [HTF Music Listener v0.1.2](https://github.com/lyrishark/community-addons/releases/tag/psycheros-htf-music-listener-v0.1.2):
-  use the normal ZIP through Settings > Plugins, or the separately labeled
-  legacy ZIP on plain upstream builds; restart Psycheros, attach a song, and
-  explicitly ask the entity to listen. Optional Entity view shows the HTF JSON
-  and four listening graphs.
+- [Psycheros Windows Shell Fix v0.1.1](https://github.com/lyrishark/community-addons/releases/tag/psycheros-windows-shell-fix-v0.1.1):
+  historical 0.8.9-0.8.11 package; Windows shell selection and fallback are
+  built into Psycheros 0.9.0
+- HTF Music Listener v0.1.3 is the tested Psycheros 0.9.x plugin package and is
+  prepared for release; the latest public GitHub release remains
+  [v0.1.2](https://github.com/lyrishark/community-addons/releases/tag/psycheros-htf-music-listener-v0.1.2),
+  which should not be used as the 0.9.0 compatibility claim
 - Psycheros Screen Presence Alpha v0.1.0: source package staged for alpha
   testing; release zip pending broader install testing
 - [Psycheros Expression Sprites Beta v0.1.6](https://github.com/lyrishark/community-addons/releases/tag/psycheros-expression-sprites-beta-v0.1.6):
-  current standalone expression-sprites package for Psycheros 0.8.23; download
-  the ZIP, unzip it, run `install.ps1` on Windows or `install.sh` on
-  macOS/Linux, then open Settings > Vision > Expressions
+  historical standalone expression-sprites package for Psycheros 0.8.23; do
+  not reinstall it on 0.9.0 or feed it to either manager. Existing custom
+  sprite images/settings remain in Psycheros data and can be reused by a future
+  0.9-compatible port
 - [Psycheros Expression Sprites Beta v0.1.5](https://github.com/lyrishark/community-addons/releases/tag/psycheros-expression-sprites-beta-v0.1.5):
   older Psycheros 0.8.23 package using conditional final expression correction
 - [Psycheros Expression Sprites Beta v0.1.4](https://github.com/lyrishark/community-addons/releases/tag/psycheros-expression-sprites-beta-v0.1.4):
@@ -449,21 +461,13 @@ Release downloads are published through GitHub Releases:
   the ZIP, unzip it, run `install.ps1` on Windows or `install.sh` on
   macOS/Linux, then open Settings > Vision > Expressions
 - [Psycheros Voice Text Resize v0.1.0](https://github.com/lyrishark/community-addons/releases/tag/psycheros-voice-text-resize-v0.1.0):
-  download the ZIP, unzip it, run `install.ps1` on Windows or `install.sh` on
-  macOS/Linux, then open a voice call and switch to Yin Yang mode
+  historical Psycheros 0.8.23 source-replacement package; not for 0.9.0
 - [Psycheros More Uploads v0.1.1](https://github.com/lyrishark/community-addons/releases/tag/psycheros-more-uploads-v0.1.1):
-  download the ZIP, unzip it, run `install.ps1` on Windows or `install.sh` on
-  macOS/Linux, then attach images, documents, or music in chat or Yin Yang
-  typed voice mode
+  historical Psycheros 0.8.23 source-replacement package; not for 0.9.0
 - [Psycheros More Uploads + Voice Text Resize v0.1.1](https://github.com/lyrishark/community-addons/releases/tag/psycheros-more-uploads-voice-resize-v0.1.1):
-  download the ZIP, unzip it, run `install.ps1` on Windows or `install.sh` on
-  macOS/Linux, then try uploads and the resizable Yin Yang typed voice input
+  historical Psycheros 0.8.23 source-replacement package; not for 0.9.0
 - [Psycheros Everything Together v0.1.0-rc.4](https://github.com/lyrishark/community-addons/releases/tag/psycheros-everything-together-v0.1.0-rc.4):
-  prerelease bundle for Psycheros 0.8.23; download the ZIP, unzip it, run
-  `install.ps1` on Windows or `install.sh` on macOS/Linux, then use
-  Settings > Vision > Expressions > Show Expression Display as the expression
-  master toggle. RC4 adds music-capable uploads and bundles the complete HTF
-  Music Listener 0.1.2 legacy organ on Windows x64.
+  historical prerelease bundle for Psycheros 0.8.23; not for 0.9.0
 - [Psycheros Everything Together v0.1.0-rc.3](https://github.com/lyrishark/community-addons/releases/tag/psycheros-everything-together-v0.1.0-rc.3):
   previous Psycheros 0.8.23 release candidate
 - [Psycheros Everything Together v0.1.0-rc.2](https://github.com/lyrishark/community-addons/releases/tag/psycheros-everything-together-v0.1.0-rc.2):

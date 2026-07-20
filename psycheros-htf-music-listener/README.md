@@ -1,5 +1,11 @@
 # HTF Music Listener
 
+> **Psycheros 0.9.0 status:** Compatible with plugin version `0.1.3`, whose
+> manifest declares `>=0.8.23 <0.10.0`. Its manifest, tests, isolated 0.9 plugin
+> load, and live 0.9 runtime load were verified. The latest public GitHub
+> release is still `0.1.2`; use `0.1.3` as the 0.9 compatibility package once
+> that prepared release is published.
+
 HTF Music Listener is a trusted local Psycheros plugin that gives an entity a single,
 natural music-listening action:
 

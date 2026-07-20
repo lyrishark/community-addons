@@ -5,6 +5,10 @@ single-image flow.
 
 It is not an official Psycheros release.
 
+> **Psycheros 0.9.0 status:** Not compatible. Version `0.1.1` is an exact
+> Psycheros 0.8.23 source-replacement package. Do not force it onto 0.9.0 or
+> install it through either 0.9 manager; a separately rebased package is needed.
+
 ## What changes
 
 - Adds multiple attachments to the main chat composer.
