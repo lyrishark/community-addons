@@ -13,29 +13,26 @@ This repository currently contains:
    local Psycheros memories through MCP.
 4. **Psycheros Loom Gemini Parser Mod** - optional alternate Entity Loom files
    that let Loom consume merged Gemini batch exports from the browser extension.
-5. **Psycheros Loom Gemini Resume Patch** - optional alternate Entity Loom files
-   that recover stale running import stages and improve updated-thread reimports
-   while testing Gemini history.
-6. **Psycheros Accessible Font Settings** - a Psycheros 0.8.23 file mod with
+5. **Psycheros Accessible Font Settings** - a Psycheros 0.8.23 file mod with
    interface font sizing and reading-oriented font presets.
-7. **Psycheros Windows Shell Fix** - a Psycheros 0.8.9–0.8.11 compatibility
+6. **Psycheros Windows Shell Fix** - a Psycheros 0.8.9–0.8.11 compatibility
    patch for systems where the shell tool cannot spawn `sh`.
-8. **Psycheros Screen Presence Alpha** - a Psycheros 0.8.20 file mod that adds
+7. **Psycheros Screen Presence Alpha** - a Psycheros 0.8.20 file mod that adds
    screen-share presence to text chat and voice mode.
-9. **Psycheros Expression Sprites Beta** - a Psycheros 0.8.23 file mod that adds
+8. **Psycheros Expression Sprites Beta** - a Psycheros 0.9.2 file mod that adds
    live expression detection and SillyTavern-style sprite display.
-10. **Psycheros More Uploads** - a Psycheros 0.8.23 file mod that adds
-    multiple image, document, and music uploads to chat and Yin Yang typed
-    voice, with streamed files up to 512 MB.
-11. **Psycheros Voice Text Resize** - a Psycheros 0.8.23 file mod that makes
+9. **Psycheros More Uploads** - a Psycheros 0.8.23 file mod that adds
+   multiple image, document, and music uploads to chat and Yin Yang typed
+   voice, with streamed files up to 512 MB.
+10. **Psycheros Voice Text Resize** - a Psycheros 0.8.23 file mod that makes
     the Yin Yang typed voice input resizable while preserving auto-grow.
-12. **Psycheros More Uploads + Voice Text Resize** - a Psycheros 0.8.23 combo
+11. **Psycheros More Uploads + Voice Text Resize** - a Psycheros 0.8.23 combo
     file mod for people who want both upload expansion and the resizable Yin
     Yang typed voice box without standalone package overwrite conflicts.
-13. **Psycheros Everything Together** - a Psycheros 0.8.23 release candidate
+12. **Psycheros Everything Together** - a Psycheros 0.8.23 release candidate
     bundle for uploads, voice resize, fonts, Windows shell handling, screen
     presence, expression sprites, and comprehensive local music listening.
-14. **HTF Music Listener** - a trusted local Psycheros plugin that turns an
+13. **HTF Music Listener** - a trusted local Psycheros plugin that turns an
     explicitly requested music attachment into a private HTF v2 sensory
     handoff and optional human-visible entity view.
 
@@ -45,11 +42,12 @@ For the evidence-backed status of the newest upstream release and the local
 Ember runtime, read [COMPATIBILITY.md](COMPATIBILITY.md) before installing a
 file-mod bundle on a different Psycheros version.
 
-> **Psycheros 0.9.0:** HTF Music Listener `0.1.3`, the Thread Exporter, and the
-> local Entity Core connectors are compatible. The older UI/source-replacement
-> ZIPs remain pinned to their named 0.8.x versions and must not be installed or
-> force-applied over 0.9.0. Psycheros's plugin/add-on managers do not convert
-> those legacy packages. See the [complete 0.9.0 matrix](COMPATIBILITY.md).
+> **Psycheros 0.9.2:** Expression Sprites Beta `0.2.0` is rebased and
+> clean-install tested for exactly 0.9.2. HTF Music Listener `0.1.3`, the
+> Thread Exporter, and the local Entity Core connectors remain the compatible
+> 0.9.x packages. Other source-replacement ZIPs stay pinned to their named
+> 0.8.x versions until each receives its own port. See the
+> [complete compatibility matrix](COMPATIBILITY.md).
 
 ## Addons
 
@@ -134,7 +132,7 @@ Location:
 psycheros-loom-gemini-parser-mod/
 ```
 
-Current alpha features:
+Historical 0.8.9–0.8.11 features:
 
 - Adds `gemini` as an Entity Loom source platform.
 - Auto-detects merged Gemini batch files created by Psycheros Thread Exporter.
@@ -143,37 +141,13 @@ Current alpha features:
   them first in the browser extension.
 
 Important: this is a **modded Psycheros file set**, not an official Psycheros
-release. Read the README and back up files before replacing local Entity Loom
-files.
+release. Its merged-batch Gemini parser is not present in upstream 0.9.2, but
+the published `0.1.1` package has not yet been rebased and must not be installed
+over 0.9.2.
 
 Start here:
 
 - [Gemini parser mod README](psycheros-loom-gemini-parser-mod/README.md)
-
-### Psycheros Loom Gemini Resume Patch
-
-Location:
-
-```text
-psycheros-loom-gemini-resume-patch/
-```
-
-Current alpha features:
-
-- Recovers stale `running` Significant/Daily/Graph checkpoints as resumable
-  after a daemon restart.
-- Treats changed same-ID thread exports as updates instead of duplicates.
-- Replaces old messages for updated conversations and resets downstream
-  checkpoints only where needed.
-- Includes helper scripts that back up replaced source files and checkpoint
-  files.
-
-Important: this is a **modded Psycheros file set**, not an official Psycheros
-release. It is mainly useful for long Gemini import testing.
-
-Start here:
-
-- [Gemini resume patch README](psycheros-loom-gemini-resume-patch/README.md)
 
 ### Psycheros Accessible Font Settings
 
@@ -258,9 +232,9 @@ Current beta features:
   followed by one hidden entity-selected final expression and intensity.
 - Restores the same final expression after reopening a conversation.
 - Bundles the Ember expression sprite seed pack and auto-populates
-  missing sprite slots without overwriting custom uploads.
+  a fresh profile without overwriting existing settings or personal sprites.
 - Refreshes Psycheros web caches for launcher-embedded desktop views.
-- Checks for Psycheros 0.8.23 and backs up replaced files during install.
+- Checks for exactly Psycheros 0.9.2 and backs up replaced files during install.
 - Includes Windows and macOS/Linux installers with launcher source-folder
   auto-detection.
 
@@ -435,25 +409,23 @@ Release downloads are published through GitHub Releases:
   are prepared locally; the latest public GitHub release is still
   [v0.1.1](https://github.com/lyrishark/community-addons/releases/tag/chatgpt-entity-core-private-v0.1.1)
 - [Psycheros Loom Gemini Parser Mod v0.1.1](https://github.com/lyrishark/community-addons/releases/tag/psycheros-loom-gemini-parser-mod-v0.1.1):
-  historical 0.8.9-0.8.11 package; Gemini merged-batch parsing is built into
-  Psycheros 0.9.0
-- Psycheros Loom Gemini Resume Patch v0.1.0: never published; its intended
-  resume/reimport fixes and tests are built into Psycheros 0.9.0
+  historical 0.8.9–0.8.11 package; the feature is still useful, but a 0.9.2
+  rebase is pending
 - [Psycheros Accessible Font Settings v0.1.3](https://github.com/lyrishark/community-addons/releases/tag/psycheros-accessible-font-settings-v0.1.3)
 - [Psycheros Windows Shell Fix v0.1.1](https://github.com/lyrishark/community-addons/releases/tag/psycheros-windows-shell-fix-v0.1.1):
-  historical 0.8.9-0.8.11 package; Windows shell selection and fallback are
-  built into Psycheros 0.9.0
+  historical 0.8.9–0.8.11 package; the fix is not native in upstream 0.9.2 and
+  its 0.9.2 rebase is pending
 - HTF Music Listener v0.1.3 is the tested Psycheros 0.9.x plugin package and is
   prepared for release; the latest public GitHub release remains
   [v0.1.2](https://github.com/lyrishark/community-addons/releases/tag/psycheros-htf-music-listener-v0.1.2),
-  which should not be used as the 0.9.0 compatibility claim
+  which should not be used as the current 0.9.x compatibility claim
 - Psycheros Screen Presence Alpha v0.1.0: source package staged for alpha
   testing; release zip pending broader install testing
+- Psycheros Expression Sprites Beta `0.2.0`: prepared and clean-install tested
+  for exactly Psycheros 0.9.2; the release link will be added after this branch
+  is merged and tagged
 - [Psycheros Expression Sprites Beta v0.1.6](https://github.com/lyrishark/community-addons/releases/tag/psycheros-expression-sprites-beta-v0.1.6):
-  historical standalone expression-sprites package for Psycheros 0.8.23; do
-  not reinstall it on 0.9.0 or feed it to either manager. Existing custom
-  sprite images/settings remain in Psycheros data and can be reused by a future
-  0.9-compatible port
+  historical standalone package for Psycheros 0.8.23
 - [Psycheros Expression Sprites Beta v0.1.5](https://github.com/lyrishark/community-addons/releases/tag/psycheros-expression-sprites-beta-v0.1.5):
   older Psycheros 0.8.23 package using conditional final expression correction
 - [Psycheros Expression Sprites Beta v0.1.4](https://github.com/lyrishark/community-addons/releases/tag/psycheros-expression-sprites-beta-v0.1.4):
@@ -461,13 +433,13 @@ Release downloads are published through GitHub Releases:
   the ZIP, unzip it, run `install.ps1` on Windows or `install.sh` on
   macOS/Linux, then open Settings > Vision > Expressions
 - [Psycheros Voice Text Resize v0.1.0](https://github.com/lyrishark/community-addons/releases/tag/psycheros-voice-text-resize-v0.1.0):
-  historical Psycheros 0.8.23 source-replacement package; not for 0.9.0
+  historical Psycheros 0.8.23 source-replacement package; not for 0.9.2
 - [Psycheros More Uploads v0.1.1](https://github.com/lyrishark/community-addons/releases/tag/psycheros-more-uploads-v0.1.1):
-  historical Psycheros 0.8.23 source-replacement package; not for 0.9.0
+  historical Psycheros 0.8.23 source-replacement package; not for 0.9.2
 - [Psycheros More Uploads + Voice Text Resize v0.1.1](https://github.com/lyrishark/community-addons/releases/tag/psycheros-more-uploads-voice-resize-v0.1.1):
-  historical Psycheros 0.8.23 source-replacement package; not for 0.9.0
+  historical Psycheros 0.8.23 source-replacement package; not for 0.9.2
 - [Psycheros Everything Together v0.1.0-rc.4](https://github.com/lyrishark/community-addons/releases/tag/psycheros-everything-together-v0.1.0-rc.4):
-  historical prerelease bundle for Psycheros 0.8.23; not for 0.9.0
+  historical prerelease bundle for Psycheros 0.8.23; not for 0.9.2
 - [Psycheros Everything Together v0.1.0-rc.3](https://github.com/lyrishark/community-addons/releases/tag/psycheros-everything-together-v0.1.0-rc.3):
   previous Psycheros 0.8.23 release candidate
 - [Psycheros Everything Together v0.1.0-rc.2](https://github.com/lyrishark/community-addons/releases/tag/psycheros-everything-together-v0.1.0-rc.2):
@@ -488,15 +460,14 @@ Checksums are in [SHA256SUMS.txt](SHA256SUMS.txt).
   mutation.
 - The Gemini parser mod is visibly labeled as a local Entity Loom file
   replacement.
-- The Gemini resume patch is visibly labeled as a local Entity Loom file
-  replacement and includes backup scripts.
 - The Psycheros file-mod packages list their exact compatibility window and
   refuse other versions before install.
 - The Screen Presence Alpha is visibly labeled as a Psycheros 0.8.20 file
   replacement and includes a backup script.
-- The Expression Sprites Beta is visibly labeled as a Psycheros 0.8.23 file
-  replacement, refuses unsupported versions, backs up files, and keeps
-  expression state as live UI rather than memory.
+- The Expression Sprites Beta is visibly labeled as a Psycheros 0.9.2 file
+  replacement, refuses unsupported versions before changing files, backs up
+  replaced source, preserves personal sprite data, and keeps expression state
+  as live UI rather than memory.
 - The Voice Text Resize add-on is visibly labeled as a Psycheros 0.8.23 file
   replacement, refuses unsupported versions, backs up files, and changes only
   the typed voice input resize surface. Its installer blocks overlapping upload

@@ -9,10 +9,10 @@ Failed to spawn sh: entity not found
 
 It is not an official Psycheros release.
 
-> **Psycheros 0.9.0 status:** Superseded; do not install this legacy package.
-> Psycheros 0.9.0 natively selects PowerShell on Windows, falls back to
-> `cmd.exe` when PowerShell cannot start, and retains `sh` on macOS/Linux.
-> Version `0.1.1` remains historical for 0.8.9 through 0.8.11 only.
+> **Psycheros 0.9.2 status:** Port needed; do not install this legacy package.
+> PowerShell/cmd fallback is not native in upstream 0.9.2. Version `0.1.1`
+> remains historical for 0.8.9 through 0.8.11 while a deliberate 0.9.2 rebase
+> and test pass are pending.
 
 ## What changes
 

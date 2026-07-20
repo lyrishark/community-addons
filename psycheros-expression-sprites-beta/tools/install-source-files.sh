@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-supported_version="0.8.23"
+supported_version="0.9.2"
 addon_name="Expression Sprites Beta"
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 patch_root="$(cd -- "$script_dir/.." && pwd -P)"
@@ -169,5 +169,5 @@ printf 'Backup folder: %s\n\n' "$backup_root"
 printf 'Next steps:\n'
 printf '1. Fully quit and relaunch Psycheros.\n'
 printf '2. Open Settings > Vision > Expressions.\n'
-printf '3. The bundled Ember sprite pack will seed missing sprite slots automatically.\n\n'
-printf 'Custom uploaded sprites are preserved; only missing or bundled default slots are filled.\n'
+printf '3. A fresh profile will receive the bundled Ember starter sprites automatically.\n\n'
+printf 'Existing expression settings and personal sprite files are preserved without automatic seeding.\n'

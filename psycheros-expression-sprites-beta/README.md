@@ -5,12 +5,10 @@ sprites to Psycheros chat.
 
 It is not an official Psycheros release.
 
-> **Psycheros 0.9.0 status:** Not compatible. Version `0.1.6` is an exact
-> Psycheros 0.8.23 source-replacement package, not a trusted `plugin.json`
-> package or a managed tools add-on. Reinstalling it through either 0.9 manager
-> will not repair sprites, and its version guard must not be bypassed. Existing
-> custom images and expression settings stay in the Psycheros data directory
-> and can be reused by a future 0.9-compatible port.
+> **Current package:** Version `0.2.0` is rebased and tested specifically for
+> Psycheros `0.9.2`. It remains a guarded source-replacement add-on—not a
+> trusted `plugin.json` package—because the v1 plugin surface does not expose
+> the message-stream, persistence, settings, and voice hooks this feature uses.
 
 ## What changes
 
@@ -33,16 +31,17 @@ It is not an official Psycheros release.
   one hidden entity-selected expression and intensity to settle the final face.
 - Persists the final expression shown for each assistant message so reopening a
   conversation restores the same face instead of reclassifying old text.
-- Bundles the Ember expression sprite seed pack and automatically
-  fills missing sprite slots from it when expression settings load.
+- Bundles the Ember expression sprite seed pack for a brand-new expression
+  profile.
 
-Custom uploaded sprites are preserved. The bundled pack only fills fresh,
-missing, or bundled default slots.
+Existing expression settings and personal sprite files are preserved. If either
+already exists, the bundled pack does not seed or replace any slots.
 
 ## Compatibility
 
-Version 0.1.6 is tested for **Psycheros 0.8.23**. The installer refuses other
-versions before changing files. Use v0.1.4 for Psycheros 0.8.22.
+Version 0.2.0 is tested for **Psycheros 0.9.2**. The installer refuses every
+other version before changing files. Use v0.1.6 for Psycheros 0.8.23 or v0.1.4
+for Psycheros 0.8.22.
 
 This package replaces shared chat, server, UI, docs, test, and lock files. Close
 Psycheros and back up local source edits before installing it.
@@ -69,13 +68,13 @@ If the installer cannot find your Psycheros source folder, run it with the path:
 ```
 
 The selected folder must contain `packages\psycheros\deno.json`. The installer
-checks for Psycheros 0.8.23 and creates a timestamped backup before replacing
+checks for Psycheros 0.9.2 and creates a timestamped backup before replacing
 any files.
 
 After install, fully quit and relaunch Psycheros so the embedded desktop app
 loads the add-on's refreshed app shell.
 
-If Psycheros says it is running 0.8.23 but the installer reports an older
+If Psycheros says it is running 0.9.2 but the installer reports a different
 source version, point the installer at the launcher-managed `source` folder
 instead of an older downloaded checkout.
 
@@ -98,7 +97,7 @@ If the installer cannot find your Psycheros source folder, run it with the path:
 ```
 
 The selected folder must contain `packages/psycheros/deno.json`. The installer
-checks for Psycheros 0.8.23 and creates a timestamped backup before replacing
+checks for Psycheros 0.9.2 and creates a timestamped backup before replacing
 any files.
 
 After install, fully quit and relaunch Psycheros so the embedded desktop app
@@ -110,7 +109,7 @@ On Linux, the launcher-managed source folder is usually:
 ./install.sh "$HOME/.local/share/Psycheros/source"
 ```
 
-If Psycheros says it is running 0.8.23 but the installer reports an older
+If Psycheros says it is running 0.9.2 but the installer reports a different
 source version, point the installer at the launcher-managed `source` folder
 instead of an older downloaded checkout.
 
@@ -124,7 +123,7 @@ Settings > Vision > Expressions
 
 From there you can:
 
-- use the bundled Ember seed pack that installs with this beta
+- use the bundled Ember starter pack on a fresh expression profile
 - import a ZIP containing expression images named like `joy.png`,
   `embarrassment.webp`, `anger.gif`, etc.
 - upload one image per expression slot

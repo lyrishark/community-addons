@@ -4,7 +4,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$SupportedVersions = @("0.8.23")
+$SupportedVersions = @("0.9.2")
 $PatchRoot = Split-Path -Parent $PSScriptRoot
 $FilesRoot = Join-Path $PatchRoot "files"
 $AddonName = "Expression Sprites Beta"
@@ -181,6 +181,6 @@ Write-Host ""
 Write-Host "Next steps:"
 Write-Host "1. Fully quit and relaunch Psycheros."
 Write-Host "2. Open Settings > Vision > Expressions."
-Write-Host "3. The bundled Ember sprite pack will seed missing sprite slots automatically."
+Write-Host "3. A fresh profile will receive the bundled Ember starter sprites automatically."
 Write-Host ""
-Write-Host "Custom uploaded sprites are preserved; only missing or bundled default slots are filled."
+Write-Host "Existing expression settings and personal sprite files are preserved without automatic seeding."

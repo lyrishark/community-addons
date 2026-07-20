@@ -32,3 +32,6 @@ d388183887cbc0b466d52b95e924016bab13df3783fc05a7babe7ba3a98ab716  psycheros-htf-
 72e6f69e8457765e74e833a0f5a936403995116926c9998c27143c9c4cdfd265  psycheros-more-uploads-0.1.1.zip
 382e9f9113b4145361a869ce152af28508416902c1a26091f193b8ae7b36477a  psycheros-more-uploads-voice-resize-0.1.1.zip
 00f867934f09cd9fe01fc5c06563708af42954f3bf66761d9c0e6d49a780aab2  psycheros-everything-together-0.1.0-rc.4.zip
+1eaee047a49e0b8dd5e3492491b8a2901d67511dd9eedc89798b03e2111db9ce  psycheros-htf-music-listener-0.1.3-windows-x64.zip
+d51e52528c997f4dfa33537cf5ef7cbbbf8d6d768329ac0e9f8ff6184fd7a78a  psycheros-htf-music-listener-0.1.3-legacy-windows-x64.zip
+4897d5a9160bbdf698937f4b9e4e22b34a3aaca175b515d2b7a817bc3fa1c3d0  psycheros-expression-sprites-beta-0.2.0.zip

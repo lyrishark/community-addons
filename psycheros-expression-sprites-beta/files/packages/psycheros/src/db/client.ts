@@ -58,6 +58,7 @@ interface MessageRow {
   pulse_id: string | null;
   pulse_name: string | null;
   is_voice: number | null;
+  metadata: string | null;
   expression_state: string | null;
 }
 
@@ -533,8 +534,8 @@ export class DBClient {
 
       this.db.exec(
         `INSERT INTO messages
-         (id, conversation_id, role, content, reasoning_content, tool_call_id, tool_calls, created_at, pulse_id, pulse_name, is_voice, expression_state)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (id, conversation_id, role, content, reasoning_content, tool_call_id, tool_calls, created_at, pulse_id, pulse_name, is_voice, metadata, expression_state)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id,
           conversationId,
@@ -547,6 +548,7 @@ export class DBClient {
           message.pulseId ?? null,
           message.pulseName ?? null,
           message.isVoice ? 1 : 0,
+          message.metadata ? JSON.stringify(message.metadata) : null,
           message.expressionState
             ? JSON.stringify(message.expressionState)
             : null,
@@ -576,6 +578,7 @@ export class DBClient {
       pulseId: message.pulseId,
       pulseName: message.pulseName,
       isVoice: !!message.isVoice,
+      metadata: message.metadata,
       expressionState: message.expressionState,
     };
   }
@@ -597,7 +600,7 @@ export class DBClient {
     const stmt = this.db.prepare(
       `SELECT id, conversation_id, role, content, reasoning_content,
               tool_call_id, tool_calls, created_at, edited_at,
-              pulse_id, pulse_name, is_voice, expression_state
+              pulse_id, pulse_name, is_voice, metadata, expression_state
        FROM messages
        WHERE conversation_id = ?
        ORDER BY created_at ASC`,
@@ -634,7 +637,7 @@ export class DBClient {
       const hasTiebreaker = !!options.beforeId;
       query = `SELECT id, conversation_id, role, content, reasoning_content,
                       tool_call_id, tool_calls, created_at, edited_at,
-                      pulse_id, pulse_name, is_voice, expression_state
+                      pulse_id, pulse_name, is_voice, metadata, expression_state
                FROM messages
                WHERE conversation_id = ?
                  AND (created_at < ?${
@@ -655,7 +658,7 @@ export class DBClient {
       // Initial load: fetch the most recent messages (DESC). Reversed below.
       query = `SELECT id, conversation_id, role, content, reasoning_content,
                       tool_call_id, tool_calls, created_at, edited_at,
-                      pulse_id, pulse_name, is_voice, expression_state
+                      pulse_id, pulse_name, is_voice, metadata, expression_state
                FROM messages
                WHERE conversation_id = ?
                ORDER BY created_at DESC
@@ -708,6 +711,20 @@ export class DBClient {
       }
     }
 
+    // Parse metadata JSON if present (tool-result sidecar data)
+    let metadata: Message["metadata"] | undefined;
+    if (row.metadata) {
+      try {
+        metadata = JSON.parse(row.metadata) as Message["metadata"];
+      } catch (error) {
+        throw new Error(
+          `Corrupted data: invalid metadata JSON for message ${row.id}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
+    }
+
     let expressionState: ExpressionState | undefined;
     if (row.expression_state) {
       try {
@@ -733,6 +750,7 @@ export class DBClient {
       pulseId: row.pulse_id ?? undefined,
       pulseName: row.pulse_name ?? undefined,
       isVoice: !!row.is_voice,
+      metadata,
       expressionState,
     };
   }
@@ -781,7 +799,7 @@ export class DBClient {
       const getUpdatedStmt = this.db.prepare(
         `SELECT id, conversation_id, role, content, reasoning_content,
                 tool_call_id, tool_calls, created_at, edited_at,
-                pulse_id, pulse_name, is_voice, expression_state
+                pulse_id, pulse_name, is_voice, metadata, expression_state
          FROM messages WHERE id = ?`,
       );
       const updatedRow = getUpdatedStmt.get<MessageRow>(id);
@@ -1804,6 +1822,9 @@ export class DBClient {
   listPulseRuns(filter?: {
     pulseId?: string;
     status?: string;
+    // Inclusion list of statuses. Takes precedence over `status` when set.
+    // Used by the Pulse Logs UI to hide `skipped` ticks by default.
+    statuses?: string[];
     limit?: number;
     offset?: number;
   }): { runs: PulseRunRow[]; total: number } {
@@ -1816,7 +1837,17 @@ export class DBClient {
       where.push("json_extract(payload_json, '$.pulseId') = ?");
       params.push(filter.pulseId);
     }
-    if (filter?.status) {
+    if (filter?.statuses && filter.statuses.length > 0) {
+      where.push(
+        `status IN (${filter.statuses.map(() => "?").join(", ")})`,
+      );
+      params.push(...filter.statuses);
+    } else if (filter?.statuses && filter.statuses.length === 0) {
+      // Explicitly-empty inclusion list — user has cleared every filter
+      // pill. Match nothing rather than falling through to "no status
+      // filter" (which would return every run).
+      where.push("1 = 0");
+    } else if (filter?.status) {
       where.push("status = ?");
       params.push(filter.status);
     }
