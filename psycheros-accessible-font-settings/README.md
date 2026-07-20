@@ -9,18 +9,17 @@ This community add-on adds a **Text** tab to General Settings with:
 
 It is not an official Psycheros release.
 
-> **Psycheros 0.9.0 status:** Not compatible. Version `0.1.3` is an exact
-> Psycheros 0.8.23 source-replacement package. Do not force it onto 0.9.0 or
-> install it through either 0.9 manager; a separately rebased package is needed.
+> **Psycheros 0.9.2 status:** Compatible in version `0.2.0`. This remains a
+> manual source-file add-on; it is not installed or updated by the plugin/add-on
+> manager.
 
 ## Compatibility
 
-Version 0.1.3 is tested for **Psycheros 0.8.23**. It keeps the same font
-feature as v0.1.2 and adds broader OS-aware font fallback stacks for Windows,
-macOS/iOS, Android, and Linux. The installer refuses all other versions rather
-than overwriting newer or locally modified source by accident.
+Version 0.2.0 is tested for **Psycheros 0.9.2** and keeps the broader OS-aware
+font fallback stacks from v0.1.3. The installer refuses all other versions
+rather than overwriting newer source by accident.
 
-Use v0.1.1 for Psycheros 0.8.9 through 0.8.11.
+Use v0.1.3 for Psycheros 0.8.23 and v0.1.1 for Psycheros 0.8.9 through 0.8.11.
 
 The Windows shell-tool fix previously bundled with the local prototype is not
 part of this add-on. It now lives separately in
@@ -35,7 +34,7 @@ part of this add-on. It now lives separately in
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass
-.\tools\install-source-files.ps1 -PsycherosRoot "C:\Users\<name>\AppData\Roaming\Psycheros"
+.\tools\install-source-files.ps1 -PsycherosRoot "C:\Users\<name>\AppData\Roaming\Psycheros\source"
 ```
 
 The selected folder must contain `packages\psycheros\deno.json`. The installer

@@ -5,9 +5,9 @@ and voice mode.
 
 It is not an official Psycheros release.
 
-> **Psycheros 0.9.0 status:** Not compatible and not publicly released.
-> Version `0.1.0` is a staged Psycheros 0.8.20 source-replacement package; do
-> not force it onto 0.9.0 or install it through either 0.9 manager.
+> **Psycheros 0.9.2 status:** Compatible in version `0.2.0`. The 0.2.0 payload
+> was rebuilt from the original screen-presence feature so unrelated historical
+> upload, font, and response-regeneration edits are no longer bundled.
 
 ## What changes
 
@@ -23,7 +23,7 @@ to share. Psycheros does not silently browse the whole PC.
 
 ## Compatibility
 
-Version 0.1.0 is tested for **Psycheros 0.8.20**. The installer refuses all
+Version 0.2.0 is tested for **Psycheros 0.9.2**. The installer refuses all
 other versions before changing files.
 
 This package replaces several shared chat, voice, server, and formatter files.
@@ -38,11 +38,11 @@ Close Psycheros and back up local source edits before installing it.
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass
-.\tools\install-source-files.ps1 -PsycherosRoot "C:\Users\<name>\AppData\Roaming\Psycheros"
+.\tools\install-source-files.ps1 -PsycherosRoot "C:\Users\<name>\AppData\Roaming\Psycheros\source"
 ```
 
 The selected folder must contain `packages\psycheros\deno.json`. The installer
-checks for Psycheros 0.8.20 and creates a timestamped backup before replacing
+checks for Psycheros 0.9.2 and creates a timestamped backup before replacing
 any files.
 
 ## Configure captioning

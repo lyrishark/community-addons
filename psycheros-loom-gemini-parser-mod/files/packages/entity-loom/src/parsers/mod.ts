@@ -20,3 +20,4 @@ export { GeminiParser } from "./gemini.ts";
 export { SillyTavernParser } from "./sillytavern.ts";
 export { KindroidParser } from "./kindroid.ts";
 export { LettaParser } from "./letta.ts";
+export { LoomStandardParser } from "./loom-standard.ts";

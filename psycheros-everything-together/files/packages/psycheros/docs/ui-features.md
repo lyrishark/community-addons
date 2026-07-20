@@ -327,8 +327,8 @@ background.
 - **Font Size** — slider from 12px to 28px. The setting updates the shared
   font-size CSS tokens so chat messages, controls, and settings scale together.
 - **Font Preset** — Sans, Serif, Dyslexia-friendly, and Handwriting. The
-  dyslexia-friendly preset prefers OpenDyslexic, Atkinson Hyperlegible, and
-  Lexend when present, then falls back to common readable system fonts.
+  presets prefer optional specialty fonts when present, then fall back through
+  Windows, macOS/iOS, Android, and Linux-friendly system fonts.
 
 These settings persist in `.psycheros/appearance-settings.json` alongside the
 existing theme fields: `{ "fontPreset": "sans", "fontSize": 16 }`.
@@ -435,79 +435,70 @@ user makes changes via the UI.
 
 ## Inline Image Display
 
-Generated images render inline in chat messages. The entity uses the
-`generate_image` tool and images appear directly in the conversation as the tool
-result is processed.
+Generated images render as a sibling element below the (collapsed)
+`generate_image` tool card. The entity uses the `generate_image` tool and the
+image appears directly in the conversation as the tool result is processed.
 
 **Features:**
 
-- Images display inline with a subtle container and generator name metadata
-- Auto-generated image descriptions displayed below the image (via the
-  configured captioning provider)
-- Images persist across conversation switches via `[IMAGE:...]` markers stored
-  in the assistant message content
-- Descriptions are included in the marker JSON and rendered from persisted
-  messages
+- Tool card stays collapsed by default — the image renders underneath it, not
+  inside it, keeping the chat log compact
+- Image container shows the image plus generator name metadata
+- Long caption hidden by default; a "Show caption" / "Hide caption" toggle below
+  the image reveals it on click
+- Auto-generated captions come from the configured captioning provider (dual
+  short/long)
+- Images persist across conversation switches via a structured `metadata.image`
+  sidecar stored on the tool-result message row
+- Legacy messages (pre-refactor) still render via the retained `[IMAGE:...]`
+  marker parser in assistant content — no migration required
 - Lazy loading (`loading="lazy"`) for performance
 - Server-side rendered in `renderAssistantMessage()` for persisted messages,
   client-side rendered during SSE streaming
 
 **SSE event:** `image_generated` with JSON payload
-`{ imagePath, prompt, generatorName, description }`.
+`{ imagePath, prompt, generatorName, description, toolCallId }`. The
+`toolCallId` anchors the "Show caption" toggle so it survives HTMX swaps.
 
-Implemented in `web/js/psycheros.js` (SSE handler), `src/server/templates.ts`
-(server-side rendering), `web/css/components.css` (`.generated-image-container`,
-`.generated-image`, `.generated-image-meta`, `.generated-image-desc`).
+Implemented in `web/js/psycheros.js` (SSE handler + `toggleImageCaption`),
+`src/server/templates.ts` (`renderGeneratedImageSibling`, server-side
+rendering), `web/css/components.css` (`.generated-image-container`,
+`.generated-image`, `.generated-image-meta`, `.generated-image-caption-toggle`,
+`.generated-image-caption`).
 
-## Chat Attachments
+## Chat Image Attachments
 
-Users can attach images and common document files to chat messages for the
-entity to reference in generation or conversation.
+Users can attach images to chat messages for the entity to reference in
+generation or conversation.
 
 **Features:**
 
 - Clip icon button to the left of the chat input
-- File picker accepts images plus TXT, Markdown, CSV, JSON, PDF, DOCX, and XLSX
-  files
-- Multiple attachments can be selected at once; images appear as thumbnails and
-  documents appear as compact file chips below the input
-- Attachments can also be dragged onto the composer or pasted from the
-  clipboard; these paths append to the same pending strip as picker uploads
-- Remove button on each item to cancel that attachment before sending
-- On send, uploaded attachment IDs are included in the chat request as
-  `attachmentIds`
-- Supported image attachments are automatically captioned in parallel via the
-  configured vision model before being passed to the entity
-- The user message is prefixed with one marker per image:
-  `[USER_IMAGE: /chat-attachments/filename | Image N | Caption: description]` so
-  the entity understands the image content
-- If captioning fails or is not configured, each image falls back to path-only:
-  `[USER_IMAGE: /chat-attachments/filename | Image N]`
-- Text-like and document attachments are prefixed as `[USER_FILE: ...]` blocks
-  with extracted contents for TXT, Markdown, CSV, JSON, PDF, DOCX, and XLSX
-- HTF v2 song sensory-object JSON attachments are detected by
-  `meta.schema_version = "HTF_v2"` and converted into a music playback brief
-  with the reading protocol, song anchors, phase stats, top events, standout
-  windows, chroma emphasis, and any sibling preview graphs whose filenames match
-  the HTF slug (`*_waveform.png`, `*_mel_spectrogram.png`, `*_rms_energy.png`,
-  `*_spectral_centroid.png`)
+- File picker accepts images (JPEG, PNG, GIF, WebP)
+- Thumbnail preview shown below the input after selecting a file
+- Remove button to cancel the attachment before sending
+- On send, the attachment is uploaded and its ID is included in the chat request
+- The attachment is automatically captioned via the configured vision model
+  before being passed to the entity
+- The user message is prefixed with
+  `[USER_IMAGE: /chat-attachments/filename | Caption: description]` so the
+  entity understands the image content
+- If captioning fails or is not configured, falls back to path-only:
+  `[USER_IMAGE: /chat-attachments/filename]`
 - The entity can use `user_image_path` in `generate_image` to incorporate the
   attached image
 - The entity can use `describe_image` with the path to get a more detailed
   description
 
 **API:** `POST /api/chat-attachments` (multipart upload, max 10MB), returns
-`{ id, filename, url, name, type, size, kind }`. Files stored in
-`.psycheros/chat-attachments/`. Captioning and document extraction are handled
-server-side in `handleChat` before creating the entity turn.
+`{ id, filename, url }`. Files stored in `.psycheros/chat-attachments/`.
+Captioning is handled server-side in `handleChat` before creating the entity
+turn.
 
 Implemented in `web/js/psycheros.js` (`handleAttachment()`,
-`uploadAttachments()`, `handleComposerDrop()`, `handleComposerPaste()`,
 `removeAttachment()`), `src/server/routes.ts` (`handleUploadChatAttachment`,
 auto-caption flow), `web/css/components.css` (`.attach-btn`,
-`.input-area.is-attachment-dragover`, `.attachment-preview`,
-`.attachment-thumb`, `.attachment-file-preview`, `.attachment-file-in-message`,
-`.attachment-remove`).
+`.attachment-preview`, `.attachment-thumb`, `.attachment-remove`).
 
 ## Vision Settings
 
@@ -530,9 +521,8 @@ table.
 Supports direct per-label upload and SillyTavern-style ZIP imports. Built-in
 labels cover the 28 SillyTavern expressions plus the Expressions Plus extension
 labels (`affection`, `flirtation`, `tenderness`, `focus`, etc.). Sprite display
-is driven by the latest `expression_state` event from the entity turn. The final
-state is saved with the assistant message so reloads preserve the face that was
-actually shown; it remains local embodiment UI state, not companion memory.
+is driven by the latest transient `expression_state` event from the entity turn;
+it is a live UI signal, not durable memory.
 
 - Expression detection uses a hybrid stream-and-settle model. Recent-turn intent
   plus valence/arousal/intensity scoring can change the sprite while a response
@@ -550,10 +540,6 @@ actually shown; it remains local embodiment UI state, not companion memory.
   title includes the label, confidence, and classifier rationale
 - Uploaded sprites are stored in `.psycheros/expression-sprites/` with settings
   in `.psycheros/expression-display-settings.json`
-- Bundled seed packs under `packages/psycheros/assets/expression-sprites/` can
-  populate missing sprite slots automatically when expression settings load; the
-  Ember seed pack fills fresh installs without overwriting custom uploaded
-  sprites
 - Chat renders the latest sprite in a visual-novel stage: desktop defaults to
   the lower-left third, mobile to the lower-right quarter
 - Every final conversational response can end with one hidden
@@ -572,17 +558,34 @@ server-side on tab load. Features:
   and creation date
 - Generated image cards include prompt as hover tooltip
 - Full-screen lightbox overlay on thumbnail click (close via click-outside,
-  Escape key, or swipe-down on mobile)
+  Escape key, or swipe-down on mobile) — opens the full-resolution original
 - Pagination: 24 images per page with "Load more" button (fetches additional
   pages via `GET /api/gallery/images`)
 - View-only — no delete capability
+
+**Thumbnails:** Grid `<img src>` points at 400px WebP thumbnails
+(`/<dir>/thumbs/<filename>.webp`), not full-size originals. Thumbnails are
+generated by sharp (`src/utils/thumbnail.ts`) at write time — both the
+`generate_image` tool and chat-attachment upload write a thumb alongside the
+original. The serve route (`handleServeImageFile`) lazily generates a missing
+thumb on first request, so existing images from before the thumbnail system were
+back-filled transparently on first gallery view. Typical thumb size is ~25 KB vs
+~800 KB for the original.
+
+**Scan caching:** `scanGalleryImages` runs in O(messages-with-images) — two
+batch SQL queries (one per directory type) feed an in-memory
+`Map<filename, metadata>`. Results are cached at module level with directory
+mtime + 60s TTL invalidation, so repeated tab clicks skip the filesystem and SQL
+entirely. Adding or removing an image invalidates immediately via mtime.
 
 Implemented in `src/server/templates.ts` (`renderVisionSettings`,
 `renderVisionGeneratorsTab`, `renderVisionAnchorsTab`,
 `renderVisionExpressionsTab`, `renderVisionGalleryTab`,
 `renderVisionTabActiveState`), `src/server/routes.ts` (`scanGalleryImages`,
-`handleGalleryImages`, `handleVisionGalleryFragment`,
-`handleVisionExpressionsFragment`), `src/expression/*`, `web/js/psycheros.js`
+`getCachedGalleryIndex`, `buildGalleryIndex`, `handleGalleryImages`,
+`handleVisionGalleryFragment`, `handleVisionExpressionsFragment`,
+`handleServeImageFile` thumb branch), `src/expression/*`,
+`src/utils/thumbnail.ts` (`generateThumbnail`), `web/js/psycheros.js`
 (load-more, lightbox, copy-clipboard, expression display/import/upload),
 `web/css/components.css` (expression settings and stage styles).
 
@@ -1274,3 +1277,59 @@ overrides so input labels are prominent and field hints are small and muted. The
 channel name resolution), `src/discord/router.ts` (`getChannelNameForChannel`),
 `web/css/discord.css` (`.discord-server-card`, `.discord-server-card-row`,
 `.field-hint`, `.discord-settings-page`)
+
+## Plugins Settings
+
+Trusted-local-plugin management surface. Access via Settings > Plugins in the
+sidebar. Renders five regions inside the standard `.settings-view` shell:
+
+1. **Safety banner** (top) — short trust-model reminder linking to the User
+   Guide's Plugins section for the full vetting walkthrough. The vetting content
+   itself does not live in this page — keep UI copy minimal and point operators
+   at the docs.
+2. **Plugin Health card** (`#plugin-health-card`, lazy-loaded by
+   `loadPluginHealth()` in `web/js/psycheros.js`) — pulls
+   `GET /api/plugin-manager/health` after fragment swap, renders aggregate
+   counts (active / degraded / pending-restart / disabled) + last-turn
+   prompt-hook budget meter from `getLastBudgetReport()` + denied env vars
+   across all plugins.
+3. **Install Plugin** — zip upload + git URL/ref forms. Both feed
+   `handleInspectPluginZip` / `handleInspectPluginGit`, which stage a draft and
+   return a preview that `renderPluginInstallReview` renders into
+   `#plugin-manager-review`.
+4. **Installed Plugins** — one `.theme-section` per plugin via
+   `renderPluginRows`. Each row has Remove, Show recent activity, and Check for
+   updates buttons. The Recent Activity panel lazy-loads
+   `GET /api/plugin-manager/plugins/<id>/events`, supports a level filter (WARN+
+   by default, dropdown to flip), Copy (renders events in the same
+   one-line-per-event text format the file uses), and Download log (direct link
+   to `GET .../<id>/log` with `Content-Disposition:
+   attachment`). Check for
+   updates calls `POST .../check-update`, renders result inline; when an update
+   is available, an apply button calls `POST .../<id>/update`.
+5. **Loose custom tools** — unmanaged `.psycheros/custom-tools/*.js` files
+   surfaced for migration awareness. The custom-tools system predates the plugin
+   surface and is unchanged.
+
+**Install-review modal** — capability-salience redesign. Leads with "If
+installed, this plugin will:" translating capabilities to operational language
+("shape what the entity thinks each turn" rather than "1 prompt hook").
+Reassuring "This plugin will not:" section appears when high-stakes capabilities
+(prompt hooks, browser scripts) are absent. Update diff (version arrow,
+browser-asset deltas, dependency adds/removes) renders when `preview.existing`
+is populated — manifest-field diff only; tool/hook/route deltas between versions
+require source comparison.
+
+**Context Inspector integration:** the Metrics tab reads
+`metrics.pluginBudgetUsed` and `metrics.pluginBudgetMax` (added to
+`LLMContextSnapshot.metrics` in `src/entity/loop.ts`) and renders a meter when
+both are present. Plugin Context is included in the per-section breakdown. Both
+fields persist per-turn through the snapshots DB's `metrics_json` column, so
+historical turns show their plugin budget too.
+
+**Source files:** `src/server/templates.ts` (`renderPluginsSettings`,
+`renderPluginRows`, `renderUnmanagedCustomTools`),
+`src/server/plugin-manager-routes.ts` (all `/api/plugin-manager/*` handlers),
+`src/plugins/plugin-manager.ts` (status + last-budget-report + event log
+registry), `web/js/psycheros.js` (lines 5006+: all `pluginManager*` helpers,
+`loadPluginHealth`, activity panel, updater UI).

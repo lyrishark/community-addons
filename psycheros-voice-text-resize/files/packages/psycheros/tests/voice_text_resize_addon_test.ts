@@ -14,7 +14,7 @@ Deno.test("voice text resize add-on files include adaptive and manual resize hoo
     new URL("../web/sw.js", import.meta.url),
   );
 
-  assertStringIncludes(templates, "voice-text-resize-0.1.0");
+  assertStringIncludes(templates, "voice-text-resize-0.2.0");
   assertStringIncludes(templates, 'class="voice-text-input-frame"');
   assertStringIncludes(templates, "data-voice-text-resize-handle");
   assertStringIncludes(templates, "double-click to reset");
@@ -32,6 +32,6 @@ Deno.test("voice text resize add-on files include adaptive and manual resize hoo
 
   assertStringIncludes(
     serviceWorker,
-    "psycheros-offline-__VERSION__-voice-text-resize-0-1-0",
+    "psycheros-offline-__VERSION__-voice-text-resize-0-2-0",
   );
 });

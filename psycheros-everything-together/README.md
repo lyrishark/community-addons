@@ -1,22 +1,20 @@
 # Psycheros Everything Together
 
-- Release candidate: `0.1.0-rc.4`
-- Compatible with Psycheros: `0.8.23`
+- Version: `0.2.0`
+- Compatible with Psycheros: `0.9.2`
 
-> **Psycheros 0.9.0 status:** Not compatible. This is an exact 0.8.23
-> source-replacement bundle. Do not force it onto 0.9.0 or install it through
-> either 0.9 manager; each feature needs a deliberate 0.9 rebase or native
-> replacement.
+> **Psycheros 0.9.2 status:** Compatible. Every included source feature was
+> rebased onto pristine upstream 0.9.2, then composed and tested together. This
+> remains a manual source bundle; the plugin/add-on manager does not install it.
 
 This is the combined community bundle for the upgrades that touch the same chat,
-voice, and settings surfaces. It is published as a release candidate so it can
-be tested before a stable release.
+voice, and settings surfaces.
 
 ## Included
 
 - More uploads: multiple images, documents, and common music formats in chat, with
   streamed uploads up to 512 MB.
-- HTF Music Listener 0.1.2 legacy: on Windows x64, the bundle installs the complete
+- HTF Music Listener 0.1.3 legacy: on Windows x64, the bundle installs the complete
   local listening organ, Entity view toggle, packaged HTF worker, and verified FFmpeg
   bootstrap after applying the source files.
 - Voice/Yin Yang uploads: typed voice mode can attach the same supported files.
@@ -31,13 +29,13 @@ be tested before a stable release.
   hidden entity-selected final expression and intensity.
 - Expression reload persistence: reopening a conversation restores the final
   face that was shown instead of reclassifying old text.
-- Missing assistant turn recovery: latest user-only message can regenerate a
-  missing response.
 - Voice expression fix: expression state from voice responses is forwarded to
   the voice overlay.
-- Voice-started chats auto-generate titles from the first accepted user turn.
-- Queued Yin Yang typed voice turns now drain after ordinary voice responses,
-  not only after Pulse responses.
+
+The bundle intentionally excludes the old experimental missing-response
+regeneration button, voice-started auto-titling, and queued typed-turn draining.
+Those changes were never part of these add-ons and are no longer carried in the
+package or current documentation.
 
 ## Expression Toggle
 
@@ -62,7 +60,7 @@ On macOS/Linux:
 ./install.sh "/path/to/Psycheros/source"
 ```
 
-If the installer can find exactly one compatible Psycheros `0.8.23` source
+If the installer can find exactly one compatible Psycheros `0.9.2` source
 folder, the path argument can be omitted. Existing files are backed up under
 `packages/psycheros/_everything_together_backup_<timestamp>`.
 
@@ -83,11 +81,11 @@ types, but does not claim to provide the compiled listener runtime.
 
 ## Music-listener compatibility
 
-Everything Together 0.1.0-rc.4 already includes both layers required on plain
-Psycheros: music-capable uploads and HTF Music Listener 0.1.2 legacy. Do not install
+Everything Together 0.2.0 already includes both layers required on plain
+Psycheros: music-capable uploads and HTF Music Listener 0.1.3 legacy. Do not install
 standalone More Uploads, the upload/resize combo, or another HTF listener over it.
 
-This bundle targets plain upstream Psycheros 0.8.23. Do not install it over the
+This bundle targets plain upstream Psycheros 0.9.2. Do not install it over the
 Rae/Ember trusted-plugin fork; that fork already contains the merged source features
 and should use the normal HTF plugin package instead.
 

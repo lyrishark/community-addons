@@ -36,10 +36,39 @@ export interface Message {
    */
   isVoice?: boolean;
   /**
+   * Tool-result sidecar metadata. Currently used to carry generated-image
+   * data (path, descriptions) so the LLM-visible `content` can stay plain
+   * text without `[IMAGE:...]` markers. Parsed from JSON in rowToMessage.
+   */
+  metadata?: MessageMetadata;
+  /**
    * The final visible expression for this assistant message. This remains
    * local UI state rather than a durable feeling or Entity Core memory.
    */
   expressionState?: ExpressionState;
+}
+
+/**
+ * Sidecar metadata stored on tool-result messages. The `image` shape is
+ * populated by `generate_image`; the `fade` shape is populated by tools whose
+ * result content should be replaced with a shorter version after the
+ * IMAGE_DESCRIPTION_FADE_TURNS threshold (describe_image, look_closer).
+ */
+export interface MessageMetadata {
+  image?: {
+    /** URL path for `<img src>` (e.g. "/generated-images/abc.png") */
+    path: string;
+    /** Path relative to .psycheros/ for send_discord_dm image_path */
+    filePath: string;
+    prompt: string;
+    generatorName: string;
+    description?: string;
+    shortDescription?: string;
+  };
+  fade?: {
+    /** Content text to swap in after IMAGE_DESCRIPTION_FADE_TURNS */
+    replacementContent: string;
+  };
 }
 
 // =============================================================================
@@ -79,6 +108,12 @@ export interface ToolResult {
   isError?: boolean;
   /** UI regions affected by this tool execution (for reactive updates) */
   affectedRegions?: string[];
+  /**
+   * Optional sidecar metadata. Persisted as-is to the tool-message
+   * `metadata` column. generate_image populates `metadata.image`;
+   * describe_image and look_closer populate `metadata.fade`.
+   */
+  metadata?: MessageMetadata;
 }
 
 /**
@@ -111,6 +146,7 @@ export interface UIUpdate {
  * - metrics: Streaming performance metrics for the turn
  * - done: Stream completion signal
  * - message_id: Message ID assignment for streaming-created DOM elements
+ * - expression_state: transient current expression signal for live UI
  */
 export interface SSEEvent {
   type:
@@ -125,12 +161,12 @@ export interface SSEEvent {
     | "done"
     | "message_id"
     | "image_generated"
-    | "expression_state"
-    | "thinking_corrected";
+    | "thinking_corrected"
+    | "expression_state";
   data: string;
 }
 
-export type { ExpressionState } from "./expression/mod.ts";
+export type { ExpressionState };
 
 // =============================================================================
 // Conversation/Session Types
@@ -228,6 +264,8 @@ export interface LLMContextSnapshot {
   vaultContent?: string;
   /** Situational awareness content injected into context */
   situationalAwarenessContent?: string;
+  /** Trusted local plugin context I add to my prompt */
+  pluginContent?: string;
   /** The messages array sent to the LLM (excluding system) */
   messages: Array<{
     role: string;
@@ -248,6 +286,21 @@ export interface LLMContextSnapshot {
     budgetAvailable?: number;
     /** Number of oldest messages removed by context budget trimming */
     messagesTruncated?: number;
+    /**
+     * Plugin prompt-hook context budget consumed on this turn, in chars.
+     * Set when a plugin manager is configured and buildPromptContent ran.
+     * Includes the `<plugin_context>` wrapper bytes, so this slightly
+     * overestimates the pure payload — matches how the cap is enforced
+     * (the cap also counts wrappers).
+     */
+    pluginBudgetUsed?: number;
+    /**
+     * Aggregate plugin prompt-hook context cap that was in effect on this
+     * turn, in chars. Pairs with pluginBudgetUsed for the
+     * "X / Y chars (Z%)" meter in the Context Inspector and the Plugins
+     * Settings health card.
+     */
+    pluginBudgetMax?: number;
   };
 }
 
@@ -351,6 +404,13 @@ export interface PulseRunRow {
   chainParentRunId: string | null;
   createdAt: string;
 }
+
+/**
+ * Pulse log filter labels — the three category pills shown above the run
+ * table. Each maps to one or more `job_runs` statuses (`fired` → `success`,
+ * `error` → `error`+`dead`, `skipped` → `skipped`).
+ */
+export type PulseLogFilter = "fired" | "error" | "skipped";
 
 /** Input for creating a new Pulse. */
 export interface CreatePulseInput {

@@ -5,7 +5,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$SupportedVersions = @("0.8.9", "0.8.10", "0.8.11")
+$SupportedVersions = @("0.9.2")
 $PatchRoot = Split-Path -Parent $PSScriptRoot
 $ReplaceRoot = Join-Path $PatchRoot "files\packages\entity-loom"
 $LoomDir = Join-Path $PsycherosRoot "packages\entity-loom"

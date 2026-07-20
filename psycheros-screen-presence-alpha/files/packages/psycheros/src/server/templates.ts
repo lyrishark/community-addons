@@ -43,11 +43,11 @@ import {
 } from "../tools/mod.ts";
 import type { Tool } from "../tools/mod.ts";
 import { renderMarkdown } from "./markdown.ts";
-import { normalizeAssistantContent } from "../entity/assistant-content.ts";
-import { extractLeadingUserImageMarkers } from "./chat-attachments.ts";
 import { pulseIconSvg } from "../pulse/templates.ts";
 import type { ExtractionHealth } from "../mcp-client/mod.ts";
 import { getWearableConnectionManager } from "../wearable/mod.ts";
+import type { PluginStatus } from "../../../plugin-api/src/mod.ts";
+import type { UnmanagedCustomTool } from "../plugins/mod.ts";
 
 // =============================================================================
 // Utilities
@@ -259,7 +259,7 @@ function getAccentColorOverride(): string {
  * Render the full app shell HTML.
  * This is served on initial page load.
  */
-export function renderAppShell(): string {
+export function renderAppShell(pluginHeadHtml = ""): string {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -279,6 +279,7 @@ export function renderAppShell(): string {
   <script src="/lib/htmx-sse.js"></script>
   <script src="/lib/marked.min.js"></script>
   <script src="/lib/dompurify.min.js"></script>
+  ${pluginHeadHtml}
 </head>
 <body>
   <div class="bg-layer"></div>
@@ -732,6 +733,24 @@ export function renderSettingsHub(): string {
         </svg>
       </a>
       <a class="settings-hub-card"
+        hx-get="/fragments/settings/plugins"
+        hx-target="#chat"
+        hx-swap="innerHTML">
+        <div class="settings-hub-card-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M8 3v4M16 3v4M5 7h14v5a7 7 0 0 1-14 0V7z"/>
+            <path d="M12 19v3"/>
+          </svg>
+        </div>
+        <div class="settings-hub-card-body">
+          <span class="settings-hub-card-title">Plugins</span>
+          <span class="settings-hub-card-desc">Inspect trusted local extensions and runtime status</span>
+        </div>
+        <svg class="settings-hub-card-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="9 18 15 12 9 6"/>
+        </svg>
+      </a>
+      <a class="settings-hub-card"
         hx-get="/fragments/settings/llm"
         hx-target="#chat"
         hx-swap="innerHTML">
@@ -776,6 +795,292 @@ export function renderSettingsHub(): string {
 </div>`;
 }
 
+export function renderPluginsSettingsLegacy(statuses: PluginStatus[]): string {
+  const rows = statuses.length === 0
+    ? `<p class="settings-note">No local plugins installed.</p>`
+    : statuses.map((status) => {
+      const state = status.degraded
+        ? "Degraded"
+        : status.active
+        ? "Active"
+        : status.enabled
+        ? "Inactive"
+        : "Disabled";
+      const capabilities = Object.entries(status.capabilities)
+        .filter(([, count]) => count > 0)
+        .map(([name, count]) => `${name}: ${count}`)
+        .join(", ") || "No registered capabilities";
+      return `<section class="theme-section">
+        <h3 class="theme-section-title">${escapeHtml(status.name)} <code>${
+        escapeHtml(status.version)
+      }</code></h3>
+        <p class="theme-section-desc">${escapeHtml(state)}. ${
+        escapeHtml(capabilities)
+      }.</p>
+        <p class="settings-note">Psycheros entrypoint: ${
+        status.entrypoints.psycheros ? "yes" : "no"
+      } · Entity-core entrypoint: ${
+        status.entrypoints.entityCore ? "yes" : "no"
+      }</p>
+        ${
+        status.lastError
+          ? `<p class="settings-note">Last error: ${
+            escapeHtml(status.lastError)
+          }</p>`
+          : ""
+      }
+      </section>`;
+    }).join("");
+
+  return `<div class="settings-view">
+    <div class="settings-header">
+      <div class="settings-header-row">
+        ${renderSettingsBackButton()}
+        <div>
+          <h1 class="settings-title">Plugins</h1>
+          <p class="settings-desc">Trusted local extensions loaded from the persistent data directory</p>
+        </div>
+      </div>
+    </div>
+    <div class="settings-content" id="settings-content">
+      <p class="settings-note">Plugins run as trusted local code. They can access the local filesystem, network, services, and plugin secrets. Portable exports do not include the plugin-secrets directory. Changes take effect after restart.</p>
+      ${rows}
+    </div>
+  </div>`;
+}
+
+function renderPluginBadge(label: string, kind: string): string {
+  return `<span class="badge ${kind}">${escapeHtml(label)}</span>`;
+}
+
+function formatPluginCapabilities(status: PluginStatus): string {
+  return Object.entries(status.capabilities)
+    .filter(([, count]) => count > 0)
+    .map(([name, count]) => `${name}: ${count}`)
+    .join(", ") || "No loaded runtime capabilities for this plugin";
+}
+
+function renderPluginWarnings(warnings?: string[]): string {
+  if (!warnings || warnings.length === 0) return "";
+  return `<ul class="settings-note" style="margin-top:var(--sp-2);padding-left:var(--sp-5);">${
+    warnings.map((warning) => `<li>${escapeHtml(warning)}</li>`).join("")
+  }</ul>`;
+}
+
+function renderPluginRecord(
+  label: string,
+  record?: object,
+): string {
+  if (!record || Object.keys(record).length === 0) return "";
+  const values = Object.entries(record)
+    .filter(([, value]) => value !== undefined)
+    .map(([name, value]) => `${name}: ${String(value)}`)
+    .join(", ");
+  if (!values) return "";
+  return `<p class="settings-note">${escapeHtml(label)}: ${
+    escapeHtml(values)
+  }</p>`;
+}
+
+function renderPluginUpdate(status: PluginStatus): string {
+  if (!status.update || Object.keys(status.update).length === 0) return "";
+  const values = [
+    status.update.repoUrl ? `repo ${status.update.repoUrl}` : "",
+    status.update.tagPrefix ? `tag prefix ${status.update.tagPrefix}` : "",
+  ].filter(Boolean).join(", ");
+  return `<p class="settings-note">Update metadata: ${
+    escapeHtml(values || "declared")
+  }. Displayed for review only; plugin updates are not checked or applied yet.</p>`;
+}
+
+function renderPluginStatusBadges(status: PluginStatus): string {
+  const badges: string[] = [];
+  if (status.pendingAction === "install") {
+    badges.push(renderPluginBadge("Pending install", "badge-info"));
+  } else if (status.pendingAction === "remove") {
+    badges.push(renderPluginBadge("Pending removal", "badge-error"));
+  } else if (status.degraded) {
+    badges.push(renderPluginBadge("Degraded", "badge-error"));
+  } else if (status.active) {
+    badges.push(renderPluginBadge("Loaded", "badge-success"));
+  } else if (status.enabled) {
+    badges.push(renderPluginBadge("Installed", "badge-secondary"));
+  } else {
+    badges.push(renderPluginBadge("Disabled", "badge-muted"));
+  }
+  if (status.restartRequired) {
+    badges.push(renderPluginBadge("Restart required", "badge-primary"));
+  }
+  if ((status.warnings ?? []).length > 0) {
+    badges.push(renderPluginBadge("Warnings", "badge-error"));
+  }
+  return `<div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;">${
+    badges.join("")
+  }</div>`;
+}
+
+function renderPluginRows(statuses: PluginStatus[]): string {
+  if (statuses.length === 0) {
+    return `<p class="settings-note">No local plugins installed.</p>`;
+  }
+  return statuses.map((status) => {
+    return `<section class="theme-section">
+      <div style="display:flex;justify-content:space-between;gap:var(--sp-3);align-items:flex-start;flex-wrap:wrap;">
+        <div>
+          <h3 class="theme-section-title">${escapeHtml(status.name)} <code>${
+      escapeHtml(status.version)
+    }</code></h3>
+          <p class="theme-section-desc">${
+      status.description
+        ? escapeHtml(status.description)
+        : escapeHtml(formatPluginCapabilities(status))
+    }</p>
+        </div>
+        ${renderPluginStatusBadges(status)}
+      </div>
+      ${
+      status.description
+        ? `<p class="settings-note">${
+          escapeHtml(formatPluginCapabilities(status))
+        }</p>`
+        : ""
+    }
+      <p class="settings-note">Psycheros entrypoint: ${
+      status.entrypoints.psycheros ? "yes" : "no"
+    } &middot; Entity-core entrypoint: ${
+      status.entrypoints.entityCore ? "yes" : "no"
+    }</p>
+      ${
+      status.lastError
+        ? `<p class="settings-note">Last error: ${
+          escapeHtml(status.lastError)
+        }</p>`
+        : ""
+    }
+      ${renderPluginWarnings(status.warnings)}
+      ${renderPluginRecord("Compatibility", status.compatibility)}
+      ${renderPluginRecord("Dependencies", status.dependencies)}
+      ${
+      status.homepageUrl
+        ? `<p class="settings-note">Homepage: <a href="${
+          escapeHtml(status.homepageUrl)
+        }" target="_blank" rel="noopener" style="color:var(--c-accent);">${
+          escapeHtml(status.homepageUrl)
+        }</a></p>`
+        : ""
+    }
+      ${renderPluginUpdate(status)}
+      ${
+      status.pendingAction === "remove"
+        ? `<p class="settings-note">Plugin secrets remain available for reinstall until removed manually.</p>`
+        : `<div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;margin-top:var(--sp-3);">
+            <button type="button" class="btn btn--danger btn--sm" data-plugin-id="${
+          escapeHtml(status.id)
+        }" onclick="removePlugin(this.dataset.pluginId)">Remove</button>
+            <button type="button" class="btn btn--ghost btn--sm" data-plugin-id="${
+          escapeHtml(status.id)
+        }" onclick="togglePluginActivity(this.dataset.pluginId, this)">Show recent activity</button>
+            <button type="button" class="btn btn--ghost btn--sm" data-plugin-id="${
+          escapeHtml(status.id)
+        }" onclick="checkPluginUpdate(this.dataset.pluginId, this)">Check for updates</button>
+          </div>
+          <div id="plugin-update-result-${
+          escapeHtml(status.id)
+        }" style="margin-top:var(--sp-2);"></div>`
+    }
+      <div id="plugin-activity-${
+      escapeHtml(status.id)
+    }" style="display:none;margin-top:var(--sp-3);"></div>
+    </section>`;
+  }).join("");
+}
+
+function renderUnmanagedCustomTools(tools: UnmanagedCustomTool[]): string {
+  const body = tools.length === 0
+    ? `<p class="settings-note">No loose custom tool files installed.</p>`
+    : `<div style="display:flex;flex-direction:column;gap:var(--sp-2);">${
+      tools.map((tool) =>
+        `<div style="display:flex;justify-content:space-between;gap:var(--sp-3);align-items:center;">
+          <code>${escapeHtml(tool.filename)}</code>
+          ${renderPluginBadge("Unmanaged", "badge-muted")}
+        </div>`
+      ).join("")
+    }</div>`;
+
+  return `<section class="theme-section">
+    <h3 class="theme-section-title">Loose Custom Tools</h3>
+    <p class="theme-section-desc">Files in <code>.psycheros/custom-tools/*.js</code> still load normally, but they do not carry plugin manifest metadata.</p>
+    ${body}
+  </section>`;
+}
+
+export function renderPluginsSettings(
+  statuses: PluginStatus[],
+  unmanagedTools: UnmanagedCustomTool[] = [],
+): string {
+  return `<div class="settings-view">
+    <div class="settings-header">
+      <div class="settings-header-row">
+        ${renderSettingsBackButton()}
+        <div>
+          <h1 class="settings-title">Plugins</h1>
+          <p class="settings-desc">Trusted local extensions loaded from the persistent data directory</p>
+        </div>
+      </div>
+    </div>
+    <div class="settings-content" id="settings-content">
+      <section class="theme-section" style="border-left:3px solid var(--c-accent);">
+        <h3 class="theme-section-title">Before you install</h3>
+        <p class="theme-section-desc" id="plugin-safety-banner">Plugins are trusted local code. They run inside the Psycheros process with full access to the entity's identity, memories, vault, and network — and prompt hooks can shape what the entity thinks each turn. Only install plugins you have personally vetted. See the <a href="https://psycherosai.github.io/Psycheros/psycheros/user-guide/#plugins" target="_blank" rel="noopener" style="color:var(--c-accent);">Plugins section of the User Guide</a> for how to vet a plugin before installing.</p>
+      </section>
+
+      <section class="theme-section">
+        <h3 class="theme-section-title">Plugin Health</h3>
+        <p class="theme-section-desc">At-a-glance status across every installed plugin. Numbers refresh with the page.</p>
+        <div id="plugin-health-card"><p class="settings-note">Loading…</p></div>
+      </section>
+
+      <section class="theme-section">
+        <h3 class="theme-section-title">Install Plugin</h3>
+        <p class="theme-section-desc">Stage a plugin from a local zip or Git repository, review what it declares, then install it.</p>
+        <p class="settings-note">Plugins run as trusted local code. Install code only from trusted sources because plugins can access the local filesystem, network, services, and plugin secrets. Portable exports do not include the plugin-secrets directory. Changes take effect after restart.</p>
+
+        <div class="llm-fields">
+          <form onsubmit="inspectPluginZip(event)" style="display:flex;gap:var(--sp-3);align-items:flex-end;flex-wrap:wrap;">
+            <div class="llm-field" style="min-width:220px;">
+              <label for="plugin-zip-input">Plugin zip</label>
+              <input type="file" id="plugin-zip-input" class="input-field llm-input" accept=".zip,application/zip">
+            </div>
+            <button type="submit" class="btn btn--primary">Inspect Zip</button>
+          </form>
+
+          <form onsubmit="inspectPluginGit(event)" style="display:flex;gap:var(--sp-3);align-items:flex-end;flex-wrap:wrap;">
+            <div class="llm-field" style="min-width:260px;flex:1;">
+              <label for="plugin-git-url">Git repository URL</label>
+              <input type="url" id="plugin-git-url" class="input-field llm-input" placeholder="https://github.com/author/plugin">
+            </div>
+            <div class="llm-field" style="min-width:160px;">
+              <label for="plugin-git-ref">Branch or tag</label>
+              <input type="text" id="plugin-git-ref" class="input-field llm-input" placeholder="default">
+            </div>
+            <button type="submit" class="btn btn--primary">Inspect Git</button>
+          </form>
+        </div>
+
+        <div id="plugin-manager-review" style="display:none;margin-top:var(--sp-4);"></div>
+      </section>
+
+      <section class="theme-section">
+        <h3 class="theme-section-title">Installed Plugins</h3>
+        <p class="theme-section-desc">Loaded, degraded, compatibility-warning, pending-install, and pending-removal states appear here. Expand a plugin to see its recent activity log.</p>
+        ${renderPluginRows(statuses)}
+      </section>
+
+      ${renderUnmanagedCustomTools(unmanagedTools)}
+    </div>
+  </div>`;
+}
+
 export interface GeneralSettings {
   entityName: string;
   userName: string;
@@ -797,7 +1102,6 @@ export function renderGeneralSettings(settings: GeneralSettings): string {
 
     <div class="settings-tabs">
       <button class="settings-tab active" data-tab="general" onclick="switchGeneralTab('general')">General</button>
-      <button class="settings-tab" data-tab="text" onclick="switchGeneralTab('text')">Text</button>
       <button class="settings-tab" data-tab="theme" onclick="switchGeneralTab('theme')">Theme</button>
     </div>
 
@@ -948,50 +1252,6 @@ export function renderGeneralSettings(settings: GeneralSettings): string {
 
     <!-- Status messages -->
     <div id="general-settings-status" class="settings-status"></div>
-
-    </div>
-
-    <div id="general-tab-text" class="general-tab-panel" style="display:none;">
-
-    <section class="theme-section">
-      <h3 class="theme-section-title">Font Size</h3>
-      <p class="theme-section-desc">Set the chat and interface text size</p>
-      <div class="font-size-row">
-        <div class="slider-group">
-          <label for="font-size-slider">Size</label>
-          <input type="range" id="font-size-slider" min="12" max="28" step="1" value="16" oninput="saveFontSize(this.value)">
-          <span id="font-size-value">16px</span>
-        </div>
-      </div>
-    </section>
-
-    <section class="theme-section">
-      <h3 class="theme-section-title">Font Preset</h3>
-      <p class="theme-section-desc">Choose the reading style used across Psycheros</p>
-      <div class="font-preset-grid" id="font-preset-grid">
-        <button class="font-preset-btn" data-font-preset="sans" style="font-family: 'IBM Plex Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-          <span class="font-preset-name">Sans</span>
-          <span class="font-preset-sample">Clear everyday text</span>
-        </button>
-        <button class="font-preset-btn" data-font-preset="serif" style="font-family: Georgia, 'Iowan Old Style', 'Palatino Linotype', Cambria, serif;">
-          <span class="font-preset-name">Serif</span>
-          <span class="font-preset-sample">Book-like reading</span>
-        </button>
-        <button class="font-preset-btn" data-font-preset="dyslexia" style="font-family: 'OpenDyslexic', 'Atkinson Hyperlegible', Lexend, Verdana, Arial, sans-serif;">
-          <span class="font-preset-name">Dyslexia-friendly</span>
-          <span class="font-preset-sample">OpenDyslexic or readable fallback</span>
-        </button>
-        <button class="font-preset-btn" data-font-preset="handwriting" style="font-family: 'Segoe Print', 'Comic Sans MS', 'Bradley Hand', cursive;">
-          <span class="font-preset-name">Handwriting</span>
-          <span class="font-preset-sample">Softer handwritten style</span>
-        </button>
-      </div>
-      <div class="font-preview" id="font-preview">
-        <strong>Preview:</strong> The entity's messages, settings, buttons, and input text use this size and font.
-      </div>
-    </section>
-
-    <div id="font-settings-status" class="settings-status"></div>
 
     </div>
 
@@ -1248,49 +1508,6 @@ function toggleGlass(enabled) {
   Theme.setGlassEnabled(enabled);
 }
 
-function showFontStatus(type, message) {
-  const el = document.getElementById('font-settings-status');
-  if (!el) return;
-  el.className = 'settings-status visible ' + type;
-  el.textContent = message;
-  if (type !== 'error') {
-    setTimeout(() => { el.className = 'settings-status'; }, 2000);
-  }
-}
-
-function initTypography() {
-  const theme = Theme.get();
-  const size = Theme.clampFontSize(theme.fontSize);
-  const slider = document.getElementById('font-size-slider');
-  const value = document.getElementById('font-size-value');
-
-  if (slider) slider.value = String(size);
-  if (value) value.textContent = size + 'px';
-
-  document.querySelectorAll('.font-preset-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.fontPreset === Theme.normalizeFontPreset(theme.fontPreset));
-    btn.onclick = () => selectFontPreset(btn.dataset.fontPreset);
-  });
-}
-
-function saveFontSize(value) {
-  const size = Theme.clampFontSize(value);
-  const label = document.getElementById('font-size-value');
-  if (label) label.textContent = size + 'px';
-  Theme.setFontSize(size);
-  showFontStatus('success', 'Text settings saved');
-}
-
-function selectFontPreset(preset) {
-  const normalized = Theme.normalizeFontPreset(preset);
-  Theme.setFontPreset(normalized);
-  document.querySelectorAll('.font-preset-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.fontPreset === normalized);
-  });
-  showFontStatus('success', 'Text settings saved');
-}
-initTypography();
-
 async function applyBackgroundUrl() {
   const url = document.getElementById('bg-url').value.trim();
   if (url) {
@@ -1488,7 +1705,7 @@ export function renderSASettings(
         <div class="llm-fields">
           <div class="llm-field">
             <label>Current Conversation</label>
-            <div class="sa-signal-desc">Tells the entity which conversation it is currently processing, including the conversation ID and title.</div>
+            <div class="sa-signal-desc">Tells the entity which conversation they are currently processing, including the conversation ID and title.</div>
           </div>
           <div class="llm-field">
             <label>Last User Interaction</label>
@@ -1797,22 +2014,21 @@ export function renderMessages(
   messages: Message[],
   metricsMap?: MetricsMap,
   displayNames?: { entityName: string; userName: string },
-  allowLatestRegenerate = true,
 ): string {
-  const visibleMessages = messages.filter((m) =>
-    m.role === "user" || m.role === "assistant"
-  );
-  const latestAssistantId = [...visibleMessages].reverse().find((message) =>
-    message.role === "assistant"
-  )?.id;
-  return visibleMessages
+  // Build a lookup of tool results by toolCallId so renderToolCard can
+  // surface persisted results (and their image sidecar) on reload. Without
+  // this, tool cards on reload show only the call args — no result and no
+  // generated image.
+  const toolResultsByCallId = new Map<string, Message>();
+  for (const m of messages) {
+    if (m.role === "tool" && m.toolCallId) {
+      toolResultsByCallId.set(m.toolCallId, m);
+    }
+  }
+  return messages
+    .filter((m) => m.role === "user" || m.role === "assistant")
     .map((m) =>
-      renderMessage(
-        m,
-        metricsMap?.get(m.id),
-        displayNames,
-        allowLatestRegenerate && m.id === latestAssistantId,
-      )
+      renderMessage(m, metricsMap?.get(m.id), displayNames, toolResultsByCallId)
     )
     .join("");
 }
@@ -1824,14 +2040,12 @@ export function renderMessage(
   msg: Message,
   metrics?: TurnMetrics,
   displayNames?: { entityName: string; userName: string },
-  allowRegenerate = false,
+  toolResultsByCallId?: Map<string, Message>,
 ): string {
   // Derive [Voice Chat] prefix from the isVoice column (authoritative).
   // Also strip any stray prefix from content as defense-in-depth — the
   // column is the source of truth, content should never carry the prefix.
-  const cleanContent = msg.role === "assistant"
-    ? normalizeAssistantContent(msg.content.replace(/\[Voice Chat\]\s*/g, ""))
-    : msg.content.replace(/\[Voice Chat\]\s*/g, "");
+  const cleanContent = msg.content.replace(/\[Voice Chat\]\s*/g, "");
   const voicedMsg = msg.isVoice
     ? { ...msg, content: "[Voice Chat] " + cleanContent }
     : { ...msg, content: cleanContent };
@@ -1840,19 +2054,18 @@ export function renderMessage(
       return renderPulseMessage(voicedMsg);
     }
     return renderUserMessage(
-      cleanContent,
+      voicedMsg.content,
       voicedMsg.id,
       voicedMsg.editedAt,
       voicedMsg.createdAt,
       displayNames?.userName,
-      msg.isVoice,
     );
   } else if (voicedMsg.role === "assistant") {
     return renderAssistantMessage(
       voicedMsg,
       metrics,
       displayNames?.entityName,
-      allowRegenerate,
+      toolResultsByCallId,
     );
   }
   return "";
@@ -1871,7 +2084,6 @@ export function renderUserMessage(
   editedAt?: Date,
   createdAt?: Date,
   userName?: string,
-  isVoice = false,
 ): string {
   const editedIndicator = editedAt
     ? `<span class="msg-edited-indicator">(edited)</span>`
@@ -1895,27 +2107,21 @@ export function renderUserMessage(
     : "";
   const displayName = escapeHtml(userName || "You");
 
-  const { imagePaths, textContent: parsedTextContent } =
-    extractLeadingUserImageMarkers(content);
-  let textContent = parsedTextContent;
-
-  // Suppress the fallback placeholder text for image-only messages.
-  if (
-    imagePaths.length > 0 &&
-    (textContent === "(image attached)" || textContent === "(images attached)")
-  ) {
-    textContent = "";
-  }
-  if (isVoice) {
-    textContent = textContent ? `[Voice Chat] ${textContent}` : "[Voice Chat]";
-  }
-  const imageHtml = imagePaths.map((imagePath, idx) =>
-    `<img src="${
+  // Extract [USER_IMAGE: path | ...] markers and render as images
+  let imageHtml = "";
+  let textContent = content;
+  const userImageMatch = content.match(
+    /^\[USER_IMAGE:\s*(\/[^\s\]]+)(?:\s*\|[^\]]*)?\]\s*([\s\S]*)$/,
+  );
+  if (userImageMatch) {
+    const imagePath = userImageMatch[1];
+    textContent = userImageMatch[2].trim();
+    // Suppress the fallback placeholder text for image-only messages
+    if (textContent === "(image attached)") textContent = "";
+    imageHtml = `<img src="${
       escapeHtml(imagePath)
-    }" class="attachment-in-message" alt="Attached image ${
-      idx + 1
-    }" loading="lazy"/>`
-  ).join("");
+    }" class="attachment-in-message" alt="Attached image" loading="lazy"/>`;
+  }
 
   const contentHtml = textContent ? renderMarkdown(textContent) : "";
 
@@ -1974,7 +2180,7 @@ export function renderAssistantMessage(
   msg: Message,
   metrics?: TurnMetrics,
   entityName?: string,
-  allowRegenerate = false,
+  toolResultsByCallId?: Map<string, Message>,
 ): string {
   const editedIndicator = msg.editedAt
     ? `<span class="msg-edited-indicator">(edited)</span>`
@@ -1986,16 +2192,6 @@ export function renderAssistantMessage(
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
           <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-        </svg>
-      </button>`
-    : "";
-  const regenerateBtn = allowRegenerate && msg.id
-    ? `<button class="msg-regenerate-btn" onclick="Psycheros.regenerateAssistantMessage('${
-      escapeHtml(msg.id)
-    }')" title="Regenerate response" aria-label="Regenerate response">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 4v5h5"/>
-          <path d="M4 13a8.1 8.1 0 0 0 15.5 2M20 20v-5h-5"/>
         </svg>
       </button>`
     : "";
@@ -2014,7 +2210,6 @@ export function renderAssistantMessage(
     ${timeEl}
     ${editedIndicator}
     ${metrics ? renderMetricsIndicator(metrics) : ""}
-    ${regenerateBtn}
     ${editBtn}
   </div>
   <div class="msg-content">`;
@@ -2027,7 +2222,17 @@ export function renderAssistantMessage(
   // Tool calls
   if (msg.toolCalls && msg.toolCalls.length > 0) {
     for (const tc of msg.toolCalls) {
-      html += renderToolCard(tc);
+      const toolMsg = toolResultsByCallId?.get(tc.id);
+      const result: ToolResult | undefined = toolMsg
+        ? { toolCallId: tc.id, content: toolMsg.content }
+        : undefined;
+      html += renderToolCard(tc, result);
+      // If the tool produced an image sidecar, render it as a sibling below
+      // the (collapsed) tool card. Matches the streaming `image_generated`
+      // event path — same DOM, same caption toggle, both keyed by toolCallId.
+      if (toolMsg?.metadata?.image) {
+        html += renderGeneratedImageSibling(toolMsg.metadata.image, tc.id);
+      }
     }
   }
 
@@ -2036,7 +2241,7 @@ export function renderAssistantMessage(
     // Extract [IMAGE:...] markers from raw content BEFORE markdown rendering.
     // marked would corrupt JSON values containing markdown syntax (*, _, `, etc.)
     // causing JSON.parse to fail on page reload.
-    let preprocessed = normalizeAssistantContent(msg.content);
+    let preprocessed = msg.content;
     preprocessed = preprocessed.replace(
       /\[IMAGE:\{.*?\}\]/g,
       (match) => {
@@ -2175,7 +2380,7 @@ export function renderInputArea(): string {
   return `<div class="input-area">
   <div class="input-container">
     <label class="attach-btn" title="Attach image" style="position:relative;overflow:hidden;cursor:pointer;">
-      <input type="file" id="attach-input" accept="image/*" multiple style="position:absolute;inset:0;opacity:0;cursor:pointer;" onchange="Psycheros.handleAttachment(this)" />
+      <input type="file" id="attach-input" accept="image/*" style="position:absolute;inset:0;opacity:0;cursor:pointer;" onchange="Psycheros.handleAttachment(this)" />
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
         <circle cx="8.5" cy="8.5" r="1.5"/>
@@ -2267,6 +2472,32 @@ export function renderToolCard(
 }
 
 /**
+ * Render a generated image as a sibling element below the tool card.
+ * Matches the streaming `image_generated` event's DOM exactly so the
+ * caption-toggle ids line up across both paths.
+ */
+function renderGeneratedImageSibling(
+  image: NonNullable<NonNullable<Message["metadata"]>["image"]>,
+  toolCallId: string,
+): string {
+  const captionHtml = image.description
+    ? `<div class="generated-image-caption-toggle" onclick="Psycheros.toggleImageCaption('${
+      escapeHtml(toolCallId)
+    }')">▸ Show caption</div>
+  <div class="generated-image-caption" id="caption-${
+      escapeHtml(toolCallId)
+    }" hidden>${escapeHtml(image.description)}</div>`
+    : "";
+  return `<div class="generated-image-container">
+  <img src="${escapeHtml(image.path)}" alt="${
+    escapeHtml(image.prompt)
+  }" class="generated-image" loading="lazy"/>
+  <div class="generated-image-meta">${escapeHtml(image.generatorName)}</div>
+  ${captionHtml}
+</div>`;
+}
+
+/**
  * Render a tool result section.
  */
 export function renderToolResult(result: ToolResult): string {
@@ -2281,7 +2512,8 @@ export function renderToolResult(result: ToolResult): string {
     }
   }
 
-  // Detect [IMAGE:...] markers and render them inline
+  // Detect [IMAGE:...] markers and render them inline (legacy path for
+  // messages persisted before the metadata.image refactor).
   const imagePattern = /\[IMAGE:(\{.*?\})\]/g;
   if (imagePattern.test(content)) {
     content = content.replace(imagePattern, (_match, jsonStr) => {
@@ -2932,7 +3164,7 @@ function renderMemoryTabActiveState(activeGranularity: string): string {
  */
 export function renderMemoryList(
   granularity: MemoryGranularity,
-  items: Array<{ date: string; preview: string; sourceInstance?: string }>,
+  items: Array<{ date: string; preview: string }>,
   pagination?: { hasMore: boolean; nextOffset: number; total: number },
 ): string {
   const isSignificant = granularity === "significant";
@@ -2995,17 +3227,11 @@ export function renderMemoryList(
     : `${countHtml}<div class="settings-file-list">
       ${
       items.map((item) => {
-        const sourceQuery = item.sourceInstance && granularity !== "significant"
-          ? `?sourceInstance=${encodeURIComponent(item.sourceInstance)}`
-          : "";
-        const fileLabel = item.sourceInstance && granularity === "daily"
-          ? `${item.date} (${item.sourceInstance})`
-          : item.date;
         return `<button
           class="settings-file-item"
           hx-get="/fragments/settings/memories/${granularity}/${
           encodeURIComponent(item.date)
-        }${sourceQuery}"
+        }"
           hx-target="#settings-content"
           hx-swap="innerHTML"
         >
@@ -3013,7 +3239,7 @@ export function renderMemoryList(
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
             <polyline points="14 2 14 8 20 8"/>
           </svg>
-          <span class="settings-file-name">${escapeHtml(fileLabel)}</span>
+          <span class="settings-file-name">${escapeHtml(item.date)}</span>
           ${
           item.preview
             ? `<span class="settings-file-preview">${
@@ -3038,13 +3264,7 @@ export function renderMemoryList(
 export function renderMemorySearchResults(
   query: string,
   results: Array<
-    {
-      granularity: string;
-      date: string;
-      score: number;
-      excerpt: string;
-      sourceInstance?: string;
-    }
+    { granularity: string; date: string; score: number; excerpt: string }
   >,
   errorMsg?: string,
 ): string {
@@ -3069,18 +3289,11 @@ export function renderMemorySearchResults(
       results.map((item) => {
         const badge =
           `<span class="memory-granularity-badge memory-badge-${item.granularity}">${item.granularity}</span>`;
-        const sourceQuery =
-          item.sourceInstance && item.granularity !== "significant"
-            ? `?sourceInstance=${encodeURIComponent(item.sourceInstance)}`
-            : "";
-        const fileLabel = item.sourceInstance && item.granularity === "daily"
-          ? `${item.date} (${item.sourceInstance})`
-          : item.date;
         return `<button
           class="settings-file-item"
           hx-get="/fragments/settings/memories/${item.granularity}/${
           encodeURIComponent(item.date)
-        }${sourceQuery}"
+        }"
           hx-target="#settings-content"
           hx-swap="innerHTML"
         >
@@ -3090,7 +3303,7 @@ export function renderMemorySearchResults(
           </svg>
           <div class="memory-search-item-content">
             <span class="settings-file-name">${badge} ${
-          escapeHtml(fileLabel)
+          escapeHtml(item.date)
         }</span>
             ${
           item.excerpt
@@ -3126,11 +3339,6 @@ export function renderMemoryEditor(
   },
 ): string {
   const safeContent = escapeHtml(content);
-  const sourceQuery =
-    metadata?.sourceInstance && metadata.sourceInstance !== "unknown" &&
-      granularity !== "significant"
-      ? `?sourceInstance=${encodeURIComponent(metadata.sourceInstance)}`
-      : "";
 
   let metaHtml = "";
   if (metadata) {
@@ -3177,9 +3385,7 @@ export function renderMemoryEditor(
   ${metaHtml}
   <form
     class="settings-editor-form"
-    hx-post="/api/memories/${granularity}/${
-    encodeURIComponent(date)
-  }${sourceQuery}"
+    hx-post="/api/memories/${granularity}/${encodeURIComponent(date)}"
     hx-target="#settings-editor-status"
     hx-swap="innerHTML"
   >
@@ -4998,6 +5204,37 @@ export function renderLLMProfileEdit(
         <span class="toggle-text">Chain-of-Thought Reasoning</span>
       </label>
       <p class="label-hint" id="thinking-provider-note" style="margin-top:0.5rem;font-size:0.8rem;opacity:0.7;">Not supported by all providers. Unsupported providers will silently ignore this parameter.</p>
+
+      <!-- Persistent Reasoning (Intra-Turn) -->
+      <div style="margin-top:1rem;">
+        <label for="llm-persistent-intra" style="display:block;font-weight:600;margin-bottom:0.25rem;">Persistent Reasoning (Intra-Turn)</label>
+        <select id="llm-persistent-intra" onchange="updatePersistentReasoningWarnings()" style="width:100%;padding:0.4rem;background:var(--bg-secondary,#1a1a1a);color:var(--text-primary,#fff);border:1px solid var(--border-color,#333);border-radius:4px;">
+          <option value="auto" ${
+    isNew || profile?.persistentReasoningIntraTurn !== "on" &&
+        profile?.persistentReasoningIntraTurn !== "off"
+      ? "selected"
+      : ""
+  }>Auto (per provider)</option>
+          <option value="on" ${
+    profile?.persistentReasoningIntraTurn === "on" ? "selected" : ""
+  }>On (force enable)</option>
+          <option value="off" ${
+    profile?.persistentReasoningIntraTurn === "off" ? "selected" : ""
+  }>Off (force disable)</option>
+        </select>
+        <p class="label-hint" style="margin-top:0.25rem;font-size:0.8rem;opacity:0.7;">When working through a multi-step task, reasoning is retained between steps so each step builds on the last. Set to <strong>on</strong> if the provider accepts <code>reasoning_content</code> on inbound messages (DeepSeek, GLM, Venice.ai pointing at DeepSeek-R1, many OpenRouter backing models). <strong>Auto</strong> only enables this for verified providers.</p>
+        <p class="label-hint" id="persistent-intra-warning" style="margin-top:0.25rem;font-size:0.8rem;color:#f0ad4e;display:none;">This provider isn't in the verified list for persistent reasoning. If the API returns 400 errors on multi-step turns, set this back to auto or off.</p>
+      </div>
+
+      <!-- Persistent Reasoning (Inter-Turn) -->
+      <div style="margin-top:0.75rem;">
+        <label for="llm-persistent-inter" style="display:block;font-weight:600;margin-bottom:0.25rem;">Persistent Reasoning (Inter-Turn)</label>
+        <input type="number" id="llm-persistent-inter" min="0" max="20" value="${
+    isNew ? 0 : profile?.persistentReasoningInterTurns ?? 0
+  }" oninput="updatePersistentReasoningWarnings()" style="width:6rem;padding:0.4rem;background:var(--bg-secondary,#1a1a1a);color:var(--text-primary,#fff);border:1px solid var(--border-color,#333);border-radius:4px;">
+        <p class="label-hint" style="margin-top:0.25rem;font-size:0.8rem;opacity:0.7;">How many past turns of thinking are carried forward. Higher values improve cohesion but consume context budget — each turn's reasoning can run 1-5k tokens. 0 disables.</p>
+        <p class="label-hint" id="persistent-inter-warning" style="margin-top:0.25rem;font-size:0.8rem;color:#f0ad4e;display:none;">This provider isn't in the verified list for persistent reasoning. If the API returns 400 errors, set this back to 0.</p>
+      </div>
     </section>
 
     <!-- Actions -->
@@ -6075,6 +6312,10 @@ function renderLovenseTab(
       <div id="lovense-toys-list" style="display:none; margin-top: var(--sp-2);">
         <div class="lovense-toys-grid"></div>
       </div>
+      <details id="lovense-raw-response" style="display:none; margin-top: var(--sp-2);">
+        <summary style="cursor:pointer; font-size: 0.85rem; color: var(--c-fg-muted);">Raw API Response</summary>
+        <pre class="lovense-raw-pre" style="background: var(--c-bg); border: 1px solid var(--c-border); border-radius: var(--radius-md); padding: var(--sp-2); font-size: 0.75rem; line-height: 1.4; overflow-x: auto; max-height: 360px; overflow-y: auto; white-space: pre-wrap; word-break: break-word;"></pre>
+      </details>
     </section>
 
     <!-- Custom Instructions -->
@@ -6164,6 +6405,8 @@ function renderLovenseTab(
       const btn = document.getElementById('lovense-test-btn');
       const statusEl = document.getElementById('lovense-test-status');
       const toysEl = document.getElementById('lovense-toys-list');
+      const rawEl = document.getElementById('lovense-raw-response');
+      const rawPre = rawEl?.querySelector('.lovense-raw-pre');
 
       if (!btn || !statusEl || !toysEl) return;
       btn.disabled = true;
@@ -6172,6 +6415,7 @@ function renderLovenseTab(
       statusEl.className = 'llm-status info';
       statusEl.textContent = 'Connecting to Lovense Connect via server...';
       toysEl.style.display = 'none';
+      if (rawEl) rawEl.style.display = 'none';
 
       const domain = document.getElementById('lovense-domain')?.value?.trim() ?? '';
       const port = parseInt(document.getElementById('lovense-port')?.value ?? '20010') || 20010;
@@ -6194,13 +6438,22 @@ function renderLovenseTab(
       })
         .then(r => r.json())
         .then(data => {
+          const showRaw = (payload) => {
+            if (rawEl && rawPre && payload != null) {
+              rawPre.textContent = typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2);
+              rawEl.style.display = 'block';
+            }
+          };
           if (data.error) {
             statusEl.className = 'llm-status error';
             statusEl.textContent = data.error;
+            showRaw(data.raw);
             btn.disabled = false;
             btn.textContent = 'Test Connection';
             return;
           }
+
+          showRaw(data.raw);
 
           const toys = data.toys || [];
           const grid = toysEl.querySelector('.lovense-toys-grid');
@@ -7748,6 +8001,11 @@ export function renderVisionGalleryTab(data: {
         : img.filename;
       const promptAttr = img.prompt ? ` title="${escapeHtml(img.prompt)}"` : "";
       const escapedUrl = escapeHtml(img.url);
+      const thumbUrl = img.url.replace(
+        /^\/(generated-images|chat-attachments)\//,
+        "/$1/thumbs/",
+      ) + ".webp";
+      const escapedThumb = escapeHtml(thumbUrl);
       const escapedFilename = escapeHtml(img.filename);
       const categoryLabel = img.category === "generated"
         ? "generated"
@@ -7759,7 +8017,7 @@ export function renderVisionGalleryTab(data: {
         escapeHtml(img.category)
       }"${promptAttr}>
       <div class="gallery-thumb-wrap">
-        <img src="${escapedUrl}" class="gallery-thumb" loading="lazy" onclick="openLightbox('${escapedUrl}','${escapedFilename}')"/>
+        <img src="${escapedThumb}" class="gallery-thumb" loading="lazy" onclick="openLightbox('${escapedUrl}','${escapedFilename}')"/>
         <span class="gallery-badge ${categoryClass}">${categoryLabel}</span>
       </div>
       <div class="gallery-meta">
@@ -8120,8 +8378,6 @@ async function deleteImageGenSlot(id) {
 
 interface DiscordHubData {
   connected: boolean;
-  gatewayEnabled: boolean;
-  hasBotToken: boolean;
   botUsername: string | null;
   guildCount: number;
   guilds: Array<
@@ -8144,11 +8400,6 @@ export function renderDiscordHub(data: DiscordHubData): string {
     : "status-disconnected";
   const statusText = data.connected ? "Connected" : "Disconnected";
   const servers = data.gatewayConfig?.servers ?? [];
-  const disconnectedMessage = !data.gatewayEnabled
-    ? "Not connected. Enable Gateway in Settings to connect."
-    : !data.hasBotToken
-    ? "Gateway is enabled, but no bot token is saved."
-    : "Gateway is enabled, but Discord is not connected. Check the bot token, bot permissions, or restart the gateway.";
 
   // Split conversations: DMs (no sourceServerId) vs server channels
   const dmConversations = data.conversations.filter((c) => !c.sourceServerId);
@@ -8238,7 +8489,7 @@ export function renderDiscordHub(data: DiscordHubData): string {
     `
       : `
       <div class="discord-info-bar">
-        <span>${escapeHtml(disconnectedMessage)}</span>
+        <span>Not connected. Enable Gateway in Settings to connect.</span>
       </div>
       <div class="discord-actions">
         <button class="btn btn--secondary"
@@ -9408,34 +9659,16 @@ export function renderVoiceCallView(
     <div class="voice-transcript" id="voice-transcript" aria-live="polite"></div>
 
     <div class="voice-text-input-area" id="voice-text-input-area" style="display: none;">
-      <div class="voice-text-input-row">
-        <label class="voice-btn voice-text-attach-btn" aria-label="Attach image" title="Attach image">
-          <input
-            type="file"
-            id="voice-text-attach-input"
-            accept="image/*"
-            multiple
-            onchange="handleVoiceTextAttachment(this)"
-          />
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-            <circle cx="8.5" cy="8.5" r="1.5"/>
-            <polyline points="21 15 16 10 5 21"/>
-          </svg>
-        </label>
-        <textarea
-          class="voice-text-input"
-          id="voice-text-input"
-          placeholder="Type a message..."
-          rows="2"
-          enterkeyhint="enter"
-          onkeydown="handleVoiceTextInputKey(event)"
-        ></textarea>
-        <button class="voice-btn voice-text-send-btn" id="voice-text-send-btn" onclick="sendVoiceTextInput()" aria-label="Send" title="Send">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
-        </button>
-      </div>
-      <div id="voice-text-attachment-preview" class="voice-text-attachment-preview" style="display:none;"></div>
+      <textarea
+        class="voice-text-input"
+        id="voice-text-input"
+        placeholder="Type a message..."
+        rows="2"
+        onkeydown="handleVoiceTextInputKey(event)"
+      ></textarea>
+      <button class="voice-btn voice-text-send-btn" id="voice-text-send-btn" onclick="sendVoiceTextInput()" aria-label="Send" title="Send">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+      </button>
     </div>
 
     <div class="voice-controls">

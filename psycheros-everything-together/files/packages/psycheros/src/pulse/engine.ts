@@ -134,6 +134,14 @@ export interface PulseEngineConfig {
     | undefined;
   contextLength?: () => number | undefined;
   maxTokens?: () => number | undefined;
+  /**
+   * Getter for the active profile's inter-turn persistent reasoning
+   * setting. Mirrors contextLength/maxTokens — pulses run with the
+   * currently active profile, not the one that existed when the pulse
+   * was scheduled.
+   */
+  persistentReasoningInterTurns?: () => number | undefined;
+  pluginManager?: import("../plugins/mod.ts").PluginManager;
 }
 
 // =============================================================================
@@ -721,10 +729,15 @@ export class PulseEngine {
       imageGenSettings: this.config.imageGenSettings?.(),
       lovenseSettings: this.config.lovenseSettings?.(),
       buttplugSettings: this.config.buttplugSettings?.(),
+      bleSettings: this.config.bleSettings?.(),
       deviceStatusCache: this.config.deviceStatusCache?.(),
       screenPresence: this.config.screenPresence?.(),
       contextLength: this.config.contextLength?.(),
       maxTokens: this.config.maxTokens?.(),
+      persistentReasoningIntraTurn: this.getLlm().persistentReasoningIntraTurn,
+      persistentReasoningInterTurns: this.config
+        .persistentReasoningInterTurns?.(),
+      pluginManager: this.config.pluginManager,
     };
 
     const turn = new EntityTurn(
@@ -822,6 +835,7 @@ export class PulseEngine {
                   content: truncatedContent,
                   isError: result.isError,
                   affectedRegions: result.affectedRegions,
+                  metadata: result.metadata,
                 }, conversationId);
               } catch { /* no clients */ }
             }

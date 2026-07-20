@@ -11,16 +11,34 @@ export type PlatformType =
   | "gemini"
   | "sillytavern"
   | "kindroid"
-  | "letta";
+  | "letta"
+  | "loom-standard";
 
 /** An uploaded file in the convert queue */
 export interface UploadEntry {
   filename: string;
   platform: PlatformType;
+  /**
+   * Real source platform name (e.g., "ChatGPT", "Replika") for Loom Standard
+   * imports. "Loom Standard" is the transport format, not the platform — this
+   * field carries the actual origin so memory tags and titles reflect where
+   * conversations came from. Only set for loom-standard entries.
+   */
+  originPlatform?: string;
   size: number;
   uploadedAt: string;
   status: "queued" | "parsed" | "stored" | "error";
   error?: string;
+  /**
+   * SHA-256 of the uploaded file content. Used to distinguish a true reupload
+   * (same name, same bytes — replace the existing entry) from a different
+   * file that happens to share a name (e.g. two ChatGPT accounts both
+   * exporting `conversations.json` — disambiguate the stored filename
+   * instead of clobbering). Optional because older manifests predate the
+   * field; missing hash is treated as "unknown" and falls back to the
+   * filename-only behavior.
+   */
+  contentHash?: string;
 }
 
 /** A single message from an external platform, normalized for import */
@@ -64,6 +82,13 @@ export interface ImportedConversation {
   messages: ImportedMessage[];
   /** Source platform */
   platform: PlatformType;
+  /**
+   * Real source platform name for Loom Standard imports (e.g., "ChatGPT",
+   * "Replika"). When set, this value is used for the DB platform column,
+   * memory tags, and title prefixes instead of the internal platform type.
+   * Built-in parsers don't set this — only the Loom Standard parser does.
+   */
+  originPlatform?: string;
   /** System prompts / custom instructions extracted (not stored as messages) */
   systemPrompts: string[];
   /** Platform-specific metadata (character name, user name, etc.) */

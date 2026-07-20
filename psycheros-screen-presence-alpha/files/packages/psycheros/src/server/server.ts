@@ -39,7 +39,6 @@ import {
   loadProfileSettings,
   loadWebSearchSettings,
   type LovenseSettings,
-  normalizeDiscordGatewayConfig,
   profileToLLMSettings,
   saveBLESettings,
   saveButtplugSettings,
@@ -85,21 +84,22 @@ import { PulseEngine } from "../pulse/mod.ts";
 import { setPulseEngine } from "../tools/pulse-tools.ts";
 import { DeviceStatusCache } from "./device-cache.ts";
 import {
-  type AccumulatedMessage,
   ConversationMapper,
-  type DiscordAttachment,
   DiscordGatewayClient,
-  type DiscordMessage,
   MessageRouter,
   ResponseHandler,
 } from "../discord/mod.ts";
-import { fetchAndCaptionUrlDual } from "../tools/describe-image.ts";
 import { join } from "@std/path";
 import { MAX_REQUEST_BODY_SIZE, MAX_UPLOAD_BODY_SIZE } from "../constants.ts";
 import {
+  createPluginManager,
+  PluginInstaller,
+  type PluginManager,
+} from "../plugins/mod.ts";
+import type { PluginStatus } from "../../../plugin-api/src/mod.ts";
+import {
   callTTS,
   handleBatchDeleteConversations,
-  handleBrowserExtensionMemoryContext,
   handleButtplugStatus,
   handleChat,
   handleChatFragment,
@@ -333,6 +333,17 @@ import {
   handleAdminLogsFragment,
 } from "./admin-routes.ts";
 import { setServerStartTime } from "./diagnostics.ts";
+import {
+  handleInspectPluginGit,
+  handleInspectPluginZip,
+  handleInstallPluginDraft,
+  handlePluginApplyUpdate,
+  handlePluginCheckUpdate,
+  handlePluginEvents,
+  handlePluginLogDownload,
+  handlePluginManagerHealth,
+  handleRemoveInstalledPlugin,
+} from "./plugin-manager-routes.ts";
 import { ScreenPresenceService } from "./screen-presence.ts";
 
 /**
@@ -412,6 +423,8 @@ export class Server {
   private toolSettings: ToolsSettings;
   private entityCoreLLMSettings: EntityCoreLLMSettings;
   private customTools: Record<string, import("../tools/types.ts").Tool>;
+  private pluginManager: PluginManager;
+  private pluginInstaller: PluginInstaller;
   private pulseEngine: PulseEngine | null = null;
   private scheduler: Scheduler | null = null;
   private eventRulesEngine: EventRulesEngine | null = null;
@@ -482,6 +495,11 @@ export class Server {
 
     // Initialize custom tools (will be loaded in init())
     this.customTools = {};
+    this.pluginManager = createPluginManager(
+      join(config.dataRoot, ".psycheros", "plugins"),
+      () => this.llm,
+    );
+    this.pluginInstaller = new PluginInstaller(config.dataRoot);
 
     // Initialize voice settings (will be reloaded from settings in init())
     this.voiceSettings = getDefaultVoiceSettings();
@@ -557,6 +575,7 @@ export class Server {
     this.toolSettings = await loadToolsSettings(this.config.dataRoot);
     this.customTools = await loadCustomTools(this.config.dataRoot);
     this.voiceSettings = await loadVoiceSettings(this.config.dataRoot);
+    await this.pluginManager.load();
     this.reloadLLMClient();
     this.reloadToolRegistry();
 
@@ -734,16 +753,16 @@ export class Server {
   async updateDiscordGatewayConfig(
     config: DiscordGatewayConfig,
   ): Promise<void> {
-    const merged = normalizeDiscordGatewayConfig(config);
+    const merged = { ...getDefaultDiscordGatewayConfig(), ...config };
     this.discordGatewayConfig = merged;
     await saveDiscordGatewayConfig(this.config.dataRoot, merged);
 
     // Hot-reload the router config if gateway is running
     if (this.discordRouter) {
-      this.discordRouter.updateConfig(merged);
+      this.discordRouter.updateConfig(config);
     }
     if (this.discordGatewayClient) {
-      this.discordGatewayClient.updateConfig(merged);
+      this.discordGatewayClient.updateConfig(config);
     }
   }
 
@@ -774,10 +793,6 @@ export class Server {
           this.handleDiscordTurn(conversationId, userMessage, context),
         onMessage: (channelId, message) =>
           this.handleDiscordMessage(channelId, message),
-        fetchRecentMessages: (channelId, beforeMessageId, limit) =>
-          this.fetchDiscordRecentMessages(channelId, beforeMessageId, limit),
-        describeAttachment: (attachment, message, imageNumber) =>
-          this.describeDiscordAttachment(attachment, message, imageNumber),
       });
 
       this.discordRouter.start();
@@ -886,108 +901,6 @@ export class Server {
   }
 
   /**
-   * Fetch recent Discord channel messages so explicit @mentions can include
-   * nearby visible channel context even in strict mode.
-   */
-  private async fetchDiscordRecentMessages(
-    channelId: string,
-    beforeMessageId: string,
-    limit: number,
-  ): Promise<DiscordMessage[]> {
-    const token = this.discordSettings.botToken;
-    if (!token) return [];
-
-    const cappedLimit = Math.max(1, Math.min(limit, 50));
-    const params = new URLSearchParams({
-      limit: String(cappedLimit),
-      before: beforeMessageId,
-    });
-    const resp = await fetch(
-      `https://discord.com/api/v10/channels/${channelId}/messages?${params}`,
-      {
-        headers: { Authorization: `Bot ${token}` },
-      },
-    );
-    if (!resp.ok) {
-      const errorText = await resp.text();
-      console.warn(
-        `[Discord] Recent message fetch failed for ${channelId}: ${resp.status} ${errorText}`,
-      );
-      return [];
-    }
-
-    const messages = await resp.json() as DiscordMessage[];
-    return messages;
-  }
-
-  private sanitizeDiscordAttachmentValue(value: string): string {
-    return value.replace(/[\r\n]+/g, " ").replace(/\]/g, ")").trim();
-  }
-
-  private formatDiscordImageAttachment(
-    attachment: DiscordAttachment,
-    imageNumber: number,
-    caption?: { long: string; short: string },
-  ): string {
-    const parts = [
-      `Image ${imageNumber}`,
-      `Filename: ${this.sanitizeDiscordAttachmentValue(attachment.filename)}`,
-      `URL: ${this.sanitizeDiscordAttachmentValue(attachment.url)}`,
-    ];
-    if (attachment.content_type) {
-      parts.push(
-        `Type: ${this.sanitizeDiscordAttachmentValue(attachment.content_type)}`,
-      );
-    }
-    if (attachment.width && attachment.height) {
-      parts.push(`Size: ${attachment.width}x${attachment.height}`);
-    }
-    if (attachment.description) {
-      parts.push(
-        `Description: ${
-          this.sanitizeDiscordAttachmentValue(attachment.description)
-        }`,
-      );
-    }
-    if (caption) {
-      parts.push(
-        `Caption: ${this.sanitizeDiscordAttachmentValue(caption.long)}`,
-      );
-      parts.push(
-        `Short: ${this.sanitizeDiscordAttachmentValue(caption.short)}`,
-      );
-    }
-    return `[DISCORD_IMAGE: ${parts.join(" | ")}]`;
-  }
-
-  private async describeDiscordAttachment(
-    attachment: DiscordAttachment,
-    _message: AccumulatedMessage,
-    imageNumber: number,
-  ): Promise<string | null> {
-    const captioningSettings = this.imageGenSettings.captioning;
-    if (!captioningSettings?.enabled) return null;
-
-    try {
-      const caption = await fetchAndCaptionUrlDual(
-        attachment.url,
-        captioningSettings,
-      );
-      return this.formatDiscordImageAttachment(
-        attachment,
-        imageNumber,
-        caption,
-      );
-    } catch (error) {
-      console.warn(
-        `[Discord] Auto-captioning attachment ${attachment.id} failed:`,
-        error instanceof Error ? error.message : String(error),
-      );
-      return null;
-    }
-  }
-
-  /**
    * Handle a Discord turn — process accumulated messages through the entity loop.
    */
   private async handleDiscordTurn(
@@ -1038,6 +951,7 @@ export class Server {
         screenPresence: this.screenPresence,
         contextLength: activeProfile?.contextLength,
         maxTokens: activeProfile?.maxTokens,
+        pluginManager: this.pluginManager,
       },
     );
 
@@ -1285,6 +1199,7 @@ export class Server {
     const allTools: Record<string, import("../tools/types.ts").Tool> = {
       ...AVAILABLE_TOOLS,
       ...this.customTools,
+      ...this.pluginManager.getTools(),
     };
     const allNames = Object.keys(allTools);
 
@@ -1702,7 +1617,10 @@ export class Server {
         imageGenSettings: () => this.imageGenSettings,
         contextLength: () => this.getActiveLLMProfile()?.contextLength,
         maxTokens: () => this.getActiveLLMProfile()?.maxTokens,
+        persistentReasoningInterTurns: () =>
+          this.getActiveLLMProfile()?.persistentReasoningInterTurns,
         deviceStatusCache: () => this.deviceCache,
+        pluginManager: this.pluginManager,
         screenPresence: () => this.screenPresence,
       },
     );
@@ -1766,11 +1684,51 @@ export class Server {
   }
 
   /**
+   * Merge activation state from my embodiment and my canonical core.
+   */
+  private async getPluginStatuses(): Promise<PluginStatus[]> {
+    const statuses = new Map(
+      this.pluginManager.getStatuses().map((status) => [status.id, status]),
+    );
+    const coreStatuses = await this.mcpClient?.getPluginStatuses() ?? [];
+
+    for (const coreStatus of coreStatuses) {
+      const localStatus = statuses.get(coreStatus.id);
+      if (!localStatus) {
+        statuses.set(coreStatus.id, coreStatus);
+        continue;
+      }
+      statuses.set(coreStatus.id, {
+        ...localStatus,
+        active: localStatus.active || coreStatus.active,
+        degraded: localStatus.degraded || coreStatus.degraded,
+        lastError: localStatus.lastError ?? coreStatus.lastError,
+        capabilities: {
+          tools: localStatus.capabilities.tools +
+            coreStatus.capabilities.tools,
+          promptHooks: localStatus.capabilities.promptHooks +
+            coreStatus.capabilities.promptHooks,
+          routes: localStatus.capabilities.routes +
+            coreStatus.capabilities.routes,
+          resultDecorators: localStatus.capabilities.resultDecorators +
+            coreStatus.capabilities.resultDecorators,
+          browserScripts: localStatus.capabilities.browserScripts +
+            coreStatus.capabilities.browserScripts,
+          browserStyles: localStatus.capabilities.browserStyles +
+            coreStatus.capabilities.browserStyles,
+        },
+      });
+    }
+
+    return await this.pluginInstaller.enrichStatuses([...statuses.values()]);
+  }
+
+  /**
    * Stop the server gracefully.
    *
    * Aborts the server, clears the keepalive timer, and closes the database connection.
    */
-  stop(): void {
+  async stop(): Promise<void> {
     console.log("Stopping Psycheros server...");
 
     // Stop Discord Gateway
@@ -1788,6 +1746,7 @@ export class Server {
 
     // Stop device status cache refresh
     this.deviceCache.stop();
+    await this.pluginManager.stop();
 
     // Close device bridge WebSocket connections
     getDeviceBridge().closeAll();
@@ -1872,6 +1831,7 @@ export class Server {
       },
       getVoiceSettings: () => this.voiceSettings,
       updateVoiceSettings: (settings) => this.updateVoiceSettings(settings),
+      pluginManager: this.pluginManager,
     };
   }
 
@@ -1904,6 +1864,7 @@ export class Server {
         const size = parseInt(contentLength);
         const isUpload = path === "/api/backgrounds" ||
           path === "/api/chat-attachments" || path === "/api/anchor-images" ||
+          path === "/api/plugin-manager/inspect-zip" ||
           path === "/api/screen-presence/frame" ||
           path === "/api/admin/data-migration/memories" ||
           path === "/api/admin/data-migration/chats" ||
@@ -1933,7 +1894,7 @@ export class Server {
     try {
       // API Routes
       if (path.startsWith("/api/")) {
-        return await this.handleAPIRoute(ctx, request, method, path, url);
+        return await this.handleAPIRoute(ctx, request, method, path);
       }
 
       // Static file and UI routes
@@ -1961,7 +1922,6 @@ export class Server {
     request: Request,
     method: string,
     path: string,
-    url: URL,
   ): Promise<Response> {
     // POST /api/chat/retry - Retry a failed turn without re-persisting user message
     if (method === "POST" && path === "/api/chat/retry") {
@@ -2089,6 +2049,91 @@ export class Server {
         return await handleUpdateEventRule(ctx, request, ruleId);
       }
       if (method === "DELETE") return await handleDeleteEventRule(ctx, ruleId);
+    }
+
+    if (method === "GET" && path === "/api/plugins") {
+      return Response.json(await this.getPluginStatuses());
+    }
+
+    if (method === "POST" && path === "/api/plugin-manager/inspect-zip") {
+      return await handleInspectPluginZip(this.pluginInstaller, request);
+    }
+
+    if (method === "POST" && path === "/api/plugin-manager/inspect-git") {
+      return await handleInspectPluginGit(this.pluginInstaller, request);
+    }
+
+    if (method === "POST" && path === "/api/plugin-manager/install-draft") {
+      return await handleInstallPluginDraft(this.pluginInstaller, request);
+    }
+
+    const pluginManagerRemoveMatch = path.match(
+      /^\/api\/plugin-manager\/plugins\/([^/]+)$/,
+    );
+    if (method === "DELETE" && pluginManagerRemoveMatch) {
+      return await handleRemoveInstalledPlugin(
+        this.pluginInstaller,
+        pluginManagerRemoveMatch[1],
+      );
+    }
+
+    // Per-plugin event log + plain-text log download. Must be matched
+    // before the catch-all plugin-route regex below, which would otherwise
+    // swallow /api/plugin-manager/plugins/<id>/... paths into the plugin
+    // route handler and return 404.
+    const pluginManagerEventsMatch = path.match(
+      /^\/api\/plugin-manager\/plugins\/([^/]+)\/events$/,
+    );
+    if (method === "GET" && pluginManagerEventsMatch) {
+      return handlePluginEvents(
+        this.pluginManager,
+        pluginManagerEventsMatch[1],
+        new URL(request.url),
+      );
+    }
+
+    const pluginManagerLogMatch = path.match(
+      /^\/api\/plugin-manager\/plugins\/([^/]+)\/log$/,
+    );
+    if (method === "GET" && pluginManagerLogMatch) {
+      return await handlePluginLogDownload(
+        this.pluginManager,
+        pluginManagerLogMatch[1],
+      );
+    }
+
+    if (method === "GET" && path === "/api/plugin-manager/health") {
+      return handlePluginManagerHealth(this.pluginManager);
+    }
+
+    const pluginManagerCheckUpdateMatch = path.match(
+      /^\/api\/plugin-manager\/plugins\/([^/]+)\/check-update$/,
+    );
+    if (method === "POST" && pluginManagerCheckUpdateMatch) {
+      return await handlePluginCheckUpdate(
+        join(this.config.dataRoot, ".psycheros", "plugins"),
+        pluginManagerCheckUpdateMatch[1],
+      );
+    }
+
+    const pluginManagerApplyUpdateMatch = path.match(
+      /^\/api\/plugin-manager\/plugins\/([^/]+)\/update$/,
+    );
+    if (method === "POST" && pluginManagerApplyUpdateMatch) {
+      return await handlePluginApplyUpdate(
+        this.pluginInstaller,
+        pluginManagerApplyUpdateMatch[1],
+        request,
+      );
+    }
+
+    const pluginApiMatch = path.match(/^\/api\/plugins\/([^/]+)(\/.*)?$/);
+    if (pluginApiMatch) {
+      return await this.pluginManager.handleApiRoute(
+        pluginApiMatch[1],
+        pluginApiMatch[2] ?? "/",
+        request,
+      );
     }
 
     // GET /api/conversations - List conversations (JSON)
@@ -2237,16 +2282,6 @@ export class Server {
     // POST /api/memories/instructions - Save custom daily memory instructions
     if (method === "POST" && path === "/api/memories/instructions") {
       return await handleSaveMemoryInstructions(ctx, request);
-    }
-
-    // GET /api/browser-extension/memories/context - Read-only memory context
-    if (
-      method === "GET" && path === "/api/browser-extension/memories/context"
-    ) {
-      return await handleBrowserExtensionMemoryContext(
-        ctx,
-        url ?? new URL("http://localhost"),
-      );
     }
 
     // POST /api/entity-core/consolidation/run - removed: consolidation runs automatically on startup
@@ -3282,7 +3317,6 @@ export class Server {
         ctx,
         memoriesEditorMatch[1],
         memoriesEditorMatch[2],
-        url ?? new URL("http://localhost"),
       );
     }
 
@@ -3373,8 +3407,6 @@ export class Server {
 
       const html = renderDiscordHub({
         connected: gateway?.isConnected() ?? false,
-        gatewayEnabled: ctx.getDiscordSettings().gatewayEnabled,
-        hasBotToken: !!ctx.getDiscordSettings().botToken,
         botUsername: gateway?.getBotUsername() ?? null,
         guildCount: gateway?.getGuilds().size ?? 0,
         guilds: [...(gateway?.getGuilds().entries() ?? [])].map(([id, g]) => ({
@@ -3510,6 +3542,17 @@ export class Server {
       return handleToolsSettingsFragment(ctx);
     }
 
+    if (path === "/fragments/settings/plugins") {
+      const { renderPluginsSettings } = await import("./templates.ts");
+      return new Response(
+        renderPluginsSettings(
+          await this.getPluginStatuses(),
+          await this.pluginInstaller.listUnmanagedCustomTools(),
+        ),
+        { headers: { "Content-Type": "text/html; charset=utf-8" } },
+      );
+    }
+
     // ========================================
     // Pulse Fragment Routes
     // ========================================
@@ -3526,7 +3569,10 @@ export class Server {
 
     // GET /fragments/settings/pulse/log - Execution log
     if (path === "/fragments/settings/pulse/log") {
-      return handlePulseLogFragment(ctx, new URL(`http://localhost${path}`));
+      return handlePulseLogFragment(
+        ctx,
+        url ?? new URL(`http://localhost${path}`),
+      );
     }
 
     // GET /fragments/settings/pulse/list - Prompt list partial
@@ -3604,6 +3650,14 @@ export class Server {
     if (path.startsWith("/backgrounds/")) {
       const filename = path.replace("/backgrounds/", "");
       return await handleServeBackground(ctx, filename);
+    }
+
+    const pluginAssetMatch = path.match(/^\/plugins\/([^/]+)\/(.+)$/);
+    if (pluginAssetMatch) {
+      return await this.pluginManager.serveAsset(
+        pluginAssetMatch[1],
+        pluginAssetMatch[2],
+      );
     }
 
     // Serve static files from web/ directory

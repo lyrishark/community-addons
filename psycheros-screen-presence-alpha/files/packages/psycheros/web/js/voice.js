@@ -50,7 +50,6 @@ let wakeLock = null;
 // Uses a short base64-encoded silent WAV (about 0.01s of silence, ~80
 // bytes) looped at low-but-nonzero volume.
 let silentAudioEl = null;
-let voiceTextAttachments = [];
 
 // Walkie-talkie state
 let sttProvider = "browser";
@@ -330,7 +329,7 @@ async function openVoiceChat(conversationId) {
 
   // Mount the overlay fragment we already loaded. Append ALL children,
   // not just the first — the fragment includes <script> config tags
-  // (#voice-status-cfg with sttProvider, keys, timing, etc.) as siblings
+  // (#voice-status-cfg with sttProvider, pttEnabled, etc.) as siblings
   // after the overlay <div>. firstElementChild only grabs the <div>,
   // leaving the config tags orphaned and sttProvider stuck at "browser".
   const chatEl = document.getElementById('chat');
@@ -388,12 +387,6 @@ async function openVoiceChat(conversationId) {
   // Mouse button PTT (for bindings like Mouse3/Mouse4)
   document.addEventListener('mousedown', voiceMouseHandler);
   document.addEventListener('mouseup', voiceMouseHandler);
-  document.addEventListener('dragenter', handleVoiceTextDragEnter);
-  document.addEventListener('dragover', handleVoiceTextDragOver);
-  document.addEventListener('dragleave', handleVoiceTextDragLeave);
-  document.addEventListener('dragend', clearVoiceTextDragActive);
-  document.addEventListener('drop', handleVoiceTextDrop);
-  document.addEventListener('paste', handleVoiceTextPaste);
 
   // Show hold circle + active toggle if PTT is enabled from settings
   if (pttEnabled) {
@@ -587,6 +580,8 @@ function cleanup() {
   pendingBytes = null;
   sawFirstTtsFrame = false;
   ttsFrameCount = 0;
+  nextStartTime = 0;
+  activeSourceCount = 0;
 
   const transcriptEl = document.getElementById('voice-transcript');
   if (transcriptEl) transcriptEl.innerHTML = '';
@@ -617,24 +612,12 @@ function cleanup() {
   document.removeEventListener('keyup', voiceKeyHandler);
   document.removeEventListener('mousedown', voiceMouseHandler);
   document.removeEventListener('mouseup', voiceMouseHandler);
-  document.removeEventListener('dragenter', handleVoiceTextDragEnter);
-  document.removeEventListener('dragover', handleVoiceTextDragOver);
-  document.removeEventListener('dragleave', handleVoiceTextDragLeave);
-  document.removeEventListener('dragend', clearVoiceTextDragActive);
-  document.removeEventListener('drop', handleVoiceTextDrop);
-  document.removeEventListener('paste', handleVoiceTextPaste);
-  voiceTextAttachments = [];
-  renderVoiceTextAttachmentPreview();
 
   // Refresh the conversation so the voice transcript messages (persisted
   // during the call as [Voice Chat] entries) show up in the chat UI.
   // Otherwise the user has to manually reload to see what was said.
   // Captured before clearing activeConversationId below.
   const conversationToRefresh = activeConversationId;
-  const convList = document.getElementById('conv-list');
-  if (convList && globalThis.htmx?.trigger) {
-    globalThis.htmx.trigger(convList, 'load');
-  }
   if (conversationToRefresh && globalThis.Psycheros?.selectConversation) {
     try {
       globalThis.Psycheros.selectConversation(conversationToRefresh);
@@ -1279,9 +1262,9 @@ function togglePTTMode() {
   const holdCircle = document.getElementById('voice-hold-circle');
   if (toggleBtn) toggleBtn.classList.toggle('voice-btn--active', pttEnabled);
   if (holdCircle) holdCircle.style.display = pttEnabled ? 'flex' : 'none';
-  // Notify server of this call's PTT mode change.
+  // Notify server of PTT mode change
   if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ type: 'ptt_mode_changed', pttEnabled: pttEnabled }));
+    ws.send(JSON.stringify({ event: 'ptt_mode_changed', pttMode: pttEnabled }));
   }
   // Blur the button so subsequent key presses (especially the configured
   // PTT keybind like Space) don't fall through to "activate focused
@@ -1313,7 +1296,7 @@ function togglePTTMode() {
       startSilenceDetector();
     }
   }
-  // Keep configured key bindings synced. PTT mode itself is per-call.
+  // Persist to server so it survives across calls
   savePTTSetting();
   refreshDisplayState();
 }
@@ -1322,6 +1305,7 @@ async function savePTTSetting() {
   try {
     const resp = await fetch('/api/voice/settings');
     const settings = await resp.json();
+    settings.pttEnabled = pttEnabled;
     settings.pttKeys = pttKeys;
     await fetch('/api/voice/settings', {
       method: 'POST',
@@ -1392,6 +1376,16 @@ function endPTT() {
 
 let playbackBuffer = [];
 let playbackPlaying = false;
+// Gapless-playback scheduling state. nextStartTime is the AudioContext
+// time at which the next chunk should begin, tracked across drain calls.
+// activeSourceCount is the number of scheduled-but-not-yet-ended buffer
+// sources. Together they move chunk-boundary timing off the JS event
+// loop: source.start(nextStartTime) lets the audio thread schedule
+// precisely even when onended fires 1–5ms late (which otherwise produces
+// a click at every chunk boundary — audible as "crackling fire" on
+// Bluetooth headsets and small-chunk providers like ElevenLabs).
+let nextStartTime = 0;
+let activeSourceCount = 0;
 // Set when the daemon signals speaking → idle. The your-turn cue waits
 // here until the playback queue actually drains — otherwise it fires
 // underneath the tail of the entity's TTS audio and gets masked.
@@ -1449,50 +1443,88 @@ function queueAudioFrame(frame) {
   }
   pendingBytes = evenLength < merged.byteLength ? merged.slice(evenLength) : null;
   playbackBuffer.push(merged.slice(0, evenLength).buffer);
-  if (!playbackPlaying) {
-    drainPlaybackBuffer();
-  }
+  // Always pump. drain schedules up to a lookahead cap, so calling it on
+  // every frame keeps the audio thread fed ahead of the JS event loop
+  // instead of waiting for the previous source's onended (which fires
+  // 1–5ms late and leaks a click at every chunk boundary).
+  drainPlaybackBuffer();
 }
 
 function drainPlaybackBuffer() {
-  if (playbackBuffer.length === 0) {
-    playbackPlaying = false;
-    // Playback just finished. If the entity is done speaking (state idle)
-    // and we have a pending cue, fire it now — the user will hear it clearly
-    // because nothing else is playing.
-    if (pendingYourTurnCue) {
-      pendingYourTurnCue = false;
-      playYourTurnCue();
-    }
-    // Also refresh the display — if pipeline state was idle but we were
-    // holding the UI in "Speaking..." because audio was still playing,
-    // now we can finally show "Listening".
-    refreshDisplayState();
-    return;
-  }
-  playbackPlaying = true;
-
   const ctx = audioContext;
-  if (!ctx) return;
+  if (!ctx || !playbackGain) return;
 
-  try {
+  // Lookahead cap: never schedule more than this far ahead of currentTime.
+  // 150ms is enough slack to absorb JS event loop jitter (each frame's
+  // onended, GC pauses, htmx swaps) without buffer underruns, while
+  // keeping end-to-end TTS latency bounded.
+  const LOOKAHEAD_SEC = 0.15;
+  const now = ctx.currentTime;
+
+  // If the chain lapped real time (fresh start, underrun, or post-utterance
+  // reset), snap to now. Otherwise nextStartTime is already exactly where
+  // the next chunk should pick up gaplessly after the prior one.
+  if (nextStartTime < now) {
+    nextStartTime = now;
+  }
+
+  // Schedule every available chunk up to the lookahead cap. Each chunk's
+  // start time is the tracked nextStartTime, not currentTime — that's the
+  // whole fix. The audio thread fires sample-accurate; onended firing late
+  // no longer creates a gap because the next source is already scheduled.
+  while (
+    playbackBuffer.length > 0 &&
+    (nextStartTime - now) <= LOOKAHEAD_SEC
+  ) {
     const chunk = playbackBuffer.shift();
-    if (chunk.byteLength < 2) return drainPlaybackBuffer();
-    const float32 = int16ToFloat32(new Int16Array(chunk));
-    if (float32.length === 0) return drainPlaybackBuffer();
-    const buffer = ctx.createBuffer(1, float32.length, SAMPLE_RATE);
-    buffer.getChannelData(0).set(float32);
+    if (!chunk || chunk.byteLength < 2) continue;
+
+    let buffer;
+    try {
+      const float32 = int16ToFloat32(new Int16Array(chunk));
+      if (float32.length === 0) continue;
+      buffer = ctx.createBuffer(1, float32.length, SAMPLE_RATE);
+      buffer.getChannelData(0).set(float32);
+    } catch (e) {
+      console.error('[Voice] Playback decode error:', e);
+      continue;
+    }
 
     const source = ctx.createBufferSource();
     source.buffer = buffer;
-    // playbackGain is created upfront in setupAudioCapture, connected
-    // through the voice effect chain if configured.
     source.connect(playbackGain);
-    source.onended = () => drainPlaybackBuffer();
-    source.start();
-  } catch (e) {
-    console.error('[Voice] Playback error:', e);
-    drainPlaybackBuffer();
+
+    try {
+      source.start(nextStartTime);
+    } catch (e) {
+      console.error('[Voice] Playback start error:', e);
+      continue;
+    }
+
+    nextStartTime += buffer.duration;
+    activeSourceCount++;
+    playbackPlaying = true;
+
+    source.onended = () => {
+      activeSourceCount--;
+      if (activeSourceCount === 0 && playbackBuffer.length === 0) {
+        // Utterance finished: nothing scheduled, nothing queued. This is
+        // the only path that fires the your-turn cue + display refresh —
+        // doing it on every buffer-empty would race with mid-utterance
+        // underruns.
+        playbackPlaying = false;
+        nextStartTime = 0;
+        if (pendingYourTurnCue) {
+          pendingYourTurnCue = false;
+          playYourTurnCue();
+        }
+        refreshDisplayState();
+      } else {
+        // Lookahead cap may have left chunks unscheduled; try again now
+        // that a slot opened up. No-op if buffer's empty.
+        drainPlaybackBuffer();
+      }
+    };
   }
 }
 
@@ -2086,209 +2118,25 @@ function toggleYinYangMode() {
   }
 }
 
-// Desktop keeps Enter-to-send. On mobile, the keyboard return key should
-// compose a newline; the visible arrow button is the send action.
+// Enter key sends (Shift+Enter for newline)
 function handleVoiceTextInputKey(e) {
-  if (e.key === 'Enter' && !e.shiftKey && !isMobileBrowser()) {
+  if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
     sendVoiceTextInput();
   }
-}
-
-async function handleVoiceTextAttachment(input) {
-  try {
-    await uploadVoiceTextAttachments(input?.files || []);
-  } finally {
-    if (input) input.value = '';
-  }
-}
-
-function isImageFile(file) {
-  if (!file) return false;
-  if ((file.type || '').startsWith('image/')) return true;
-  return /\.(avif|bmp|gif|jpe?g|png|svg|webp)$/i.test(file.name || '');
-}
-
-function imageFilesFromList(files) {
-  return Array.from(files || []).filter(isImageFile);
-}
-
-function extractImageFilesFromDataTransfer(dataTransfer) {
-  if (!dataTransfer) return [];
-
-  const files = [];
-  const items = Array.from(dataTransfer.items || []);
-  if (items.length > 0) {
-    for (const item of items) {
-      if (item.kind !== 'file') continue;
-      if (item.type && !item.type.startsWith('image/')) continue;
-      const file = item.getAsFile();
-      if (file && isImageFile(file)) files.push(file);
-    }
-  }
-
-  return files.length > 0 ? files : imageFilesFromList(dataTransfer.files || []);
-}
-
-function dataTransferHasFiles(dataTransfer) {
-  if (!dataTransfer) return false;
-  if (Array.from(dataTransfer.types || []).includes('Files')) return true;
-  return Array.from(dataTransfer.items || []).some((item) => item.kind === 'file');
-}
-
-async function uploadVoiceTextAttachments(files, options = {}) {
-  const imageFiles = imageFilesFromList(files);
-  if (imageFiles.length === 0) {
-    if (options.notifyIfEmpty) showVoiceToast('Only image files can be attached');
-    return;
-  }
-
-  try {
-    const results = await Promise.allSettled(imageFiles.map(uploadVoiceTextAttachment));
-    const uploaded = [];
-    let failed = 0;
-
-    for (const result of results) {
-      if (result.status === 'fulfilled') {
-        uploaded.push(result.value);
-      } else {
-        failed += 1;
-        console.error('[Voice] Attachment upload failed:', result.reason);
-      }
-    }
-
-    if (uploaded.length > 0) {
-      voiceTextAttachments = voiceTextAttachments.concat(uploaded);
-      renderVoiceTextAttachmentPreview();
-    }
-    if (failed > 0) {
-      showVoiceToast(`Failed to upload ${failed} attachment${failed === 1 ? '' : 's'}`);
-    }
-  } catch (error) {
-    console.error('[Voice] Attachment upload failed:', error);
-    showVoiceToast('Failed to upload attachment');
-  }
-}
-
-async function uploadVoiceTextAttachment(file) {
-  const formData = new FormData();
-  formData.append('file', file);
-  const resp = await fetch('/api/chat-attachments', { method: 'POST', body: formData });
-  if (!resp.ok) {
-    const err = await resp.json().catch(() => ({}));
-    throw new Error(err.error || 'Failed to upload attachment');
-  }
-  const data = await resp.json();
-  return {
-    id: data.id,
-    url: data.url,
-    filename: data.filename || file.name,
-  };
-}
-
-function renderVoiceTextAttachmentPreview() {
-  const preview = document.getElementById('voice-text-attachment-preview');
-  if (!preview) return;
-
-  if (voiceTextAttachments.length === 0) {
-    preview.style.display = 'none';
-    preview.innerHTML = '';
-    return;
-  }
-
-  preview.style.display = 'flex';
-  preview.innerHTML = voiceTextAttachments.map((attachment, idx) => `
-    <div class="attachment-preview-item">
-      <img src="${escapeHtmlAttr(attachment.url)}" class="attachment-thumb" alt="Attachment ${idx + 1}"/>
-      <button class="attachment-remove" onclick="removeVoiceTextAttachment(${idx})" aria-label="Remove attachment ${idx + 1}">&times;</button>
-    </div>
-  `).join('');
-}
-
-function removeVoiceTextAttachment(index) {
-  if (typeof index === 'number') {
-    voiceTextAttachments.splice(index, 1);
-  } else {
-    voiceTextAttachments = [];
-  }
-  renderVoiceTextAttachmentPreview();
-}
-
-function voiceTextDropZoneFromTarget(target) {
-  if (!yinYangMode) return null;
-  return target instanceof Element ? target.closest('#voice-text-input-area') : null;
-}
-
-function setVoiceTextDragActive(zone, active) {
-  if (zone) zone.classList.toggle('is-attachment-dragover', active);
-}
-
-function clearVoiceTextDragActive() {
-  document.querySelectorAll('#voice-text-input-area.is-attachment-dragover').forEach((zone) => {
-    zone.classList.remove('is-attachment-dragover');
-  });
-}
-
-function handleVoiceTextDragEnter(event) {
-  const zone = voiceTextDropZoneFromTarget(event.target);
-  if (!zone || !dataTransferHasFiles(event.dataTransfer)) return;
-  event.preventDefault();
-  setVoiceTextDragActive(zone, true);
-}
-
-function handleVoiceTextDragOver(event) {
-  const zone = voiceTextDropZoneFromTarget(event.target);
-  if (!zone || !dataTransferHasFiles(event.dataTransfer)) return;
-  event.preventDefault();
-  if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
-  setVoiceTextDragActive(zone, true);
-}
-
-function handleVoiceTextDragLeave(event) {
-  const zone = voiceTextDropZoneFromTarget(event.target);
-  if (!zone) return;
-  if (event.relatedTarget instanceof Node && zone.contains(event.relatedTarget)) return;
-  setVoiceTextDragActive(zone, false);
-}
-
-function handleVoiceTextDrop(event) {
-  const zone = voiceTextDropZoneFromTarget(event.target);
-  if (!zone || !dataTransferHasFiles(event.dataTransfer)) return;
-  event.preventDefault();
-  clearVoiceTextDragActive();
-  void uploadVoiceTextAttachments(extractImageFilesFromDataTransfer(event.dataTransfer), { notifyIfEmpty: true });
-}
-
-function handleVoiceTextPaste(event) {
-  if (!yinYangMode) return;
-  const target = event.target instanceof Element ? event.target : document.activeElement;
-  if (!(target instanceof Element) || !target.closest('#voice-text-input-area')) return;
-
-  const files = extractImageFilesFromDataTransfer(event.clipboardData);
-  if (files.length === 0) return;
-  event.preventDefault();
-  void uploadVoiceTextAttachments(files);
 }
 
 async function sendVoiceTextInput() {
   const input = document.getElementById('voice-text-input');
   if (!input) return;
   const text = input.value.trim();
-  if (!text && voiceTextAttachments.length === 0) return;
+  if (!text) return;
   if (!voiceWs || voiceWs.readyState !== WebSocket.OPEN) return;
-  const attachments = voiceTextAttachments.slice();
-  const attachmentIds = attachments.map((attachment) => attachment.id);
-  const outboundText = text || (attachmentIds.length > 1 ? '(images attached)' : '(image attached)');
-  voiceTextAttachments = [];
-  renderVoiceTextAttachmentPreview();
   input.value = '';
+  // Disable the send button immediately with inline styles for guaranteed
+  // visual feedback regardless of CSS specificity battles with .voice-btn.
   setSendButtonDisabled(true);
-  await sendVoiceTranscript({
-    type: 'transcript',
-    text: outboundText,
-    source: 'typed',
-    attachmentIds,
-  });
+  await sendVoiceTranscript({ type: 'transcript', text });
 }
 
 function setSendButtonDisabled(disabled) {
@@ -2320,31 +2168,10 @@ function updateConnectionStatus(state, text) {
 
 // Latest-exchange blurb under the status row. Overwrites on each new
 // transcript — the full history lives in chat after the call ends.
-function summarizeVoiceTranscriptText(role, text) {
-  if (role !== 'user') return text;
-
-  let remaining = String(text || '');
-  let imageCount = 0;
-  const markerPattern = /^\[USER_IMAGE:[^\]]+\]\s*/;
-  while (markerPattern.test(remaining)) {
-    imageCount += 1;
-    remaining = remaining.replace(markerPattern, '');
-  }
-  if (imageCount === 0) return text;
-
-  const label = `${imageCount} image${imageCount === 1 ? '' : 's'} attached`;
-  const cleanText = remaining.trim();
-  if (!cleanText || cleanText === '(image attached)' || cleanText === '(images attached)') {
-    return label;
-  }
-  return `${label} - ${cleanText}`;
-}
-
 function updateTranscript(speaker, role, text) {
   const el = document.getElementById('voice-transcript');
   if (!el) return;
-  const displayText = summarizeVoiceTranscriptText(role, text);
-  const truncated = displayText.length > 200 ? displayText.slice(0, 197) + '...' : displayText;
+  const truncated = text.length > 200 ? text.slice(0, 197) + '...' : text;
   const speakerClass = role === 'user'
     ? 'voice-transcript__speaker voice-transcript__speaker--user'
     : 'voice-transcript__speaker voice-transcript__speaker--assistant';
@@ -2482,8 +2309,6 @@ globalThis.endVoiceChat = endVoiceChat;
 globalThis.togglePTTMode = togglePTTMode;
 globalThis.toggleYinYangMode = toggleYinYangMode;
 globalThis.handleVoiceTextInputKey = handleVoiceTextInputKey;
-globalThis.handleVoiceTextAttachment = handleVoiceTextAttachment;
-globalThis.removeVoiceTextAttachment = removeVoiceTextAttachment;
 globalThis.sendVoiceTextInput = sendVoiceTextInput;
 globalThis.startPTT = startPTT;
 globalThis.endPTT = endPTT;

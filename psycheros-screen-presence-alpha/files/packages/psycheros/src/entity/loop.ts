@@ -23,16 +23,17 @@
  * data integrity, with the assumption that DB failures are rare and transient.
  */
 
-import type { ChatMessage, LLMClient, StreamChunk } from "../llm/mod.ts";
-import { join } from "@std/path";
+import type {
+  ChatContent,
+  ChatImageUrlPart,
+  ChatMessage,
+  LLMClient,
+  StreamChunk,
+} from "../llm/mod.ts";
 import type { WebSearchSettings } from "../llm/web-search-settings.ts";
 import type { DiscordSettings } from "../llm/discord-settings.ts";
 import type { HomeSettings } from "../llm/home-settings.ts";
-import {
-  imageGeneratorRequiresReferences,
-  imageGeneratorSupportsReferences,
-  type ImageGenSettings,
-} from "../llm/image-gen-settings.ts";
+import type { ImageGenSettings } from "../llm/image-gen-settings.ts";
 import { LLMError } from "../llm/mod.ts";
 import type { DBClient } from "../db/mod.ts";
 import type { ToolContext, ToolRegistry } from "../tools/mod.ts";
@@ -46,11 +47,7 @@ import type {
   UIUpdate,
 } from "../types.ts";
 import type { ConversationRAG } from "../rag/conversation.ts";
-import type {
-  MCPClient,
-  MemorySearchResult,
-  RecentMemoryResult,
-} from "../mcp-client/mod.ts";
+import type { MCPClient } from "../mcp-client/mod.ts";
 import type { LorebookManager } from "../lorebook/mod.ts";
 import type { VaultManager } from "../vault/mod.ts";
 import {
@@ -62,28 +59,13 @@ import {
   loadUserContent,
 } from "./context.ts";
 import { applyContextBudget, type BudgetResult } from "./token-budget.ts";
-import { compactToolLoopContext } from "./tool-loop-context.ts";
 import { buildGraphContext, formatChatHistoryForContext } from "../rag/mod.ts";
 import { generateUIUpdates } from "../server/ui-updates.ts";
 import { acquireLock } from "../utils/conversation-lock.ts";
-import { redactSecrets } from "../utils/redact-secrets.ts";
 import { createCollector, finalize, setFinishReason } from "../metrics/mod.ts";
 import { getWearableDataCache } from "../wearable/cache.ts";
 import { formatScreenPresence, formatWearableData } from "./sa-formatters.ts";
-import { formatMessageTimestamp } from "./timestamp.ts";
-import {
-  collectHistoricalGeneratedImages,
-  compactHistoricalImageToolMessages,
-  type HistoricalGeneratedImage,
-  replaceImageMarkersWithGeneratedPath,
-} from "./image-context.ts";
-import { normalizeAssistantContent } from "./assistant-content.ts";
-import {
-  formatBlankTurnRecoveryMessage,
-  shouldRecoverBlankWebTurn,
-} from "./turn-recovery.ts";
-
-export { formatMessageTimestamp };
+import type { PluginManager } from "../plugins/mod.ts";
 
 /**
  * Escape special XML characters in a string.
@@ -93,91 +75,20 @@ function escapeXml(str: string): string {
     .replace(/"/g, "&quot;");
 }
 
-function formatMemoryLineage(
-  memory: MemorySearchResult | RecentMemoryResult,
-  db: DBClient,
-): string {
-  const lines = [
-    `Source memory: ${memory.id} (written by ${
-      memory.sourceInstance || "unknown"
-    })`,
-  ];
-  if (memory.chatIds.length > 0) {
-    const chats = memory.chatIds.slice(0, 3).map((chatId) => {
-      const conversation = db.getConversation(chatId);
-      return conversation?.title
-        ? `"${conversation.title}" (${chatId})`
-        : chatId;
-    });
-    lines.push(`Source conversations: ${chats.join(", ")}`);
-  }
-  if (memory.sourceMemoryIds.length > 0) {
-    lines.push(
-      `Derived from: ${memory.sourceMemoryIds.slice(0, 4).join(", ")}`,
-    );
-  }
-  if (memory.sourceContext.length > 0) {
-    lines.push(
-      "Source context:\n" +
-        memory.sourceContext.map((source) =>
-          `- ${source.id}: ${source.excerpt}`
-        ).join("\n"),
-    );
-  }
-  return lines.join("\n");
+function renderChatContentForSnapshot(content: ChatContent): string {
+  if (typeof content === "string") return content;
+  return content.map((part) => {
+    if (part.type === "text") return part.text;
+    return "[transient vision image]";
+  }).join("\n");
 }
 
-function formatRetrievedMemory(
-  memory: MemorySearchResult | RecentMemoryResult,
-  index: number,
-  db: DBClient,
-  relevance?: number,
-): string {
-  const relevanceLabel = relevance === undefined
-    ? "recent"
-    : `${Math.round(relevance * 100)}% relevant`;
-  return `[${
-    index + 1
-  }] (${memory.granularity}/${memory.date}, ${relevanceLabel})\n` +
-    `${memory.excerpt}\n\n${formatMemoryLineage(memory, db)}`;
-}
-
-function historicalGeneratedImageExists(
-  dataRoot: string,
-  imagePath: string,
-): boolean {
-  const prefix = "/generated-images/";
-  if (!imagePath.startsWith(prefix)) return false;
-  const filename = imagePath.slice(prefix.length);
-  if (
-    !filename || filename.includes("/") || filename.includes("\\") ||
-    filename === "." || filename === ".."
-  ) {
-    return false;
-  }
-
-  try {
-    return Deno.statSync(
-      join(dataRoot, ".psycheros", "generated-images", filename),
-    ).isFile;
-  } catch {
-    return false;
-  }
-}
-
-function formatHistoricalImageRegistry(
-  images: HistoricalGeneratedImage[],
-): string {
-  if (images.length === 0) return "";
-  const entries = images.map((image) =>
-    `  <image path="${escapeXml(image.path)}"${
-      image.caption ? ` caption="${escapeXml(image.caption)}"` : ""
-    } />`
-  );
-  return "\n\n<prior_generated_images " +
-    'purpose="verified state; never quote or reproduce this block">\n' +
-    entries.join("\n") +
-    "\n</prior_generated_images>";
+function estimateChatContentChars(content: ChatContent): number {
+  if (typeof content === "string") return content.length;
+  return content.reduce((sum, part) => {
+    if (part.type === "text") return sum + part.text.length;
+    return sum + 1200;
+  }, 0);
 }
 
 /**
@@ -265,6 +176,44 @@ function formatConnectedDevices(
 }
 
 /**
+/**
+ * Format a timestamp for message content.
+ * Uses PSYCHEROS_DISPLAY_TZ for user-facing timezone, falls back to TZ, defaults to UTC.
+ * Format: <t>YYYY-MM-DD HH:MM</t>
+ *
+ * XML tags are used so the LLM treats timestamps as structural
+ * metadata rather than content to reproduce.
+ */
+export function formatMessageTimestamp(date: Date): string {
+  // PSYCHEROS_DISPLAY_TZ is set from Main Settings; TZ comes from the
+  // process environment. If neither is set ("System Default" in Main
+  // Settings with no TZ env), omit the timeZone option entirely so
+  // toLocale* uses the system's actual timezone — NOT UTC. This was a
+  // bug where "System Default" silently meant UTC and the entity
+  // thought it was the middle of the night when it wasn't.
+  const timeZone = Deno.env.get("PSYCHEROS_DISPLAY_TZ") ||
+    Deno.env.get("TZ");
+  const opts = timeZone ? { timeZone } : {};
+  const weekday = date.toLocaleDateString("en-US", {
+    ...opts,
+    weekday: "short",
+  });
+  const year = date.toLocaleDateString("en-US", { ...opts, year: "numeric" });
+  const month = date.toLocaleDateString("en-US", {
+    ...opts,
+    month: "2-digit",
+  });
+  const day = date.toLocaleDateString("en-US", { ...opts, day: "2-digit" });
+  const time = date.toLocaleTimeString("en-US", {
+    ...opts,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  return `<t>${weekday} ${year}-${month}-${day} ${time}</t>`;
+}
+
+/**
  * Options for EntityTurn.process() that modify behavior for specific callers
  * (e.g., Pulse system).
  */
@@ -279,6 +228,8 @@ export interface ProcessOptions {
   skipUserPersist?: boolean;
   /** Device type of the user for this turn (from frontend detection) */
   deviceType?: "desktop" | "mobile";
+  /** Transient images I send to the LLM for this turn without saving them in chat history */
+  visionImages?: ChatImageUrlPart[];
   /** When true, sticky lorebook entries are not decremented.
    *  Set automatically for Pulse turns so automated messages
    *  don't consume sticky duration earned by real user conversation. */
@@ -380,6 +331,22 @@ export interface EntityConfig {
   contextLength?: number;
   /** Maximum tokens reserved for the response (from active LLM profile) */
   maxTokens?: number;
+  /**
+   * Whether I carry my reasoning_content back to the next inference call
+   * within one entity turn (between tool-call iterations). Resolved from
+   * the active profile's `persistentReasoningIntraTurn` tri-state. When
+   * undefined, treated as false (preserves existing behavior for voice
+   * and pulse paths that don't set it).
+   */
+  persistentReasoningIntraTurn?: boolean;
+  /**
+   * How many of my prior entity turns I attach reasoning_content from when
+   * building context for a new user message. 0 or undefined disables.
+   * Counted in user-visible turns, not DB rows.
+   */
+  persistentReasoningInterTurns?: number;
+  /** Trusted local plugins that can contribute prompt-time context */
+  pluginManager?: PluginManager;
 }
 
 /**
@@ -420,6 +387,12 @@ export type EntityYield =
     prompt: string;
     generatorName: string;
     description?: string;
+    toolCallId: string;
+  }
+  | {
+    type: "thinking_corrected";
+    thinking?: string;
+    content: string;
   };
 
 /**
@@ -460,6 +433,54 @@ function fadeImageMarker(content: string): string {
   );
 
   return content;
+}
+
+/**
+ * Tool names whose arguments are verbose and should be faded in context.
+ * These tools have their key info (image path, prompt) captured in the
+ * tool result content or IMAGE markers, so the full arguments are redundant.
+ */
+const FADE_ARGUMENT_TOOLS = new Set([
+  "generate_image",
+  "describe_image",
+  "look_closer",
+]);
+
+/**
+ * Fade verbose tool call arguments to reduce token usage in context.
+ * For image-related tools, replaces the arguments JSON with a minimal
+ * version that preserves structure but removes verbose fields (long prompts,
+ * detailed descriptions). The LLM only needs the tool_call_id to match
+ * results; the arguments are redundant with tool result content.
+ */
+function fadeToolCallArguments(toolCalls: ToolCall[]): ToolCall[] {
+  return toolCalls.map((tc) => {
+    const name = tc.function.name;
+    if (!FADE_ARGUMENT_TOOLS.has(name)) return tc;
+
+    try {
+      const args = JSON.parse(tc.function.arguments) as Record<string, unknown>;
+      // Keep only structural fields, truncate verbose string fields
+      const faded: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(args)) {
+        if (typeof value === "string" && value.length > 50) {
+          faded[key] = value.slice(0, 50) + "... [truncated]";
+        } else {
+          faded[key] = value;
+        }
+      }
+      return {
+        ...tc,
+        function: {
+          ...tc.function,
+          arguments: JSON.stringify(faded),
+        },
+      };
+    } catch {
+      // If we can't parse the arguments, leave them as-is
+      return tc;
+    }
+  });
 }
 
 export class EntityTurn {
@@ -526,9 +547,7 @@ export class EntityTurn {
       this.config.mcpClient,
     );
 
-    // Retrieve both query-relevant and newest memories. The recent feed gives
-    // this embodiment continuity even when the user's words contain no useful
-    // search terms for something that just happened elsewhere.
+    // Retrieve relevant memories via MCP search
     let memoriesContent: string | undefined;
     if (this.config.mcpClient) {
       console.debug(
@@ -536,43 +555,18 @@ export class EntityTurn {
         userMessage.substring(0, 50),
       );
       try {
-        const [results, recent] = await Promise.all([
-          this.config.mcpClient.searchMemories(userMessage),
-          this.config.mcpClient.recentMemories({
-            granularities: ["daily", "significant"],
-            limit: 4,
-            hours: 72,
-            includeSourceContext: true,
-          }),
-        ]);
-        const sections: string[] = [];
+        const results = await this.config.mcpClient.searchMemories(userMessage);
         if (results.length > 0) {
-          sections.push(
-            "Relevant Memories:\n\n" +
-              results.map((memory, index) =>
-                formatRetrievedMemory(memory, index, this.db, memory.score)
-              ).join("\n\n"),
-          );
-        }
-        const relevantIds = new Set(results.map((memory) => memory.id));
-        const distinctRecent = recent.filter((memory) =>
-          !relevantIds.has(memory.id)
-        );
-        if (distinctRecent.length > 0) {
-          sections.push(
-            "Recent Memory Daybook (last 72 hours):\n\n" + distinctRecent.map(
-              (memory, index) => formatRetrievedMemory(memory, index, this.db),
-            ).join("\n\n"),
-          );
-        }
-        if (sections.length > 0) {
-          memoriesContent = `\n\n---\n${sections.join("\n\n---\n")}`;
+          memoriesContent = results.map((r, i) =>
+            `[${i + 1}] (${r.granularity}/${r.date}, ${
+              Math.round(r.score * 100)
+            }% relevant)\n${r.excerpt}`
+          ).join("\n\n");
+          memoriesContent = `\n\n---\nRelevant Memories:\n\n${memoriesContent}`;
           console.debug(
-            "[Memory] Added",
+            "[Memory] Found",
             results.length,
-            "relevant and",
-            distinctRecent.length,
-            "recent memories (",
+            "memories (",
             memoriesContent.length,
             "chars)",
           );
@@ -712,11 +706,11 @@ export class EntityTurn {
       );
       imageGenContent = enabled.map((g) => {
         const nsfwTag = g.nsfw ? "NSFW-capable" : "SFW only";
-        const anchorTag = imageGeneratorRequiresReferences(g)
-          ? "requires an anchor/reference image"
-          : imageGeneratorSupportsReferences(g)
-          ? "accepts optional anchor images"
-          : "text-to-image only (no anchor support)";
+        // Venice's inpaint parameter was deprecated May 2025 — it is the only
+        // image-gen provider that cannot accept anchor/reference images.
+        const anchorTag = g.provider === "venice"
+          ? "text-to-image only (no anchor support)"
+          : "accepts anchor images";
         return `- "${g.name}" (ID: ${g.id}): ${g.description} [${g.provider}, ${nsfwTag}, ${anchorTag}]`;
       }).join("\n");
 
@@ -735,7 +729,7 @@ export class EntityTurn {
       }
 
       imageGenContent +=
-        "\n\nTo generate an image, I use the generate_image tool with the appropriate generator_id. I can include anchor_images by ID as style references, and a user_image_path if the user provided an image with their message. A new image exists only after I call generate_image in the current turn and receive a successful tool result. I never fabricate, imitate, or narrate tool results or generated image paths.";
+        "\n\nTo generate an image, I use the generate_image tool with the appropriate generator_id. I can include anchor_images by ID as style references, and a user_image_path if the user provided an image with their message.";
     }
 
     // Search vault for relevant documents if manager is available
@@ -921,13 +915,21 @@ Discord interaction:
       discordChannelContent = parts.join("\n");
     }
 
-    const toolContinuationProtocol = `
-
----
-
-<tool_call_protocol>
-Tool calls are protocol, not conversation. After I receive tool results, that tool section is closed and I resume in my own normal conversational voice in the next assistant message. I do not repeat a completed tool call unless the user asks or new information makes another call necessary. I do not leave the final reply blank in normal web chat.
-</tool_call_protocol>`;
+    const pluginContent = await this.config.pluginManager?.buildPromptContent({
+      conversationId,
+      sourceType: options?.sourceType ?? (options?.pulseId ? "pulse" : "web"),
+      userMessage,
+      sections: {
+        memories: memoriesContent,
+        chatHistory: chatHistoryContent,
+        lorebook: lorebookContent,
+        graph: graphContent,
+        vault: vaultContent,
+        situationalAwareness: saContent,
+        discord: discordChannelContent,
+      },
+      mcpClient: this.config.mcpClient,
+    }, this.computePluginContextBudget());
 
     const systemMessage = buildSystemMessage(
       baseInstructions,
@@ -943,7 +945,8 @@ Tool calls are protocol, not conversation. After I receive tool results, that to
       imageGenContent,
       saContent,
       discordChannelContent,
-    ) + toolContinuationProtocol + (options?.systemPromptSuffix ?? "");
+      pluginContent,
+    ) + (options?.systemPromptSuffix ?? "");
 
     // Get conversation history from DB
     const history = this.db.getMessages(conversationId);
@@ -1034,6 +1037,7 @@ Tool calls are protocol, not conversation. After I receive tool results, that to
         displayContent,
         shouldPersist,
         toolDefinitions,
+        options?.visionImages,
       );
 
       // Create and yield context snapshot for debugging
@@ -1053,9 +1057,10 @@ Tool calls are protocol, not conversation. After I receive tool results, that to
         graphContent,
         vaultContent,
         situationalAwarenessContent: saContent,
+        pluginContent,
         messages: messages.slice(1).map((msg) => ({
           role: msg.role,
-          content: msg.content,
+          content: renderChatContentForSnapshot(msg.content),
           toolCalls: msg.tool_calls,
           toolCallId: msg.tool_call_id,
         })),
@@ -1066,12 +1071,17 @@ Tool calls are protocol, not conversation. After I receive tool results, that to
           estimatedTokens: this.lastBudgetResult?.estimatedTotalTokens ??
             Math.ceil(systemMessage.length / 4) +
               messages.reduce(
-                (acc, m) => acc + Math.ceil((m.content?.length || 0) / 4),
+                (acc, m) =>
+                  acc + Math.ceil(estimateChatContentChars(m.content) / 4),
                 0,
               ),
           contextLength: this.config.contextLength,
           budgetAvailable: this.lastBudgetResult?.availableBudget,
           messagesTruncated: this.lastBudgetResult?.messagesRemoved,
+          pluginBudgetUsed: this.config.pluginManager?.getLastBudgetReport()
+            ?.used,
+          pluginBudgetMax: this.config.pluginManager?.getLastBudgetReport()
+            ?.cap,
         },
       };
 
@@ -1121,10 +1131,6 @@ Tool calls are protocol, not conversation. After I receive tool results, that to
 
       // Track current iteration for tool loop protection
       let iteration = 0;
-      // Tool-bearing assistant messages are intermediate protocol records.
-      // Collect their prose and index one coherent assistant turn only when
-      // the tool loop reaches its final, tool-free response.
-      const ragAssistantParts: string[] = [];
 
       // Retry configuration for transient upstream errors (e.g. Z.ai "network_error").
       // Z.ai's failure already takes ~30s, so we use a short fixed delay between retries
@@ -1270,51 +1276,86 @@ Tool calls are protocol, not conversation. After I receive tool results, that to
           break;
         }
 
-        const prefixPattern = new RegExp("\\[Voice Chat\\]\\s*", "g");
-        const tTagPattern = /<t>[^<]*<\/t>\s*/g;
-        const cleanedAssistantContent = normalizeAssistantContent(
-          assistantContent
-            .replace(prefixPattern, "")
-            .replace(tTagPattern, ""),
-        );
-        const hasAssistantText = cleanedAssistantContent.trim().length > 0;
-        const hasToolCalls = toolCalls.length > 0;
-        const hasContent = hasAssistantText || hasToolCalls ||
-          assistantReasoning.trim().length > 0;
+        // Defensive: detect provider misroute where the entire response
+        // (thinking + reply) was sent through the reasoning field with empty
+        // content. Most commonly seen with GLM models on OpenRouter — Z.ai
+        // direct does not exhibit this. Try to recover the reply portion so
+        // it persists and renders as assistant-text instead of getting
+        // hidden inside the thinking section.
+        if (!assistantContent.trim() && assistantReasoning.trim()) {
+          const originalReasoning = assistantReasoning;
 
-        // Reasoning-only or truly empty completions are not a successful web
-        // chat response. Preserve the user message and metrics, then let the
-        // route surface a recoverable retry instead of committing a blank
-        // assistant turn that cannot be regenerated.
-        if (
-          shouldRecoverBlankWebTurn({
-            sourceType: options?.sourceType,
-            assistantContent: cleanedAssistantContent,
-            toolCallCount: toolCalls.length,
-            streamError,
-          })
-        ) {
-          const metrics = finalize(metricsCollector, {
-            finishReason,
-            messageId: undefined,
-          });
-          this.db.addTurnMetrics(metrics);
-          yield { type: "metrics", metrics };
-          throw new LLMError(
-            formatBlankTurnRecoveryMessage(finishReason),
-            "INCOMPLETE_RESPONSE",
-          );
+          // Look for a thinking/reply boundary marker. Models and proxies
+          // sometimes emit these even when the surrounding fields are misrouted.
+          const boundaryPattern =
+            /<\/(?:thinking|thought|reasoning|antml:thinking)>\s*/gi;
+          const matches = [...originalReasoning.matchAll(boundaryPattern)];
+
+          let recovered = false;
+          if (matches.length > 0) {
+            // Split at the LAST occurrence — agentic turns can interleave
+            // multiple thinking blocks; the reply follows the final one.
+            const lastMatch = matches[matches.length - 1];
+            const splitIdx = (lastMatch.index ?? 0) + lastMatch[0].length;
+            const thinkingPart = originalReasoning.slice(0, splitIdx);
+            const contentPart = originalReasoning.slice(splitIdx);
+
+            if (contentPart.trim()) {
+              console.log(
+                `[EntityTurn] Recovered misrouted reply — ${matches.length} boundary marker(s) found; ` +
+                  `split thinking (${thinkingPart.length} chars) from reply (${contentPart.length} chars)`,
+              );
+              assistantReasoning = thinkingPart;
+              assistantContent = contentPart;
+              recovered = true;
+            } else {
+              console.log(
+                `[EntityTurn] Empty content with finish_reason=${finishReason} — ` +
+                  `reasoning ends with boundary marker but no reply follows; ` +
+                  `keeping ${originalReasoning.length} chars as thinking only`,
+              );
+            }
+          } else if (finishReason === "stop") {
+            // No marker, but the model finished naturally — likely the entire
+            // reply was routed through reasoning. Promote so it's visible.
+            console.log(
+              `[EntityTurn] Recovered misrouted reply — no boundary marker, ` +
+                `finish_reason=stop; promoting ${originalReasoning.length} chars ` +
+                `of reasoning to content (thinking may be mixed in)`,
+            );
+            assistantContent = originalReasoning;
+            assistantReasoning = "";
+            recovered = true;
+          } else {
+            // Truncated or abnormal finish — leave as thinking, no reply to
+            // recover. Promoting partial thinking would invent a reply.
+            console.log(
+              `[EntityTurn] Empty content with finish_reason=${finishReason} — ` +
+                `keeping ${originalReasoning.length} chars as thinking only (no reply to recover)`,
+            );
+          }
+
+          // Signal the live UI: reset thinking section, render reply as
+          // assistant-text. Emitted before done so the frontend finalizes
+          // with the corrected state.
+          if (recovered) {
+            yield {
+              type: "thinking_corrected",
+              thinking: assistantReasoning.trim()
+                ? assistantReasoning
+                : undefined,
+              content: assistantContent,
+            };
+          }
         }
 
-        // Now that the retry/error decision is settled, yield the done event to the frontend
+        // Now that the retry loop is settled, yield the done event to the frontend
         yield { type: "done", finishReason };
 
         // Generate message ID upfront so we can link metrics to it
+        const hasContent = assistantContent || toolCalls.length > 0 ||
+          assistantReasoning;
         const messageId = hasContent ? crypto.randomUUID() : undefined;
-        let persistedAssistantContent = cleanedAssistantContent;
-        if (cleanedAssistantContent.trim()) {
-          ragAssistantParts.push(cleanedAssistantContent);
-        }
 
         // Persist the assistant message FIRST (metrics reference it via FK)
         // This ensures we don't lose content that was already streamed
@@ -1325,6 +1366,14 @@ Tool calls are protocol, not conversation. After I receive tool results, that to
             // pattern as the history-read strip below — system inserts
             // these markers once, parrots get stripped so they can't
             // accumulate across turns.
+            const prefixPattern = new RegExp(
+              "\\[Voice Chat\\]\\s*",
+              "g",
+            );
+            const tTagPattern = /<t>[^<]*<\/t>\s*/g;
+            const cleanedAssistantContent = assistantContent
+              .replace(prefixPattern, "")
+              .replace(tTagPattern, "");
             this.db.addMessage(conversationId, {
               role: "assistant",
               content: cleanedAssistantContent,
@@ -1332,6 +1381,25 @@ Tool calls are protocol, not conversation. After I receive tool results, that to
               toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
               isVoice: options?.messagePrefix === "[Voice Chat] ",
             }, messageId);
+
+            // Index the assistant message for chat RAG (non-blocking, non-fatal)
+            // Skip for Discord and other non-web source turns
+            if (
+              this.config.chatRAG && messageId && assistantContent &&
+              !this.config.discordContext
+            ) {
+              this.config.chatRAG.indexMessage(
+                messageId,
+                conversationId,
+                "assistant",
+                assistantContent,
+              ).catch((error) => {
+                console.warn(
+                  "[ChatRAG] Failed to index assistant message:",
+                  error,
+                );
+              });
+            }
           } catch (dbError) {
             // Non-fatal: content already streamed to client (see Error Handling Strategy)
             console.error(
@@ -1363,22 +1431,6 @@ Tool calls are protocol, not conversation. After I receive tool results, that to
 
         // If no tool calls, we're done — yield assistant message ID for edit capability
         if (toolCalls.length === 0) {
-          if (
-            this.config.chatRAG && messageId && ragAssistantParts.length > 0 &&
-            !this.config.discordContext
-          ) {
-            this.config.chatRAG.indexMessage(
-              messageId,
-              conversationId,
-              "assistant",
-              ragAssistantParts.join("\n\n"),
-            ).catch((error) => {
-              console.warn(
-                "[ChatRAG] Failed to index assistant turn:",
-                error,
-              );
-            });
-          }
           if (messageId) {
             yield { type: "message_id", role: "assistant", id: messageId };
           }
@@ -1406,32 +1458,23 @@ Tool calls are protocol, not conversation. After I receive tool results, that to
           // Yield the tool result
           yield { type: "tool_result", result };
 
-          // Detect [IMAGE:...] markers in tool results for inline image display
-          const imageMatch = result.content.match(/\[IMAGE:(\{.*\})\]/);
-          if (imageMatch) {
-            try {
-              const img = JSON.parse(imageMatch[1]);
-              yield {
-                type: "image_generated",
-                imagePath: img.path,
-                prompt: img.prompt,
-                generatorName: img.generator,
-                description: img.description,
-              };
-              // Append image marker to persisted content so it survives page reload
-              if (messageId) {
-                const imgMarker = `\n\n[IMAGE:${imageMatch[1]}]`;
-                persistedAssistantContent += imgMarker;
-                this.db.getRawDb().prepare(
-                  "UPDATE messages SET content = ? WHERE id = ?",
-                ).run(persistedAssistantContent, messageId);
-                console.log(
-                  `[ImageGen] Persisted image marker to message ${messageId}: ${img.path}`,
-                );
-              }
-            } catch {
-              // Invalid JSON in marker — skip
-            }
+          // Image sidecar path: when a tool returns structured image data
+          // (currently only generate_image via metadata.image), emit an
+          // image_generated SSE event so the live UI can surface the image
+          // inline. The legacy `[IMAGE:...]` marker path that used to live
+          // here is gone — new tool messages persist image data in
+          // `metadata.image`, and old messages still render via the retained
+          // legacy parser in templates.ts.
+          if (result.metadata?.image) {
+            const img = result.metadata.image;
+            yield {
+              type: "image_generated",
+              imagePath: img.path,
+              prompt: img.prompt,
+              generatorName: img.generatorName,
+              description: img.description,
+              toolCallId: result.toolCallId,
+            };
           }
 
           // Collect affected UI regions from the result
@@ -1444,14 +1487,14 @@ Tool calls are protocol, not conversation. After I receive tool results, that to
 
           // Persist to DB with error handling
           try {
-            // Keep the reusable file path while stripping UI-only metadata.
-            const persistedContent = replaceImageMarkersWithGeneratedPath(
-              result.content,
-            );
+            // Persist sidecar metadata (image data from generate_image, fade
+            // data from describe_image / look_closer) on the tool message row.
+            const metadata = result.metadata;
             this.db.addMessage(conversationId, {
               role: "tool",
-              content: persistedContent,
+              content: result.content,
               toolCallId: result.toolCallId,
+              metadata,
             });
           } catch (dbError) {
             // Non-fatal: result already yielded and in LLM context (see Error Handling Strategy)
@@ -1481,27 +1524,36 @@ Tool calls are protocol, not conversation. After I receive tool results, that to
         // the persist path (line ~1171). Without this, a tool-calling turn
         // would feed the next iteration's LLM call a context that contains
         // the very prefix we're trying to prevent.
-        const cleanAssistantContent = normalizeAssistantContent(
-          (assistantContent || "")
-            .replace(/<t>[^<]*<\/t>\s*/g, "")
-            .replace(/\[Voice Chat\]\s*/g, "")
-            // Strip [IMAGE:{...}] markers — UI-only, not part of entity's text
-            .replace(/\[IMAGE:\{.*?\}\]/g, ""),
-        );
+        const cleanAssistantContent = (assistantContent || "")
+          .replace(/<t>[^<]*<\/t>\s*/g, "")
+          .replace(/\[Voice Chat\]\s*/g, "")
+          // Strip [IMAGE:{...}] markers — UI-only, not part of entity's text
+          .replace(/\[IMAGE:\{.*?\}\]/g, "");
         const assistantMsg: ChatMessage = {
           role: "assistant",
           content: `${assistantTimestamp} ${cleanAssistantContent}`,
           tool_calls: toolCalls,
         };
+        // Scope 1: thread my reasoning_content back to the next inference
+        // call within this entity turn (between tool iterations). Required
+        // by DeepSeek's spec on tool-call turns and essential for Z.ai's
+        // Preserved Thinking coherence on multi-step tool chains. The
+        // .trim() guard prevents sending an empty string, which some
+        // providers (DeepSeek) reject with a 400.
+        if (
+          this.config.persistentReasoningIntraTurn &&
+          assistantReasoning.trim()
+        ) {
+          assistantMsg.reasoning_content = assistantReasoning;
+        }
         messages.push(assistantMsg);
 
         // Add tool results to messages for next LLM call
         for (const result of toolResults) {
           const toolTimestamp = formatMessageTimestamp(new Date());
-          // Keep the reusable file path while stripping UI-only metadata.
-          const cleanResult = replaceImageMarkersWithGeneratedPath(
-            result.content,
-          )
+          // Strip [IMAGE:{...}] markers and [short:...] metadata from tool results
+          const cleanResult = result.content
+            .replace(/\[IMAGE:\{.*?\}\]/g, "")
             .replace(/\[short:.+?\]/g, "");
           const toolMsg: ChatMessage = {
             role: "tool",
@@ -1509,20 +1561,6 @@ Tool calls are protocol, not conversation. After I receive tool results, that to
             tool_call_id: result.toolCallId,
           };
           messages.push(toolMsg);
-        }
-
-        const compactedContext = compactToolLoopContext(messages);
-        if (compactedContext.compacted) {
-          messages.splice(
-            0,
-            messages.length,
-            ...compactedContext.messages,
-          );
-          console.log(
-            `[Context] Compacted tool-loop history from ~${compactedContext.estimatedTokensBefore} ` +
-              `to ~${compactedContext.estimatedTokensAfter} tokens ` +
-              `(${compactedContext.messagesRemoved} messages removed)`,
-          );
         }
 
         // Continue the loop to let the LLM process tool results
@@ -1575,6 +1613,14 @@ Tool calls are protocol, not conversation. After I receive tool results, that to
     const lookCloserTurns = new Map<number, number>();
     // Track generate_image and describe_image tool results for fading
     const imageDescToolTurns = new Map<number, number>();
+    // Track tool messages that carry the new image sidecar (post-refactor
+    // generate_image results). Their long description lives verbatim in
+    // content text; fading swaps it for metadata.image.shortDescription.
+    const imageSidecarTurns = new Map<number, number>();
+    // Track tool messages that carry a generic fade sidecar (post-refactor
+    // describe_image / look_closer results). Content is replaced wholesale
+    // with metadata.fade.replacementContent past the threshold.
+    const fadeSidecarTurns = new Map<number, number>();
 
     // First pass: identify image markers and look_closer results with their turn positions
     for (let i = 0; i < history.length; i++) {
@@ -1596,6 +1642,14 @@ Tool calls are protocol, not conversation. After I receive tool results, that to
           msg.content.startsWith("[describe_image]"))
       ) {
         imageDescToolTurns.set(i, turnCount);
+      }
+      // New path: tool messages with metadata.image sidecar
+      if (msg.role === "tool" && msg.metadata?.image) {
+        imageSidecarTurns.set(i, turnCount);
+      }
+      // New path: tool messages with metadata.fade sidecar
+      if (msg.role === "tool" && msg.metadata?.fade) {
+        fadeSidecarTurns.set(i, turnCount);
       }
     }
 
@@ -1630,7 +1684,7 @@ Tool calls are protocol, not conversation. After I receive tool results, that to
       }
     }
 
-    // Fade generate_image and describe_image tool results
+    // Fade generate_image and describe_image tool results (legacy prefix path)
     for (const [msgIdx, resultTurn] of imageDescToolTurns) {
       if (currentTurn - resultTurn > IMAGE_DESCRIPTION_FADE_TURNS) {
         const msg = history[msgIdx];
@@ -1644,7 +1698,75 @@ Tool calls are protocol, not conversation. After I receive tool results, that to
       }
     }
 
+    // Fade tool messages with metadata.image sidecar. The long description
+    // is embedded verbatim in content; swap it for shortDescription in memory.
+    // The persisted DB row is unchanged — fading is LLM-context-only.
+    for (const [msgIdx, resultTurn] of imageSidecarTurns) {
+      if (currentTurn - resultTurn > IMAGE_DESCRIPTION_FADE_TURNS) {
+        const msg = history[msgIdx];
+        const img = msg.metadata?.image;
+        if (
+          img?.description && img.shortDescription &&
+          msg.content.includes(img.description)
+        ) {
+          fadeMap.set(
+            msg.id,
+            msg.content.replace(img.description, img.shortDescription),
+          );
+        }
+      }
+    }
+
+    // Fade tool messages with metadata.fade sidecar (describe_image /
+    // look_closer post-refactor). Replace content wholesale with the
+    // precomputed replacementContent — no string matching needed because
+    // the tool already built the faded version at execution time.
+    for (const [msgIdx, resultTurn] of fadeSidecarTurns) {
+      if (currentTurn - resultTurn > IMAGE_DESCRIPTION_FADE_TURNS) {
+        const msg = history[msgIdx];
+        const fade = msg.metadata?.fade;
+        if (fade?.replacementContent) {
+          fadeMap.set(msg.id, fade.replacementContent);
+        }
+      }
+    }
+
     return fadeMap;
+  }
+
+  /**
+   * Select which historical assistant messages should carry their
+   * `reasoning_content` into the outgoing context.
+   *
+   * Walks history newest→oldest, treating each `user` message as a turn
+   * boundary. Collects assistant message IDs from the last `n` entity
+   * turns (one entity turn = one user message + all the assistant and
+   * tool messages that followed it before the next user message). Tool
+   * messages never carry reasoning_content; only assistant rows do.
+   *
+   * The current user message — passed separately to `buildMessages` —
+   * is not in `history` and so is never counted as a turn boundary
+   * here. On the retry path, the last user message IS in history and
+   * correctly counts as the most recent turn boundary.
+   */
+  private selectReasoningEligibleHistory(
+    history: Message[],
+    n: number,
+  ): Set<string> {
+    if (n <= 0) return new Set();
+    const eligible = new Set<string>();
+    let turnsSeen = 0;
+    for (let i = history.length - 1; i >= 0; i--) {
+      const msg = history[i];
+      if (msg.role === "user") {
+        if (turnsSeen >= n) break;
+        turnsSeen++;
+      }
+      if (msg.role === "assistant" && msg.reasoningContent) {
+        eligible.add(msg.id);
+      }
+    }
+    return eligible;
   }
 
   /**
@@ -1663,29 +1785,25 @@ Tool calls are protocol, not conversation. After I receive tool results, that to
     userMessage: string,
     appendUserMessage: boolean = true,
     toolDefinitions?: ToolDefinition[],
+    visionImages?: ChatImageUrlPart[],
   ): ChatMessage[] {
     const messages: ChatMessage[] = [];
 
-    const historicalImages = collectHistoricalGeneratedImages(history)
-      .filter((image) =>
-        historicalGeneratedImageExists(this.config.dataRoot, image.path)
-      );
-    const imageRegistry = formatHistoricalImageRegistry(historicalImages);
-
-    // Historical image continuity is verified system state. Putting this data
-    // into assistant messages teaches models to imitate it as a response.
+    // Add system message (no timestamp - has its own in content)
     messages.push({
       role: "system",
-      content: systemMessage + imageRegistry,
+      content: systemMessage,
     });
 
-    // Completed image tool protocol is collapsed so it cannot become a bad
-    // argument-shape example for future image calls.
-    const compactedHistory = compactHistoricalImageToolMessages(history);
-
     // Add history with timestamps (convert from DB format to LLM format)
-    const fadeMap = this.buildFadeMap(compactedHistory);
-    for (const msg of compactedHistory) {
+    const fadeMap = this.buildFadeMap(history);
+    // Scope 2: pick which assistant messages carry their reasoning_content
+    // into this request. Empty when persistent reasoning is off (n=0).
+    const reasoningEligible = this.selectReasoningEligibleHistory(
+      history,
+      this.config.persistentReasoningInterTurns ?? 0,
+    );
+    for (const msg of history) {
       // Skip system messages in history — LLM APIs only allow system role at position 0
       if (msg.role === "system") continue;
 
@@ -1698,9 +1816,6 @@ Tool calls are protocol, not conversation. After I receive tool results, that to
       let cleanContent = msg.content
         .replace(/<t>[^<]*<\/t>\s*/g, "")
         .replace(/\[Voice Chat\]\s*/g, "");
-      if (msg.role === "assistant") {
-        cleanContent = normalizeAssistantContent(cleanContent);
-      }
       if (msg.isVoice) {
         cleanContent = "[Voice Chat] " + cleanContent;
       }
@@ -1715,7 +1830,6 @@ Tool calls are protocol, not conversation. After I receive tool results, that to
       if (faded) {
         cleanContent = faded;
       }
-      cleanContent = redactSecrets(cleanContent);
       const chatMsg: ChatMessage = {
         role: msg.role,
         content: `${timestamp} ${cleanContent}`,
@@ -1727,14 +1841,21 @@ Tool calls are protocol, not conversation. After I receive tool results, that to
       }
 
       // Add tool calls if present (for assistant messages)
+      // Fade verbose arguments for image tools to reduce token usage
       if (msg.toolCalls && msg.toolCalls.length > 0) {
-        chatMsg.tool_calls = msg.toolCalls.map((toolCall) => ({
-          ...toolCall,
-          function: {
-            ...toolCall.function,
-            arguments: redactSecrets(toolCall.function.arguments),
-          },
-        }));
+        chatMsg.tool_calls = fadeToolCallArguments(msg.toolCalls);
+      }
+
+      // Scope 2: attach my reasoning_content from prior entity turns so
+      // my thinking carries forward across conversational beats. Only
+      // fires for assistant messages in the eligible window AND only
+      // when reasoning content actually exists on the row.
+      if (
+        msg.role === "assistant" &&
+        msg.reasoningContent &&
+        reasoningEligible.has(msg.id)
+      ) {
+        chatMsg.reasoning_content = msg.reasoningContent;
       }
 
       messages.push(chatMsg);
@@ -1743,9 +1864,12 @@ Tool calls are protocol, not conversation. After I receive tool results, that to
     // Add the new user message with timestamp (skip on retry — it's already in history)
     if (appendUserMessage) {
       const now = formatMessageTimestamp(new Date());
+      const content = `${now} ${userMessage}`;
       messages.push({
         role: "user",
-        content: `${now} ${userMessage}`,
+        content: visionImages?.length
+          ? [{ type: "text", text: content }, ...visionImages]
+          : content,
       });
     }
 
@@ -1758,16 +1882,43 @@ Tool calls are protocol, not conversation. After I receive tool results, that to
         this.config.maxTokens,
       );
       this.lastBudgetResult = result;
-      if (result.truncated) {
+      if (result.truncated || result.reasoningStripped > 0) {
         console.log(
           `[Context] Truncated ${result.messagesRemoved} oldest messages — ` +
             `~${result.estimatedTotalTokens}/${result.contextLength} tokens ` +
-            `(system: ~${result.systemMessageTokens}, tools: ~${result.toolTokens}, history: ~${result.historyTokens})`,
+            `(system: ~${result.systemMessageTokens}, tools: ~${result.toolTokens}, history: ~${result.historyTokens}` +
+            (result.reasoningStripped > 0 || result.reasoningRetained > 0
+              ? `, reasoning: ${result.reasoningRetained} retained / ${result.reasoningStripped} stripped`
+              : "") +
+            `)`,
         );
       }
       return result.messages;
     }
 
     return messages;
+  }
+
+  /**
+   * Compute the aggregate prompt-hook context budget for this turn.
+   *
+   * Returns undefined when the LLM profile's context window is unknown, in
+   * which case the plugin manager falls back to its built-in default. When
+   * known, the budget is 15% of (contextLength - maxTokens), clamped to
+   * [4_000, 60_000] chars. The floor keeps plugin context meaningful on
+   * small-context models; the ceiling prevents plugin context from
+   * dominating on huge-context models.
+   */
+  private computePluginContextBudget():
+    | { maxTotalChars: number }
+    | undefined {
+    const { contextLength, maxTokens } = this.config;
+    if (!contextLength || !maxTokens) return undefined;
+    const usable = contextLength - maxTokens;
+    if (usable <= 0) return { maxTotalChars: 4_000 };
+    const computed = Math.floor(usable * 0.15);
+    return {
+      maxTotalChars: Math.max(4_000, Math.min(60_000, computed)),
+    };
   }
 }

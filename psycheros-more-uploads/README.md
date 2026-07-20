@@ -5,9 +5,9 @@ single-image flow.
 
 It is not an official Psycheros release.
 
-> **Psycheros 0.9.0 status:** Not compatible. Version `0.1.1` is an exact
-> Psycheros 0.8.23 source-replacement package. Do not force it onto 0.9.0 or
-> install it through either 0.9 manager; a separately rebased package is needed.
+> **Psycheros 0.9.2 status:** Compatible in version `0.2.0`. This remains a
+> manual source-file add-on; it is not installed or updated by the plugin/add-on
+> manager.
 
 ## What changes
 
@@ -27,7 +27,7 @@ expression sprites, or screen presence changes.
 
 ## Compatibility
 
-Version 0.1.1 is tested for **Psycheros 0.8.23**. The installer refuses other
+Version 0.2.0 is tested for **Psycheros 0.9.2**. The installer refuses other
 versions before changing files.
 
 This package replaces chat/voice UI, server route, service-worker, and focused
@@ -38,12 +38,12 @@ also checks for older backup folders. It refuses to install over Voice Text
 Resize, the More Uploads + Voice Text Resize combo, or Everything Together,
 because those packages replace overlapping full UI files. Use the combo package
 when you want uploads and voice resize together, or restore the official
-Psycheros 0.8.23 source before switching back to this standalone package.
+Psycheros 0.9.2 source before switching back to this standalone package.
 
 ### HTF Music Listener compatibility
 
-On plain upstream Psycheros, install **More Uploads 0.1.1 first**, then install the
-**HTF Music Listener 0.1.2 legacy** package. The listener's marked browser bridge must
+On plain upstream Psycheros, install **More Uploads 0.2.0 first**, then install the
+**HTF Music Listener 0.1.3 legacy** package. The listener's marked browser bridge must
 be applied last because this source-file mod replaces `web/js/psycheros.js`.
 
 Do not use More Uploads 0.1.0 for music: its browser filter rejects audio and its 10 MB
@@ -70,7 +70,7 @@ If the installer cannot find your Psycheros source folder, run it with the path:
 ```
 
 The selected folder must contain `packages\psycheros\deno.json`. The installer
-checks for Psycheros 0.8.23 and creates a timestamped backup before replacing
+checks for Psycheros 0.9.2 and creates a timestamped backup before replacing
 any files.
 
 After install, fully quit and relaunch Psycheros so the embedded desktop app

@@ -24,7 +24,8 @@ function focusInputWhenReady() {
 
 let currentConversationId = null;
 let isStreaming = false;
-let pendingAttachments = [];
+let pendingAttachmentId = null;
+let pendingAttachmentUrl = null;
 const pendingToolCalls = new Map();
 let currentAbortController = null;
 let streamingConversationId = null; // The conversation currently being streamed (may differ from currentConversationId)
@@ -435,8 +436,6 @@ function initPersistentSSE() {
 // =============================================================================
 
 document.addEventListener('DOMContentLoaded', () => {
-  initComposerAttachmentEvents();
-
   // Register service worker
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch((err) => {
@@ -900,7 +899,7 @@ async function newConversation() {
                 <polyline points="21 15 16 10 5 21"/>
               </svg>
             </button>
-            <input type="file" id="attach-input" accept="image/*" multiple style="display:none" onchange="Psycheros.handleAttachment(this)">
+            <input type="file" id="attach-input" accept="image/*" style="display:none" onchange="Psycheros.handleAttachment(this)">
             <textarea
               class="input-field"
               id="message-input"
@@ -1172,189 +1171,41 @@ async function stopPulseGeneration() {
 // =============================================================================
 
 async function handleAttachment(input) {
-  try {
-    await uploadAttachments(input?.files || []);
-  } finally {
-    if (input) input.value = '';
-  }
-}
-
-function isImageFile(file) {
-  if (!file) return false;
-  if ((file.type || '').startsWith('image/')) return true;
-  return /\.(avif|bmp|gif|jpe?g|png|svg|webp)$/i.test(file.name || '');
-}
-
-function imageFilesFromList(files) {
-  return Array.from(files || []).filter(isImageFile);
-}
-
-function extractImageFilesFromDataTransfer(dataTransfer) {
-  if (!dataTransfer) return [];
-
-  const files = [];
-  const items = Array.from(dataTransfer.items || []);
-  if (items.length > 0) {
-    for (const item of items) {
-      if (item.kind !== 'file') continue;
-      if (item.type && !item.type.startsWith('image/')) continue;
-      const file = item.getAsFile();
-      if (file && isImageFile(file)) files.push(file);
-    }
-  }
-
-  return files.length > 0 ? files : imageFilesFromList(dataTransfer.files || []);
-}
-
-function dataTransferHasFiles(dataTransfer) {
-  if (!dataTransfer) return false;
-  if (Array.from(dataTransfer.types || []).includes('Files')) return true;
-  return Array.from(dataTransfer.items || []).some((item) => item.kind === 'file');
-}
-
-async function uploadAttachments(files, options = {}) {
-  const imageFiles = imageFilesFromList(files);
-  if (imageFiles.length === 0) {
-    if (options.notifyIfEmpty) {
-      showToast('Only image files can be attached to chat');
-    }
-    return;
-  }
+  const file = input.files?.[0];
+  if (!file) return;
 
   try {
-    const results = await Promise.allSettled(imageFiles.map(uploadChatAttachment));
-    const uploaded = [];
-    let failed = 0;
-
-    for (const result of results) {
-      if (result.status === 'fulfilled') {
-        uploaded.push(result.value);
-      } else {
-        failed += 1;
-        console.error('Attachment upload failed:', result.reason);
-      }
+    const formData = new FormData();
+    formData.append('file', file);
+    const resp = await fetch('/api/chat-attachments', { method: 'POST', body: formData });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      showToast(err.error || 'Failed to upload attachment');
+      return;
     }
+    const data = await resp.json();
+    pendingAttachmentId = data.id;
+    pendingAttachmentUrl = data.url;
 
-    if (uploaded.length > 0) {
-      pendingAttachments = pendingAttachments.concat(uploaded);
-      renderAttachmentPreview();
-    }
-    if (failed > 0) {
-      showToast(`Failed to upload ${failed} attachment${failed === 1 ? '' : 's'}`);
+    const preview = document.getElementById('attachment-preview');
+    if (preview) {
+      preview.style.display = 'flex';
+      preview.innerHTML = `
+        <img src="${escapeHtml(data.url)}" class="attachment-thumb" alt="Attachment"/>
+        <button class="attachment-remove" onclick="Psycheros.removeAttachment()">&times;</button>
+      `;
     }
   } catch (error) {
     showToast('Failed to upload attachment');
   }
+  input.value = '';
 }
 
-function composerDropZoneFromTarget(target) {
-  return target instanceof Element ? target.closest('.input-area') : null;
-}
-
-function setComposerDragActive(zone, active) {
-  if (zone) zone.classList.toggle('is-attachment-dragover', active);
-}
-
-function clearComposerDragActive() {
-  document.querySelectorAll('.input-area.is-attachment-dragover').forEach((zone) => {
-    zone.classList.remove('is-attachment-dragover');
-  });
-}
-
-function handleComposerDragEnter(event) {
-  const zone = composerDropZoneFromTarget(event.target);
-  if (!zone || !dataTransferHasFiles(event.dataTransfer)) return;
-  event.preventDefault();
-  setComposerDragActive(zone, true);
-}
-
-function handleComposerDragOver(event) {
-  const zone = composerDropZoneFromTarget(event.target);
-  if (!zone || !dataTransferHasFiles(event.dataTransfer)) return;
-  event.preventDefault();
-  if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
-  setComposerDragActive(zone, true);
-}
-
-function handleComposerDragLeave(event) {
-  const zone = composerDropZoneFromTarget(event.target);
-  if (!zone) return;
-  if (event.relatedTarget instanceof Node && zone.contains(event.relatedTarget)) return;
-  setComposerDragActive(zone, false);
-}
-
-function handleComposerDrop(event) {
-  const zone = composerDropZoneFromTarget(event.target);
-  if (!zone || !dataTransferHasFiles(event.dataTransfer)) return;
-  event.preventDefault();
-  clearComposerDragActive();
-  void uploadAttachments(extractImageFilesFromDataTransfer(event.dataTransfer), { notifyIfEmpty: true });
-}
-
-function handleComposerPaste(event) {
-  const target = event.target instanceof Element ? event.target : document.activeElement;
-  const zone = target instanceof Element ? target.closest('.input-area') : null;
-  if (!zone) return;
-
-  const files = extractImageFilesFromDataTransfer(event.clipboardData);
-  if (files.length === 0) return;
-  event.preventDefault();
-  void uploadAttachments(files);
-}
-
-function initComposerAttachmentEvents() {
-  if (globalThis.__psycherosComposerAttachmentEvents) return;
-  globalThis.__psycherosComposerAttachmentEvents = true;
-  document.addEventListener('dragenter', handleComposerDragEnter);
-  document.addEventListener('dragover', handleComposerDragOver);
-  document.addEventListener('dragleave', handleComposerDragLeave);
-  document.addEventListener('dragend', clearComposerDragActive);
-  document.addEventListener('drop', handleComposerDrop);
-  document.addEventListener('paste', handleComposerPaste);
-}
-
-async function uploadChatAttachment(file) {
-  const formData = new FormData();
-  formData.append('file', file);
-  const resp = await fetch('/api/chat-attachments', { method: 'POST', body: formData });
-  if (!resp.ok) {
-    const err = await resp.json().catch(() => ({}));
-    throw new Error(err.error || 'Failed to upload attachment');
-  }
-  const data = await resp.json();
-  return {
-    id: data.id,
-    url: data.url,
-    filename: data.filename || file.name
-  };
-}
-
-function renderAttachmentPreview() {
+function removeAttachment() {
+  pendingAttachmentId = null;
+  pendingAttachmentUrl = null;
   const preview = document.getElementById('attachment-preview');
-  if (!preview) return;
-
-  if (pendingAttachments.length === 0) {
-    preview.style.display = 'none';
-    preview.innerHTML = '';
-    return;
-  }
-
-  preview.style.display = 'flex';
-  preview.innerHTML = pendingAttachments.map((attachment, idx) => `
-    <div class="attachment-preview-item">
-      <img src="${escapeHtml(attachment.url)}" class="attachment-thumb" alt="Attachment ${idx + 1}"/>
-      <button class="attachment-remove" onclick="Psycheros.removeAttachment(${idx})" aria-label="Remove attachment ${idx + 1}">&times;</button>
-    </div>
-  `).join('');
-}
-
-function removeAttachment(index) {
-  if (typeof index === 'number') {
-    pendingAttachments.splice(index, 1);
-  } else {
-    pendingAttachments = [];
-  }
-  renderAttachmentPreview();
+  if (preview) { preview.style.display = 'none'; preview.innerHTML = ''; }
 }
 
 async function sendMessage() {
@@ -1362,7 +1213,7 @@ async function sendMessage() {
   const sendBtn = document.getElementById('send-btn');
   const message = input?.value.trim();
 
-  if ((!message && pendingAttachments.length === 0) || isStreaming || pulseStreamingPulseId) return;
+  if ((!message && !pendingAttachmentId) || isStreaming || pulseStreamingPulseId) return;
 
   // Create conversation if needed
   if (!currentConversationId) {
@@ -1387,12 +1238,13 @@ async function sendMessage() {
   input.style.height = 'auto';
   input.disabled = true;
 
-  // Save and clear attachments before sending.
-  const attachments = pendingAttachments.slice();
-  const attachmentIds = attachments.map((attachment) => attachment.id);
-  const attachmentUrls = attachments.map((attachment) => attachment.url);
-  pendingAttachments = [];
-  renderAttachmentPreview();
+  // Save and clear attachment before sending
+  const attachmentId = pendingAttachmentId || undefined;
+  const attachmentUrl = pendingAttachmentUrl || undefined;
+  pendingAttachmentId = null;
+  pendingAttachmentUrl = null;
+  const preview = document.getElementById('attachment-preview');
+  if (preview) { preview.style.display = 'none'; preview.innerHTML = ''; }
 
   // Switch send button to stop button (requires double-tap)
   stopConfirmed = false;
@@ -1413,9 +1265,9 @@ async function sendMessage() {
   const userTime = formatChatTimestamp(new Date());
   if (messages) {
     const userHtml = message ? DOMPurify.sanitize(marked.parse(message)) : '';
-    const attachmentHtml = attachmentUrls.map((url, idx) =>
-      `<img src="${escapeHtml(url)}" class="attachment-in-message" alt="Attached image ${idx + 1}" loading="lazy"/>`
-    ).join('');
+    const attachmentHtml = attachmentUrl
+      ? `<img src="${escapeHtml(attachmentUrl)}" class="attachment-in-message" alt="Attached image" loading="lazy"/>`
+      : '';
     messages.insertAdjacentHTML('beforeend', `
       <div class="msg msg--user">
         <div class="msg-header">
@@ -1427,9 +1279,6 @@ async function sendMessage() {
     `);
   }
   AutoScroll.jumpToBottom();
-
-  // Only the newest assistant response can be regenerated.
-  document.querySelectorAll('.msg-regenerate-btn').forEach((button) => button.remove());
 
   // Create assistant message container with current timestamp
   const assistantEl = document.createElement('div');
@@ -1464,8 +1313,8 @@ async function sendMessage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         conversationId: currentConversationId,
-        message: message || (attachmentIds.length > 1 ? '(images attached)' : '(image attached)'),
-        attachmentIds,
+        message: message || '(image attached)',
+        attachmentId: attachmentId,
         deviceType: isMobileDevice() ? 'mobile' : 'desktop'
       }),
       signal: currentAbortController.signal
@@ -1627,27 +1476,21 @@ async function sendMessage() {
  *
  * @param {HTMLElement} failedAssistantEl - The assistant message element containing the error
  */
-async function retryFailedTurn(failedAssistantEl, options = {}) {
+async function retryFailedTurn(failedAssistantEl) {
   if (isStreaming) return;
 
-  const conversationId = failedAssistantEl.dataset.conversationId || currentConversationId;
+  const conversationId = failedAssistantEl.dataset.conversationId;
   if (!conversationId) {
     showToast('Cannot retry: missing conversation context');
     return;
   }
 
-  const endpoint = options.endpoint || '/api/chat/retry';
-  const requestBody = options.body || {
-    conversationId,
-    ...(failedAssistantEl.dataset.userMessageId
-      ? { userMessageId: failedAssistantEl.dataset.userMessageId }
-      : {})
-  };
-  const actionLabel = options.actionLabel || 'Retry';
-
   const input = document.getElementById('message-input');
   const sendBtn = document.getElementById('send-btn');
   const contentContainer = failedAssistantEl.querySelector('.msg-content');
+
+  // Clear the error content and retry button from the failed bubble
+  contentContainer.innerHTML = '';
 
   // Re-add streaming indicator to header
   const header = failedAssistantEl.querySelector('.msg-header');
@@ -1677,17 +1520,16 @@ async function retryFailedTurn(failedAssistantEl, options = {}) {
   let currentThinking = null;
   let currentContent = null;
   let currentSegmentRaw = '';
-  let streamStarted = false;
 
   currentAbortController = new AbortController();
 
   try {
-    await flushScreenPresenceForTurn(actionLabel.toLowerCase());
+    await flushScreenPresenceForTurn('retry');
 
-    const response = await fetch(endpoint, {
+    const response = await fetch('/api/chat/retry', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(requestBody),
+      body: JSON.stringify({ conversationId }),
       signal: currentAbortController.signal
     });
 
@@ -1695,12 +1537,6 @@ async function retryFailedTurn(failedAssistantEl, options = {}) {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
     }
-
-    // Keep the old response visible until the server has accepted the
-    // replacement. This matters when regeneration is blocked by tool effects.
-    contentContainer.innerHTML = '';
-    failedAssistantEl.querySelector('.msg-regenerate-btn')?.remove();
-    streamStarted = true;
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
@@ -1751,14 +1587,12 @@ async function retryFailedTurn(failedAssistantEl, options = {}) {
       stoppedEl.textContent = '[Stopped]';
       contentContainer?.appendChild(stoppedEl);
     } else {
-      console.error(actionLabel + ' stream error:', error);
-      showToast(actionLabel + ' failed: ' + error.message);
-      if (streamStarted) {
-        const errorEl = document.createElement('div');
-        errorEl.style.color = 'var(--c-error)';
-        errorEl.textContent = 'Error: ' + error.message;
-        contentContainer?.appendChild(errorEl);
-      }
+      console.error('Retry stream error:', error);
+      showToast('Retry failed: ' + error.message);
+      const errorEl = document.createElement('div');
+      errorEl.style.color = 'var(--c-error)';
+      errorEl.textContent = 'Error: ' + error.message;
+      contentContainer?.appendChild(errorEl);
     }
   } finally {
     if (_renderTimer) {
@@ -1789,27 +1623,6 @@ async function retryFailedTurn(failedAssistantEl, options = {}) {
     isStreaming = false;
     focusInputWhenReady();
   }
-}
-
-async function regenerateAssistantMessage(messageId) {
-  if (isStreaming) return;
-  const messageEl = document.querySelector(`[data-message-id="${messageId}"]`);
-  if (!messageEl) return;
-  const conversationId = messageEl.dataset.conversationId || currentConversationId;
-  if (!conversationId) {
-    showToast('Cannot regenerate: missing conversation context');
-    return;
-  }
-  const confirmed = globalThis.confirm(
-    "Regenerate Ember's latest response? The current reply will leave active chat history. External tool effects and already-consolidated memories cannot be undone."
-  );
-  if (!confirmed) return;
-
-  await retryFailedTurn(messageEl, {
-    endpoint: '/api/chat/retry',
-    body: { conversationId, assistantMessageId: messageId },
-    actionLabel: 'Regeneration',
-  });
 }
 
 /**
@@ -2379,34 +2192,16 @@ globalThis.removeSTTCorrectionEntry = removeSTTCorrectionEntry;
 function addMessageEditCapability(element, messageId) {
   if (!element || !messageId) return;
   element.setAttribute('data-message-id', messageId);
+  // Don't add duplicate edit buttons
+  if (element.querySelector('.msg-edit-btn')) return;
   const header = element.querySelector('.msg-header');
   if (!header) return;
-  let editBtn = element.querySelector('.msg-edit-btn');
-  if (!editBtn) {
-    editBtn = document.createElement('button');
-    editBtn.className = 'msg-edit-btn';
-    editBtn.title = 'Edit message';
-    editBtn.setAttribute('aria-label', 'Edit message');
-    editBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
-    header.appendChild(editBtn);
-  }
-  editBtn.onclick = () => Psycheros.startMessageEdit(messageId);
-
-  if (element.classList.contains('msg--assistant')) {
-    document.querySelectorAll('.msg-regenerate-btn').forEach((button) => {
-      if (!element.contains(button)) button.remove();
-    });
-    let regenerateBtn = element.querySelector('.msg-regenerate-btn');
-    if (!regenerateBtn) {
-      regenerateBtn = document.createElement('button');
-      regenerateBtn.className = 'msg-regenerate-btn';
-      regenerateBtn.title = 'Regenerate response';
-      regenerateBtn.setAttribute('aria-label', 'Regenerate response');
-      regenerateBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 4v5h5"/><path d="M4 13a8.1 8.1 0 0 0 15.5 2M20 20v-5h-5"/></svg>';
-      header.insertBefore(regenerateBtn, editBtn);
-    }
-    regenerateBtn.onclick = () => Psycheros.regenerateAssistantMessage(messageId);
-  }
+  const btn = document.createElement('button');
+  btn.className = 'msg-edit-btn';
+  btn.title = 'Edit message';
+  btn.onclick = () => Psycheros.startMessageEdit(messageId);
+  btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
+  header.appendChild(btn);
 }
 
 /**
@@ -2436,27 +2231,6 @@ function stripEntityXml(text) {
   return result;
 }
 
-/**
- * Unwrap a model-added whole-response `html` fence only when it is the first
- * thing in the message. Introduced HTML blocks remain fenced and render as
- * code.
- */
-function normalizeAssistantContent(text) {
-  if (!text) return text;
-  const opening = text.match(/^\s*```html[ \t]*(?:\r?\n|$)/i);
-  if (!opening) return text;
-
-  const afterOpening = text.slice(opening[0].length);
-  const closingBeforeImageMarkers = afterOpening.match(/(?:\r?\n)?```[ \t]*((?:\s*\[IMAGE:\{.*?\}\]\s*)+)$/s);
-  const closing = closingBeforeImageMarkers || afterOpening.match(/(?:\r?\n)?```[ \t]*\s*$/);
-  const body = closing
-    ? afterOpening.slice(0, closing.index)
-    : afterOpening;
-  const trailingImageMarkers = closingBeforeImageMarkers ? closingBeforeImageMarkers[1].trim() : '';
-
-  return [body.trim(), trailingImageMarkers].filter(Boolean).join('\n\n');
-}
-
 // Configure marked to match server-side settings — preserves line breaks in
 // blockquotes and other multi-line content (e.g. group chat transcripts).
 marked.setOptions({ breaks: true, gfm: true });
@@ -2469,7 +2243,7 @@ let _renderTimer = null;
  * Appends a typing cursor to the last block element.
  */
 function renderStreamingContent(contentEl, rawContent) {
-  const cleaned = stripEntityXml(normalizeAssistantContent(rawContent));
+  const cleaned = stripEntityXml(rawContent);
   if (!cleaned.trim()) return;
   try {
     const html = marked.parse(cleaned);
@@ -2509,7 +2283,7 @@ function renderFinalContent(contentEl, rawContent) {
     clearTimeout(_renderTimer);
     _renderTimer = null;
   }
-  const cleaned = stripEntityXml(normalizeAssistantContent(rawContent));
+  const cleaned = stripEntityXml(rawContent);
   if (!cleaned.trim()) {
     contentEl.remove();
     return;
@@ -2552,6 +2326,58 @@ function handleSSEEvent(eventType, data, messageEl, state) {
       }
       state.getThinking().textContent += data;
       AutoScroll.streamTick();
+      break;
+    }
+
+    case 'thinking_corrected': {
+      // Provider misroute recovery — server detected that the entire response
+      // was streamed through the reasoning field. Clear the thinking section,
+      // optionally re-create it with just the residual thinking, and render
+      // the recovered reply as assistant-text so it's visible/editable.
+      try {
+        const correction = JSON.parse(data);
+
+        const existingThinking = contentContainer.querySelector('.thinking');
+        if (existingThinking) existingThinking.remove();
+        state.setThinking(null);
+
+        // Also clear any half-built assistant-text from earlier content chunks
+        // (shouldn't normally happen in the misroute case, but be safe).
+        if (state.getContent()) {
+          state.getContent().remove();
+          state.setContent(null);
+          state.setSegmentRaw('');
+        }
+
+        if (correction.thinking) {
+          const residual = document.createElement('div');
+          residual.className = 'thinking';
+          residual.innerHTML = `
+            <div class="thinking-header" onclick="this.parentElement.classList.toggle('expanded')">
+              <span class="thinking-toggle">&#9660;</span>
+              <span>Thinking</span>
+            </div>
+            <div class="thinking-content"></div>
+          `;
+          residual.querySelector('.thinking-content').textContent = correction.thinking;
+          contentContainer.insertBefore(residual, contentContainer.firstChild);
+          // Don't set state.thinking — next iteration's thinking chunks should
+          // create a fresh section rather than append to the residual.
+        }
+
+        if (correction.content) {
+          const contentEl = document.createElement('div');
+          contentEl.className = 'assistant-text';
+          contentContainer.appendChild(contentEl);
+          state.setContent(contentEl);
+          state.setSegmentRaw(correction.content);
+          renderFinalContent(contentEl, correction.content);
+        }
+
+        AutoScroll.streamTick();
+      } catch (e) {
+        console.error('Failed to handle thinking_corrected:', e);
+      }
       break;
     }
 
@@ -2598,9 +2424,11 @@ function handleSSEEvent(eventType, data, messageEl, state) {
         const result = JSON.parse(data);
         const toolCard = pendingToolCalls.get(result.toolCallId);
         if (toolCard) {
-          addToolResult(toolCard, result.content, result.isError);
+          addToolResult(toolCard, result);
           // Re-expand the card so the result is visible (the done event
-          // collapsed it while tools were still executing)
+          // collapsed it while tools were still executing). The image (if
+          // any) renders as a sibling via the separate image_generated
+          // event, so we don't need to keep this card pinned open.
           toolCard.classList.add('expanded');
           pendingToolCalls.delete(result.toolCallId);
           AutoScroll.streamTick();
@@ -2615,10 +2443,18 @@ function handleSSEEvent(eventType, data, messageEl, state) {
         const img = JSON.parse(data);
         const container = document.createElement('div');
         container.className = 'generated-image-container';
+        // Optional Show-caption toggle. The description arrives in the SSE
+        // payload; the toggle uses toolCallId as a stable anchor so it
+        // survives HTMX swaps of the surrounding content.
+        const captionHtml = img.description && img.toolCallId
+          ? `<div class="generated-image-caption-toggle" onclick="Psycheros.toggleImageCaption('${escapeHtml(img.toolCallId)}')">▸ Show caption</div>
+             <div class="generated-image-caption" id="caption-${escapeHtml(img.toolCallId)}" hidden>${escapeHtml(img.description)}</div>`
+          : '';
         container.innerHTML = `
           <img src="${escapeHtml(img.imagePath)}" alt="${escapeHtml(img.prompt)}"
                class="generated-image" loading="lazy"/>
           <div class="generated-image-meta">${escapeHtml(img.generatorName)}</div>
+          ${captionHtml}
         `;
         contentContainer.appendChild(container);
         AutoScroll.streamTick();
@@ -2666,7 +2502,8 @@ function handleSSEEvent(eventType, data, messageEl, state) {
           // Tool cards are intermediate steps in the agentic loop, not a final
           // response — the entity may have made a tool call but gotten rate-limited
           // before generating the actual reply.
-          const hasAssistantContent = contentContainer.querySelector('.assistant-text');
+          const hasAssistantContent = contentContainer.querySelector('.assistant-text')
+            || contentContainer.querySelector('.thinking');
           if (!hasAssistantContent && messageEl.dataset.conversationId) {
             const retryBtn = document.createElement('button');
             retryBtn.className = 'retry-btn';
@@ -2714,7 +2551,7 @@ function handleSSEEvent(eventType, data, messageEl, state) {
       break;
 
     case 'done': {
-      // Collapse all thinking and tool sections after streaming completes
+      // Collapse all thinking and tool sections after streaming completes.
       contentContainer.querySelectorAll('.thinking.expanded, .tool.expanded').forEach(el => {
         el.classList.remove('expanded');
       });
@@ -2747,7 +2584,6 @@ function handleSSEEvent(eventType, data, messageEl, state) {
       try {
         const { role, id } = JSON.parse(data);
         if (role === 'user') {
-          messageEl.dataset.userMessageId = id;
           // Find the last user message without a data-message-id
           const messages = document.getElementById('messages');
           if (messages) {
@@ -2814,8 +2650,10 @@ function createToolCard(toolCall) {
   return card;
 }
 
-function addToolResult(card, content, isError = false) {
+function addToolResult(card, result) {
   const resultEl = document.createElement('div');
+  const isError = result.isError ?? false;
+  const content = result.content;
   resultEl.className = 'tool-result' + (isError ? ' error' : '');
 
   let displayContent = content;
@@ -2833,6 +2671,25 @@ function addToolResult(card, content, isError = false) {
   `;
 
   card.appendChild(resultEl);
+}
+
+/**
+ * Toggle the long-caption disclosure on an image-bearing tool card.
+ * Lookup by toolCallId so the onclick attribute survives HTMX swaps —
+ * the card itself may be re-rendered, but the id is stable per generation.
+ */
+function toggleImageCaption(toolCallId) {
+  const caption = document.getElementById(`caption-${toolCallId}`);
+  if (!caption) return;
+  const toggle = caption.previousElementSibling;
+  const isHidden = caption.hasAttribute('hidden');
+  if (isHidden) {
+    caption.removeAttribute('hidden');
+    if (toggle) toggle.textContent = '▾ Hide caption';
+  } else {
+    caption.setAttribute('hidden', '');
+    if (toggle) toggle.textContent = '▸ Show caption';
+  }
 }
 
 // =============================================================================
@@ -4012,7 +3869,7 @@ async function confirmDelete() {
                   <polyline points="21 15 16 10 5 21"/>
                 </svg>
               </button>
-              <input type="file" id="attach-input" accept="image/*" multiple style="display:none" onchange="Psycheros.handleAttachment(this)">
+              <input type="file" id="attach-input" accept="image/*" style="display:none" onchange="Psycheros.handleAttachment(this)">
               <textarea
                 class="input-field"
                 id="message-input"
@@ -4552,6 +4409,7 @@ function renderMetricsTab(snap) {
     { name: 'Lorebook', text: snap.lorebookContent },
     { name: 'Data Vault', text: snap.vaultContent },
     { name: 'Knowledge Graph', text: snap.graphContent },
+    { name: 'Plugin Context', text: snap.pluginContent },
   ];
 
   const totalSystemChars = metrics.systemMessageLength || (snap.systemMessage || '').length;
@@ -4561,6 +4419,25 @@ function renderMetricsTab(snap) {
   const utilizationPct = Math.min(100, Math.round((estimatedTotal / contextWindow) * 100));
   const contextLabel = (contextWindow / 1000).toFixed(0) + 'k';
   const tokenLabel = tokenizerReady ? '' : ' (est.)';
+
+  // Plugin context budget meter — only renders when the snapshot captured it
+  // (post-plugin-surface turns). Historical snapshots from before this field
+  // existed just skip the row.
+  let pluginBudgetRow = '';
+  if (typeof metrics.pluginBudgetMax === 'number' && typeof metrics.pluginBudgetUsed === 'number') {
+    const pct = metrics.pluginBudgetMax > 0
+      ? Math.min(100, Math.round((metrics.pluginBudgetUsed / metrics.pluginBudgetMax) * 100))
+      : 0;
+    const meterColor = pct >= 90 ? 'var(--c-danger, #ff6b6b)' : (pct >= 70 ? 'var(--c-warning, #f0ad4e)' : 'var(--c-accent)');
+    pluginBudgetRow = `
+      <div class="context-utilization" style="margin-top:var(--sp-2);">
+        <div class="context-utilization-label">Plugin Context Budget</div>
+        <div class="context-utilization-bar">
+          <div class="context-utilization-fill" style="width: ${pct}%;background:${meterColor};"></div>
+        </div>
+        <div class="context-utilization-pct">${pct}% &mdash; ${metrics.pluginBudgetUsed.toLocaleString()} / ${metrics.pluginBudgetMax.toLocaleString()} chars</div>
+      </div>`;
+  }
 
   let html = `
     <div class="context-metrics-overview">
@@ -4583,6 +4460,7 @@ function renderMetricsTab(snap) {
         </div>
         <div class="context-utilization-pct">${utilizationPct}%</div>
       </div>
+      ${pluginBudgetRow}
     </div>
     <h3 class="context-metrics-heading">Section Breakdown</h3>
     <div class="context-section-grid">
@@ -5157,7 +5035,12 @@ function startMessageEdit(messageId) {
     // For regular user messages, target .msg-content
     targetEl = msgElement.querySelector('.discord-msg-text') || msgElement.querySelector('.msg-content');
     if (!targetEl) return;
-    originalContent = targetEl.dataset.rawContent || targetEl.textContent || '';
+    // Fallback path: read textContent, but explicitly exclude thinking/tool
+    // subtrees so the textarea never contains literal "▼ Thinking" UI text
+    // (defense-in-depth for the misroute case where .assistant-text is missing).
+    const clone = targetEl.cloneNode(true);
+    clone.querySelectorAll('.thinking, .tool').forEach(el => el.remove());
+    originalContent = targetEl.dataset.rawContent || clone.textContent || '';
   }
 
   // Store original content for cancel
@@ -5169,8 +5052,6 @@ function startMessageEdit(messageId) {
   // Hide edit button
   const editBtn = msgElement.querySelector('.msg-edit-btn') || msgElement.querySelector('.discord-msg-edit-btn');
   if (editBtn) editBtn.style.display = 'none';
-  const regenerateBtn = msgElement.querySelector('.msg-regenerate-btn');
-  if (regenerateBtn) regenerateBtn.style.display = 'none';
 
   // Create edit container
   const editContainer = document.createElement('div');
@@ -5236,8 +5117,6 @@ function cancelMessageEdit(messageId) {
   // Show edit button
   const editBtn = msgElement.querySelector('.msg-edit-btn') || msgElement.querySelector('.discord-msg-edit-btn');
   if (editBtn) editBtn.style.display = '';
-  const regenerateBtn = msgElement.querySelector('.msg-regenerate-btn');
-  if (regenerateBtn) regenerateBtn.style.display = '';
 
   // Restore normal bubble width
   msgElement.classList.remove('msg--editing');
@@ -5446,7 +5325,7 @@ function goBack() {
               <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
             </svg>
           </button>
-          <input type="file" id="attach-input" accept="image/*" multiple style="display:none" onchange="Psycheros.handleAttachment(this)">
+          <input type="file" id="attach-input" accept="image/*" style="display:none" onchange="Psycheros.handleAttachment(this)">
           <button class="screen-share-btn" type="button" data-screen-presence-toggle onclick="Psycheros.toggleScreenPresence()" title="Share screen" aria-label="Share screen" aria-pressed="false">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8"/><path d="M12 16v4"/>
@@ -5473,7 +5352,6 @@ globalThis.Psycheros = {
   handleAttachment,
   removeAttachment,
   retryFailedTurn,
-  regenerateAssistantMessage,
   requestStopGeneration,
   stopGeneration,
   requestStopPulseGeneration,
@@ -5492,6 +5370,8 @@ globalThis.Psycheros = {
   startMessageEdit,
   cancelMessageEdit,
   saveMessageEdit,
+  // Tool card image caption toggle
+  toggleImageCaption,
   // Context inspector
   toggleContextViewer,
   hideContextViewer,
@@ -5524,6 +5404,687 @@ globalThis.Psycheros = {
   flushScreenPresenceForTurn,
   updateScreenPresenceButtons,
 };
+
+// Plugin manager functions stay global for my HTMX fragments.
+function pluginManagerEscape(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function pluginManagerBadge(label, kind) {
+  return '<span class="badge ' + kind + '">' + pluginManagerEscape(label) + '</span>';
+}
+
+function pluginManagerRecord(label, record) {
+  if (!record || Object.keys(record).length === 0) return '';
+  const values = Object.entries(record).map(function(entry) {
+    return entry[0] + ': ' + entry[1];
+  }).join(', ');
+  return '<p class="settings-note"><strong>' + pluginManagerEscape(label) + ':</strong> ' + pluginManagerEscape(values) + '</p>';
+}
+
+function pluginManagerList(items) {
+  if (!items || items.length === 0) return '';
+  return '<ul class="settings-note" style="margin-top:var(--sp-2);padding-left:var(--sp-5);">' +
+    items.map(function(item) { return '<li>' + pluginManagerEscape(item) + '</li>'; }).join('') +
+    '</ul>';
+}
+
+function pluginManagerCapabilities(capabilities) {
+  if (!capabilities) return 'No browser changes declared';
+  const labels = {
+    browserScripts: 'Browser behavior',
+    browserStyles: 'Browser styling',
+    tools: 'Tools',
+    promptHooks: 'Prompt context',
+    routes: 'Local routes',
+  };
+  const entries = Object.entries(capabilities).filter(function(entry) {
+    return Number(entry[1]) > 0;
+  });
+  return entries.length
+    ? entries.map(function(entry) { return (labels[entry[0]] || entry[0]) + ': ' + entry[1]; }).join(', ')
+    : 'No browser changes declared';
+}
+
+function pluginManagerSourceLabel(source) {
+  if (!source) return 'Unknown source';
+  if (source.type === 'git') {
+    return 'Git: ' + source.repoUrl + (source.ref ? ' @ ' + source.ref : ' @ default branch');
+  }
+  return 'Zip: ' + (source.fileName || 'uploaded package');
+}
+
+async function pluginManagerJson(url, options) {
+  const response = await fetch(url, options);
+  const body = await response.json().catch(function() { return {}; });
+  if (!response.ok || body.success === false) {
+    throw new Error(body.error || 'Plugin manager request failed');
+  }
+  return body;
+}
+
+function renderPluginInstallReview(preview) {
+  const target = document.getElementById('plugin-manager-review');
+  if (!target) return;
+  const manifest = preview.manifest || {};
+  const caps = preview.capabilities || {};
+  const warnings = preview.warnings || [];
+  const existing = preview.existing;
+  const pluginId = manifest.id || '';
+  const pluralize = function(n, singular) {
+    return n + ' ' + singular + (n === 1 ? '' : 's');
+  };
+
+  // === Capability-salience translation (Shape A) ===
+  // Lead with high-stakes capabilities (prompt hooks shape what the entity
+  // thinks; browser scripts can see what you type), then medium, then
+  // lower-stakes. Each line is "operational language (technical detail)"
+  // so a non-technical operator gets the impact and a technical one gets
+  // the count.
+  const stakeItems = [];
+  if ((caps.promptHooks || 0) > 0) {
+    stakeItems.push({
+      kind: 'high',
+      html: '<strong>shape what the entity thinks each turn</strong> (' +
+        pluralize(caps.promptHooks, 'prompt hook') + ')',
+    });
+  }
+  if ((caps.browserScripts || 0) > 0) {
+    stakeItems.push({
+      kind: 'high',
+      html: '<strong>see what you type and modify what you see</strong> in this page (' +
+        pluralize(caps.browserScripts, 'browser script') + ')',
+    });
+  }
+  if ((caps.tools || 0) > 0) {
+    stakeItems.push({
+      kind: 'medium',
+      html: 'be called by the entity to take actions (' +
+        pluralize(caps.tools, 'tool') + ')',
+    });
+  }
+  if ((caps.routes || 0) > 0) {
+    stakeItems.push({
+      kind: 'low',
+      html: 'be reachable from the browser at <code>/api/plugins/' +
+        pluginManagerEscape(pluginId) + '/...</code> (' +
+        pluralize(caps.routes, 'route') + ')',
+    });
+  }
+  if ((caps.browserStyles || 0) > 0) {
+    stakeItems.push({
+      kind: 'low',
+      html: 'restyle parts of this page (' +
+        pluralize(caps.browserStyles, 'stylesheet') + ')',
+    });
+  }
+
+  // Reassuring absences — only call out high-stakes things this plugin
+  // does NOT do, so the operator knows at a glance when the risk profile
+  // is lower than the worst case.
+  const absent = [];
+  if ((caps.promptHooks || 0) === 0) {
+    absent.push('cannot shape what the entity thinks (no prompt hooks)');
+  }
+  if ((caps.browserScripts || 0) === 0) {
+    absent.push('cannot see what you type or modify what you see (no browser scripts)');
+  }
+
+  // === Update diff (Shape C) ===
+  // Only manifest-declared fields are diffable here. Runtime capabilities
+  // (tools/hooks/routes) for the *existing* install aren't available
+  // without importing its entrypoint, which is too heavy for inspect.
+  // Surface that limit honestly in the diff section.
+  let diffHtml = '';
+  if (existing) {
+    const rows = [];
+    rows.push({
+      label: 'Version',
+      value: '<code>' + pluginManagerEscape(existing.version) + '</code> → <code>' +
+        pluginManagerEscape(manifest.version || '?') + '</code>',
+    });
+    const oldScripts = existing.browserScripts ?? 0;
+    const newScripts = caps.browserScripts ?? 0;
+    if (oldScripts !== newScripts) {
+      const delta = newScripts - oldScripts;
+      const sign = delta > 0 ? '+' : '';
+      rows.push({
+        label: 'Browser scripts',
+        value: oldScripts + ' → ' + newScripts + ' <strong>(' + sign + delta + ')</strong>',
+      });
+    }
+    const oldStyles = existing.browserStyles ?? 0;
+    const newStyles = caps.browserStyles ?? 0;
+    if (oldStyles !== newStyles) {
+      const delta = newStyles - oldStyles;
+      const sign = delta > 0 ? '+' : '';
+      rows.push({
+        label: 'Browser styles',
+        value: oldStyles + ' → ' + newStyles + ' <strong>(' + sign + delta + ')</strong>',
+      });
+    }
+    const oldDeps = existing.dependencies || {};
+    const newDeps = preview.dependencies || {};
+    const oldDepKeys = new Set(Object.keys(oldDeps));
+    const newDepKeys = new Set(Object.keys(newDeps));
+    const added = [...newDepKeys].filter(function(k) { return !oldDepKeys.has(k); });
+    const removed = [...oldDepKeys].filter(function(k) { return !newDepKeys.has(k); });
+    if (added.length || removed.length) {
+      const bits = [];
+      if (added.length) bits.push('+' + added.join(', +'));
+      if (removed.length) bits.push('-' + removed.join(', -'));
+      rows.push({ label: 'Dependencies', value: bits.join(' · ') });
+    }
+    diffHtml =
+      '<div style="margin-top:var(--sp-4);padding-top:var(--sp-3);border-top:1px solid var(--c-border);">' +
+      '<p class="settings-note" style="margin-bottom:var(--sp-2);"><strong>Replacing existing install of ' +
+      pluginManagerEscape(existing.name) + '.</strong> The current version will be backed up before replace.</p>' +
+      '<div class="context-section-grid">' +
+      rows.map(function(r) {
+        return '<div class="context-metrics-row"><span>' + pluginManagerEscape(r.label) +
+          '</span><span>' + r.value + '</span></div>';
+      }).join('') +
+      '</div>' +
+      '<p class="settings-note" style="font-size:var(--font-size-xs);margin-top:var(--sp-2);">' +
+      'Manifest-field diff only. To see tool / hook / route changes, compare the plugin source between versions.</p>' +
+      '</div>';
+  }
+
+  // === Source / metadata (kept but smaller) ===
+  const sourceRow = '<p class="settings-note"><strong>Source:</strong> ' +
+    pluginManagerEscape(pluginManagerSourceLabel(preview.source)) +
+    ' · <strong>Internal ID:</strong> <code>' + pluginManagerEscape(pluginId) + '</code></p>';
+  const homepageRow = manifest.homepageUrl
+    ? '<p class="settings-note"><strong>Homepage:</strong> <a href="' +
+      pluginManagerEscape(manifest.homepageUrl) +
+      '" target="_blank" rel="noopener" style="color:var(--c-accent);">' +
+      pluginManagerEscape(manifest.homepageUrl) + '</a></p>'
+    : '';
+  const compatRow = pluginManagerRecord('Compatibility', manifest.compatibility);
+  const depsRow = pluginManagerRecord('Dependencies', preview.dependencies);
+  const updateRow = manifest.update && Object.keys(manifest.update).length
+    ? pluginManagerRecord('Update metadata', manifest.update)
+    : '';
+
+  // === Compose ===
+  target.innerHTML = '<section class="theme-section" style="margin-bottom:0;">' +
+    '<div style="display:flex;justify-content:space-between;gap:var(--sp-3);align-items:flex-start;flex-wrap:wrap;">' +
+    '<div><h3 class="theme-section-title">Review ' + pluginManagerEscape(manifest.name || pluginId || 'Plugin') +
+    ' <code>' + pluginManagerEscape(manifest.version || 'unknown') + '</code></h3>' +
+    '<p class="theme-section-desc">' + pluginManagerEscape(manifest.description || 'A plugin manifest was found and staged for review.') + '</p></div>' +
+    '<div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;">' +
+    pluginManagerBadge('Restart required', 'badge-primary') +
+    (warnings.length ? pluginManagerBadge('Warnings', 'badge-error') : pluginManagerBadge('Ready to install', 'badge-success')) +
+    '</div></div>' +
+
+    // Capability summary — the main UX win
+    '<div style="margin-top:var(--sp-3);">' +
+    '<p class="settings-note" style="margin-bottom:var(--sp-1);"><strong>If installed, this plugin will:</strong></p>' +
+    '<ul class="settings-note" style="margin:0 0 var(--sp-3);padding-left:var(--sp-5);">' +
+    (stakeItems.length
+      ? stakeItems.map(function(item) {
+        return '<li>' + item.html + '</li>';
+      }).join('')
+      : '<li>declare itself but contribute no active capabilities</li>') +
+    '</ul>' +
+    (absent.length
+      ? '<p class="settings-note" style="margin-bottom:var(--sp-1);"><strong>This plugin will not:</strong></p>' +
+      '<ul class="settings-note" style="margin:0 0 var(--sp-3);padding-left:var(--sp-5);">' +
+      absent.map(function(line) { return '<li>' + pluginManagerEscape(line) + '</li>'; }).join('') +
+      '</ul>'
+      : '') +
+    '</div>' +
+
+    // Update diff (only when replacing)
+    diffHtml +
+
+    // Source / metadata
+    '<div style="margin-top:var(--sp-4);padding-top:var(--sp-3);border-top:1px solid var(--c-border);">' +
+    sourceRow +
+    homepageRow +
+    compatRow +
+    depsRow +
+    updateRow +
+    (warnings.length ? pluginManagerList(warnings) : '') +
+    '</div>' +
+
+    '<p class="settings-note" style="margin-top:var(--sp-3);">Plugins are trusted local code with full access to the entity\'s identity, memory, vault, and network. Only install if you have vetted the source.</p>' +
+    '<div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;margin-top:var(--sp-3);">' +
+    '<button type="button" class="btn btn--primary" data-draft-id="' + pluginManagerEscape(preview.draftId) + '" onclick="installPluginDraft(this.dataset.draftId)">Install</button>' +
+    '<button type="button" class="btn btn--ghost" onclick="document.getElementById(\'plugin-manager-review\').style.display=\'none\'">Cancel</button>' +
+    '</div></section>';
+  target.style.display = 'block';
+}
+
+async function inspectPluginZip(event) {
+  event.preventDefault();
+  const input = document.getElementById('plugin-zip-input');
+  const button = event.submitter;
+  const file = input && input.files ? input.files[0] : null;
+  if (!file) {
+    showToast('Select a plugin zip file to inspect');
+    return;
+  }
+  const originalText = button ? button.textContent : '';
+  if (button) {
+    button.disabled = true;
+    button.textContent = 'Inspecting...';
+  }
+  try {
+    const formData = new FormData();
+    formData.append('plugin', file);
+    const result = await pluginManagerJson('/api/plugin-manager/inspect-zip', {
+      method: 'POST',
+      body: formData,
+    });
+    renderPluginInstallReview(result.preview);
+  } catch (error) {
+    showToast(error.message || 'Could not inspect that plugin zip');
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = originalText;
+    }
+  }
+}
+
+async function inspectPluginGit(event) {
+  event.preventDefault();
+  const repoUrl = document.getElementById('plugin-git-url')?.value || '';
+  const ref = document.getElementById('plugin-git-ref')?.value || '';
+  const button = event.submitter;
+  const originalText = button ? button.textContent : '';
+  if (button) {
+    button.disabled = true;
+    button.textContent = 'Inspecting...';
+  }
+  try {
+    const result = await pluginManagerJson('/api/plugin-manager/inspect-git', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ repoUrl, ref }),
+    });
+    renderPluginInstallReview(result.preview);
+  } catch (error) {
+    showToast(error.message || 'Could not inspect that plugin repository');
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = originalText;
+    }
+  }
+}
+
+function refreshPluginSettings() {
+  if (globalThis.htmx) {
+    htmx.ajax('GET', '/fragments/settings/plugins', { target: '#chat', swap: 'innerHTML' });
+    return;
+  }
+  fetch('/fragments/settings/plugins').then(function(response) {
+    return response.text();
+  }).then(function(html) {
+    const chat = document.getElementById('chat');
+    if (chat) chat.innerHTML = html;
+  });
+}
+
+async function installPluginDraft(draftId) {
+  try {
+    await pluginManagerJson('/api/plugin-manager/install-draft', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ draftId }),
+    });
+    showToast('Plugin installed. Restart Psycheros before the change takes effect.');
+    refreshPluginSettings();
+  } catch (error) {
+    showToast(error.message || 'Could not install that plugin');
+  }
+}
+
+async function removePlugin(id) {
+  if (!id) return;
+  if (!confirm('Remove this plugin? Its code and state will be moved to plugin-backups. Plugin secrets remain available for reinstall until removed manually.')) {
+    return;
+  }
+  try {
+    await pluginManagerJson('/api/plugin-manager/plugins/' + encodeURIComponent(id), {
+      method: 'DELETE',
+    });
+    showToast('Plugin removed. Restart Psycheros before the change takes effect.');
+    refreshPluginSettings();
+  } catch (error) {
+    showToast(error.message || 'Could not remove that plugin');
+  }
+}
+
+globalThis.inspectPluginZip = inspectPluginZip;
+globalThis.inspectPluginGit = inspectPluginGit;
+globalThis.installPluginDraft = installPluginDraft;
+globalThis.removePlugin = removePlugin;
+
+// =============================================================================
+// Plugin Health card + per-plugin Recent Activity panel
+// =============================================================================
+// These load lazily after the Plugins Settings fragment swaps in. Health is
+// fetched once per page render; per-plugin activity is fetched on first
+// expand. No polling — refresh happens by reloading the page.
+
+const PLUGIN_ACTIVITY_STATE = {
+  // pluginId -> { filter: 'all'|'warn'|'error', lastEvents: [...] }
+};
+
+async function loadPluginHealth() {
+  const target = document.getElementById('plugin-health-card');
+  if (!target) return;
+  let body;
+  try {
+    body = await pluginManagerJson('/api/plugin-manager/health');
+  } catch (error) {
+    target.innerHTML = '<p class="settings-note">Could not load plugin health: ' +
+      pluginManagerEscape(error.message || 'unknown error') + '</p>';
+    return;
+  }
+  const counts = body.counts || {};
+  const budget = body.lastBudget;
+  const denied = body.deniedEnvVars || [];
+
+  const countRow = function(label, n, badgeKind) {
+    if (!n) return '';
+    return '<span style="display:inline-flex;align-items:center;gap:var(--sp-1);margin-right:var(--sp-3);">' +
+      pluginManagerBadge(String(n), badgeKind) +
+      '<span style="color:var(--c-fg-muted);">' + pluginManagerEscape(label) + '</span></span>';
+  };
+
+  let budgetHtml = '';
+  if (budget && typeof budget.cap === 'number') {
+    const pct = budget.cap > 0 ? Math.min(100, Math.round((budget.used / budget.cap) * 100)) : 0;
+    const meterColor = pct >= 90 ? 'var(--c-danger, #ff6b6b)' : (pct >= 70 ? 'var(--c-warning, #f0ad4e)' : 'var(--c-accent)');
+    budgetHtml =
+      '<div class="context-utilization" style="margin-top:var(--sp-3);">' +
+        '<div class="context-utilization-label">Plugin context budget (last turn)</div>' +
+        '<div class="context-utilization-bar"><div class="context-utilization-fill" style="width:' + pct + '%;background:' + meterColor + ';"></div></div>' +
+        '<div class="context-utilization-pct">' + pct + '% &mdash; ' +
+          budget.used.toLocaleString() + ' / ' + budget.cap.toLocaleString() + ' chars</div>' +
+      '</div>';
+  }
+
+  let deniedHtml = '';
+  if (denied.length) {
+    deniedHtml = '<p class="settings-note" style="margin-top:var(--sp-3);"><strong>Refused env vars:</strong> ' +
+      pluginManagerEscape(denied.map(function(d) { return d.pluginId + ' (' + d.names.join(', ') + ')'; }).join('; ')) +
+      '</p>';
+  }
+
+  if (counts.total === 0) {
+    target.innerHTML = '<p class="settings-note">No plugins installed.</p>';
+    return;
+  }
+
+  target.innerHTML =
+    '<div>' +
+      countRow('Active', counts.active, 'badge-success') +
+      countRow('Degraded', counts.degraded, 'badge-error') +
+      countRow('Pending restart', counts.pendingRestart, 'badge-primary') +
+      countRow('Disabled', counts.disabled, 'badge-muted') +
+      '<span style="color:var(--c-fg-muted);">of ' + counts.total + ' total</span>' +
+    '</div>' +
+    budgetHtml +
+    deniedHtml;
+}
+
+function loadPluginVettingGuide() {
+  // Retained as a no-op — the vetting guide moved to the User Guide at
+  // site/src/content/docs/psycheros/user-guide.md and is linked from the
+  // safety banner at the top of this page. This function is kept so the
+  // afterSwap lifecycle hook below doesn't need to know whether client-side
+  // vetting content exists; remove freely if the lifecycle hook is
+  // simplified later.
+}
+
+async function togglePluginActivity(pluginId, button) {
+  const container = document.getElementById('plugin-activity-' + pluginId);
+  if (!container) return;
+  const isExpanded = container.style.display !== 'none';
+  if (isExpanded) {
+    container.style.display = 'none';
+    if (button) button.textContent = 'Show recent activity';
+    return;
+  }
+  container.style.display = 'block';
+  if (button) button.textContent = 'Hide recent activity';
+  // Lazy-load on first expand; afterwards the cached render stays until
+  // the user collapses/re-expands (then we re-fetch).
+  if (!PLUGIN_ACTIVITY_STATE[pluginId]) {
+    PLUGIN_ACTIVITY_STATE[pluginId] = { filter: 'warn' };
+  }
+  await loadPluginEvents(pluginId, container, PLUGIN_ACTIVITY_STATE[pluginId].filter);
+}
+
+async function loadPluginEvents(pluginId, container, filter) {
+  const state = PLUGIN_ACTIVITY_STATE[pluginId] || (PLUGIN_ACTIVITY_STATE[pluginId] = { filter: 'warn' });
+  state.filter = filter || 'warn';
+  container.innerHTML = '<p class="settings-note">Loading…</p>';
+  let body;
+  try {
+    body = await pluginManagerJson('/api/plugin-manager/plugins/' + encodeURIComponent(pluginId) + '/events?limit=200');
+  } catch (error) {
+    container.innerHTML = '<p class="settings-note">Could not load activity: ' +
+      pluginManagerEscape(error.message || 'unknown error') + '</p>';
+    return;
+  }
+  renderPluginActivity(pluginId, container, body.events || [], body.logPath || '', state.filter);
+}
+
+function renderPluginActivity(pluginId, container, events, logPath, filter) {
+  const filtered = events.filter(function(e) {
+    if (filter === 'all') return true;
+    if (filter === 'warn') return e.level === 'warn' || e.level === 'error';
+    if (filter === 'error') return e.level === 'error';
+    return true;
+  }).slice(-200).reverse(); // newest first
+
+  const levelKind = function(level) {
+    if (level === 'error') return 'badge-error';
+    if (level === 'warn') return 'badge-primary';
+    return 'badge-muted';
+  };
+
+  const eventRows = filtered.length
+    ? filtered.map(function(e) {
+        const ts = e.timestamp ? e.timestamp.replace('T', ' ').replace(/\.\d+Z$/, 'Z') : '';
+        return '<div class="context-metrics-row" style="gap:var(--sp-2);align-items:flex-start;">' +
+          '<code style="font-size:var(--font-size-xs);color:var(--c-fg-muted);white-space:nowrap;">' + pluginManagerEscape(ts) + '</code>' +
+          pluginManagerBadge(e.level || '?', levelKind(e.level)) +
+          '<code style="font-size:var(--font-size-xs);color:var(--c-fg-muted);">' + pluginManagerEscape(e.category) + '</code>' +
+          '<span style="flex:1;word-break:break-word;">' + pluginManagerEscape(e.message || '') + '</span>' +
+        '</div>';
+      }).join('')
+    : '<p class="settings-note">No events at this filter level.</p>';
+
+  const filterOptions = ['warn', 'all', 'error'].map(function(value) {
+    const labels = { warn: 'WARN+', all: 'All levels', error: 'ERROR only' };
+    const selected = filter === value ? ' selected' : '';
+    return '<option value="' + value + '"' + selected + '>' + labels[value] + '</option>';
+  }).join('');
+
+  container.innerHTML =
+    '<div style="display:flex;justify-content:space-between;gap:var(--sp-2);flex-wrap:wrap;align-items:center;margin-bottom:var(--sp-2);">' +
+      '<div style="display:flex;gap:var(--sp-2);align-items:center;">' +
+        '<label style="font-size:var(--font-size-xs);color:var(--c-fg-muted);">Filter</label>' +
+        '<select class="input-field" style="width:auto;padding:var(--sp-1);" onchange="setPluginActivityFilter(\'' +
+          pluginManagerEscape(pluginId).replace(/'/g, "\\'") + '\', this.value)">' + filterOptions + '</select>' +
+      '</div>' +
+      '<div style="display:flex;gap:var(--sp-2);">' +
+        '<button type="button" class="btn btn--ghost btn--sm" onclick="copyPluginEvents(\'' +
+          pluginManagerEscape(pluginId).replace(/'/g, "\\'") + '\')">Copy</button>' +
+        '<a class="btn btn--ghost btn--sm" href="/api/plugin-manager/plugins/' + encodeURIComponent(pluginId) + '/log" target="_blank" rel="noopener">Download log</a>' +
+      '</div>' +
+    '</div>' +
+    '<p class="settings-note" style="font-size:var(--font-size-xs);">File on disk: <code>' + pluginManagerEscape(logPath) + '</code></p>' +
+    '<div class="context-section-grid">' + eventRows + '</div>';
+}
+
+function setPluginActivityFilter(pluginId, filter) {
+  const container = document.getElementById('plugin-activity-' + pluginId);
+  if (!container) return;
+  loadPluginEvents(pluginId, container, filter);
+}
+
+async function copyPluginEvents(pluginId) {
+  let body;
+  try {
+    body = await pluginManagerJson('/api/plugin-manager/plugins/' + encodeURIComponent(pluginId) + '/events?limit=200');
+  } catch (error) {
+    showToast(error.message || 'Could not load events');
+    return;
+  }
+  // Render to the same one-line-per-event text format the file uses, so a
+  // paste into a support chat looks identical to downloading the file.
+  const text = (body.events || []).map(function(e) {
+    const ts = e.timestamp || '';
+    const level = (e.level || '').toUpperCase();
+    const cat = e.category || '';
+    const details = e.details && Object.keys(e.details).length ? ' ' + JSON.stringify(e.details) : '';
+    return '[' + ts + '] [' + level + '] [' + cat + '] ' + (e.message || '') + details;
+  }).join('\n');
+  try {
+    await navigator.clipboard.writeText(text);
+    showToast('Copied ' + (body.events || []).length + ' events');
+  } catch {
+    showToast('Clipboard blocked — use Download log instead');
+  }
+}
+
+// =============================================================================
+// Plugin updater — manual check + apply, no scheduler yet (v1.1 will add a
+// daily task; for now operators click "Check for updates" per plugin).
+// =============================================================================
+
+async function checkPluginUpdate(pluginId, button) {
+  const target = document.getElementById('plugin-update-result-' + pluginId);
+  if (!target) return;
+  const originalText = button ? button.textContent : '';
+  if (button) {
+    button.disabled = true;
+    button.textContent = 'Checking…';
+  }
+  target.innerHTML = '<p class="settings-note">Checking GitHub for newer tags…</p>';
+  try {
+    const body = await pluginManagerJson(
+      '/api/plugin-manager/plugins/' + encodeURIComponent(pluginId) + '/check-update',
+      { method: 'POST' },
+    );
+    renderPluginUpdateResult(pluginId, target, body.result || {});
+  } catch (error) {
+    target.innerHTML = '<p class="settings-note">Update check failed: ' +
+      pluginManagerEscape(error.message || 'unknown error') + '</p>';
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = originalText;
+    }
+  }
+}
+
+function renderPluginUpdateResult(pluginId, target, result) {
+  // Failures come back with a `reason` field — render those distinctly so
+  // the operator can tell "no update available" from "check didn't run."
+  if (result.reason) {
+    const reasonLabel = {
+      'not-configured': 'Update check not configured',
+      'unsupported-host': 'Unsupported repository host',
+      'network': 'Network error',
+      'rate-limited': 'Rate-limited by GitHub',
+      'no-valid-tags': 'No version tags found',
+    }[result.reason] || 'Update check failed';
+    target.innerHTML =
+      '<p class="settings-note"><strong>' + pluginManagerEscape(reasonLabel) +
+      ':</strong> ' + pluginManagerEscape(result.message || '') + '</p>';
+    return;
+  }
+  if (!result.updateAvailable) {
+    target.innerHTML =
+      '<p class="settings-note">Up to date at <code>' +
+      pluginManagerEscape(result.currentVersion || '?') + '</code>' +
+      (result.latestVersion ? ' (latest tag: <code>' + pluginManagerEscape(result.latestVersion) + '</code>)' : '') +
+      '.</p>';
+    return;
+  }
+  // Update available — render the apply button inline. The tag + repoUrl
+  // travel through data-attrs on the button so applyPluginUpdate has what
+  // it needs without re-checking.
+  target.innerHTML =
+    '<div style="display:flex;gap:var(--sp-2);align-items:center;flex-wrap:wrap;">' +
+      pluginManagerBadge('Update available', 'badge-primary') +
+      '<span class="settings-note" style="margin:0;">' +
+        '<code>' + pluginManagerEscape(result.currentVersion || '?') + '</code> → <code>' +
+        pluginManagerEscape(result.latestVersion || '?') + '</code>' +
+      '</span>' +
+      '<button type="button" class="btn btn--primary btn--sm"' +
+        ' data-plugin-id="' + pluginManagerEscape(pluginId) + '"' +
+        ' data-tag="' + pluginManagerEscape(result.latestTag || '') + '"' +
+        ' data-repo-url="' + pluginManagerEscape(result.repoUrl || '') + '"' +
+        ' onclick="applyPluginUpdate(this.dataset.pluginId, this.dataset.tag, this.dataset.repoUrl, this)">' +
+        'Update to ' + pluginManagerEscape(result.latestVersion || 'latest') +
+      '</button>' +
+    '</div>';
+}
+
+async function applyPluginUpdate(pluginId, tag, repoUrl, button) {
+  if (!confirm('Apply update to ' + pluginId + ' at tag ' + tag + '?\n\nThe current install will be backed up. Psycheros will need a restart for the new version to load.')) {
+    return;
+  }
+  const originalText = button ? button.textContent : '';
+  if (button) {
+    button.disabled = true;
+    button.textContent = 'Applying…';
+  }
+  try {
+    await pluginManagerJson(
+      '/api/plugin-manager/plugins/' + encodeURIComponent(pluginId) + '/update',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tag, repoUrl }),
+      },
+    );
+    showToast('Plugin updated. Restart Psycheros for the new version to take effect.');
+    refreshPluginSettings();
+  } catch (error) {
+    showToast(error.message || 'Update failed');
+    if (button) {
+      button.disabled = false;
+      button.textContent = originalText;
+    }
+  }
+}
+
+globalThis.togglePluginActivity = togglePluginActivity;
+globalThis.setPluginActivityFilter = setPluginActivityFilter;
+globalThis.copyPluginEvents = copyPluginEvents;
+globalThis.checkPluginUpdate = checkPluginUpdate;
+globalThis.applyPluginUpdate = applyPluginUpdate;
+
+// Auto-load the health card and vetting guide whenever the Plugins Settings
+// fragment is in the DOM. Re-runs on every HTMX swap of #chat (settings nav,
+// sidebar, etc.) — loadPluginHealth/loadPluginVettingGuide early-return when
+// their targets aren't present, so this is cheap when the user is elsewhere.
+function initPluginsSettingsLifecycle() {
+  loadPluginHealth();
+  loadPluginVettingGuide();
+}
+initPluginsSettingsLifecycle();
+document.body.addEventListener('htmx:afterSwap', function(e) {
+  if (e.detail.target && e.detail.target.id === 'chat') {
+    initPluginsSettingsLifecycle();
+  }
+});
 
 // Show voice call button only inside an open conversation — voice needs a
 // conversationId, and the button has no business on settings or other
@@ -5625,9 +6186,10 @@ async function loadGallery(offset) {
       const promptAttr = img.prompt ? ' title="' + esc(img.prompt) + '"' : '';
       const catLabel = img.category === 'generated' ? 'generated' : 'uploaded';
       const catClass = img.category === 'generated' ? 'gallery-badge--generated' : 'gallery-badge--user';
+      const thumbUrl = img.url.replace(/^\/(generated-images|chat-attachments)\//, '/$1/thumbs/') + '.webp';
       return '<div class="gallery-card" data-category="' + img.category + '"' + promptAttr + '>'
         + '<div class="gallery-thumb-wrap">'
-        + '<img src="' + esc(img.url) + '" class="gallery-thumb" loading="lazy" onclick="openLightbox(\'' + esc(img.url) + '\',\'' + esc(img.filename) + '\')"/>'
+        + '<img src="' + esc(thumbUrl) + '" class="gallery-thumb" loading="lazy" onclick="openLightbox(\'' + esc(img.url) + '\',\'' + esc(img.filename) + '\')"/>'
         + '<span class="gallery-badge ' + catClass + '">' + catLabel + '</span>'
         + '</div>'
         + '<div class="gallery-meta">'
@@ -5812,6 +6374,43 @@ function onProviderChange() {
       thinkingNote.style.display = preset.supportsThinking ? 'none' : 'block';
     }
     document.getElementById('llm-thinking').checked = preset.supportsThinking;
+    updatePersistentReasoningWarnings();
+  }
+}
+
+/**
+ * Show informational warnings when persistent reasoning is force-enabled
+ * (intra-turn "on" or inter-turn > 0) on a provider whose preset doesn't
+ * advertise supportsPersistentReasoning. The warnings never block — the
+ * user is the final authority on whether their endpoint accepts the field.
+ * Re-evaluated on provider change and on field change.
+ */
+function updatePersistentReasoningWarnings() {
+  var presetsEl = document.getElementById('llm-provider-presets-data');
+  var providerEl = document.getElementById('llm-provider');
+  if (!presetsEl || !providerEl) return;
+  try {
+    var presets = JSON.parse(presetsEl.textContent || '{}');
+    var provider = providerEl.value;
+    var preset = presets[provider];
+    var supported = preset && preset.supportsPersistentReasoning === true;
+
+    var intraSelect = document.getElementById('llm-persistent-intra');
+    var intraWarning = document.getElementById('persistent-intra-warning');
+    if (intraSelect && intraWarning) {
+      intraWarning.style.display =
+        (intraSelect.value === 'on' && !supported) ? 'block' : 'none';
+    }
+
+    var interInput = document.getElementById('llm-persistent-inter');
+    var interWarning = document.getElementById('persistent-inter-warning');
+    if (interInput && interWarning) {
+      var interVal = parseInt(interInput.value) || 0;
+      interWarning.style.display =
+        (interVal > 0 && !supported) ? 'block' : 'none';
+    }
+  } catch (e) {
+    // Presets data missing or malformed — fail silent, warnings stay hidden.
   }
 }
 
@@ -5832,6 +6431,8 @@ function gatherProfile() {
     maxTokens: parseInt(document.getElementById('llm-max-tokens').value) || 4096,
     contextLength: parseInt(document.getElementById('llm-context-length').value) || 128000,
     thinkingEnabled: document.getElementById('llm-thinking').checked,
+    persistentReasoningIntraTurn: (document.getElementById('llm-persistent-intra') || {}).value || 'auto',
+    persistentReasoningInterTurns: parseInt((document.getElementById('llm-persistent-inter') || {}).value) || 0,
   };
 }
 
@@ -6008,6 +6609,7 @@ globalThis.toggleApiKeyVisibility = toggleApiKeyVisibility;
 globalThis.onProviderChange = onProviderChange;
 globalThis.saveProfile = saveProfile;
 globalThis.testProfileConnection = testProfileConnection;
+globalThis.updatePersistentReasoningWarnings = updatePersistentReasoningWarnings;
 globalThis.setAsActive = setAsActive;
 globalThis.deleteProfile = deleteProfile;
 

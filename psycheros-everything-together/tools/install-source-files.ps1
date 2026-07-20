@@ -5,15 +5,23 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$SupportedVersions = @("0.8.23")
+$SupportedVersions = @("0.9.2")
 $PatchRoot = Split-Path -Parent $PSScriptRoot
 $FilesRoot = Join-Path $PatchRoot "files"
 $MusicBundleRoot = Join-Path $PatchRoot "bundled\htf-music-listener"
 $MusicInstaller = Join-Path $MusicBundleRoot "tools\Install-Legacy.ps1"
 $AddonName = "Everything Together"
 $AddonId = "psycheros-everything-together"
-$AddonVersion = "0.1.0-rc.4"
-$SupersededAddonIds = @("psycheros-more-uploads", "psycheros-voice-text-resize", "psycheros-more-uploads-voice-resize")
+$AddonVersion = "0.2.0"
+$SupersededAddonIds = @(
+  "psycheros-more-uploads",
+  "psycheros-voice-text-resize",
+  "psycheros-more-uploads-voice-resize",
+  "psycheros-accessible-font-settings",
+  "psycheros-windows-shell-fix",
+  "psycheros-screen-presence-alpha",
+  "psycheros-expression-sprites-beta"
+)
 
 function Resolve-FullPath {
   param([Parameter(Mandatory = $true)][string]$Path)
@@ -124,7 +132,7 @@ function Assert-AddonInstallCompatible {
 
   if ($Blocking.Count -gt 0) {
     $List = ($Blocking | ForEach-Object { Format-AddonRecord $_ }) -join [Environment]::NewLine
-    throw "Cannot install $AddonName because another overlapping Psycheros source add-on is already present:$([Environment]::NewLine)$List$([Environment]::NewLine)Restore the official Psycheros 0.8.23 source before installing this bundle."
+    throw "Cannot install $AddonName because another overlapping Psycheros source add-on is already present:$([Environment]::NewLine)$List$([Environment]::NewLine)Restore the official Psycheros 0.9.2 source before installing this bundle."
   }
 
   if ($Superseded.Count -gt 0) {

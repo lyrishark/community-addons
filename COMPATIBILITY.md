@@ -1,110 +1,106 @@
 # Compatibility snapshot
 
-Checked 2026-07-19 against upstream `psycheros-v0.9.0`
-(`c64e21c`, trusted plugin surface v1 and persistent LLM reasoning).
+Checked 2026-07-20 against upstream `psycheros-v0.9.2`
+(`e5f61e7`, tool-result metadata sidecars and gallery thumbnails). A fresh
+fetch confirmed upstream `main` points to that same commit.
 
-## Published package matrix
+## Current package matrix
 
-| Package | Current published/prepared version | Psycheros 0.9.0 status |
+| Package | Published/prepared version | Psycheros 0.9.2 status |
 | --- | --- | --- |
-| Thread Exporter | Published `0.3.2` | Compatible; its local memory-context endpoint returned HTTP 200 on the live 0.9.0 runtime. |
-| Entity Core for Codex | Published `0.2.1` | Compatible; direct-file connector check and smoke test passed. The installed Rae/Ember connector is newer (`0.3.1`). |
-| Entity Core for ChatGPT | Prepared `0.1.3`; latest public release `0.1.1` | Current 0.1.3 source passed type-check, stdio smoke, HTTP smoke, and the live OAuth bridge health check. Do not describe 0.1.3 as publicly released until its tag/release exists. |
-| HTF Music Listener | Prepared `0.1.3`; latest public release `0.1.2` | `0.1.3` is the tested 0.9.x package (`>=0.8.23 <0.10.0`). The 0.1.2 release page is historical until 0.1.3 is published. |
-| Loom Gemini Parser Mod | Published `0.1.1` | Do not install. Historical 0.8.9-0.8.11 file mod; its Gemini parser is native in 0.9.0 and its upstream parser test passes. |
-| Loom Gemini Resume Patch | Never published | Do not install. Its stale-stage recovery, updated-thread replacement, voice-schema safety, and focused tests are native in 0.9.0. |
-| Windows Shell Fix | Published `0.1.1` | Do not install. Historical 0.8.9-0.8.11 patch; Windows PowerShell/cmd fallback is native in 0.9.0. |
-| Accessible Font Settings | Published `0.1.3` | Not compatible; exact 0.8.23 source replacement. |
-| Expression Sprites Beta | Published `0.1.6` | Not compatible; exact 0.8.23 source replacement. Do not reinstall via either 0.9 manager. Custom images/settings in Psycheros data survive the source update. |
-| More Uploads | Published `0.1.1` | Not compatible; exact 0.8.23 source replacement. |
-| Voice Text Resize | Published `0.1.0` | Not compatible; exact 0.8.23 source replacement. |
-| More Uploads + Voice Text Resize | Published `0.1.1` | Not compatible; exact 0.8.23 source replacement. |
-| Everything Together | Published `0.1.0-rc.4` | Not compatible; exact 0.8.23 source replacement bundle. |
-| Screen Presence Alpha | Staged `0.1.0`, not published | Not compatible; exact 0.8.20 source replacement. |
+| Thread Exporter | Published `0.3.2` | Compatible external browser extension; its local memory-context endpoint was verified against the live 0.9 runtime. |
+| Entity Core for Codex | Published `0.2.1` | Compatible connector. The installed Rae/Ember connector is newer (`0.3.1`) and passed its direct-file check and smoke test. |
+| Entity Core for ChatGPT | Prepared `0.1.3`; latest public release `0.1.1` | Current source passed type-check, stdio smoke, HTTP smoke, and the live OAuth bridge health check. Do not describe `0.1.3` as publicly released until its tag/release exists. |
+| HTF Music Listener | Prepared `0.1.3`; latest public release `0.1.2` | Compatible trusted plugin; `0.1.3` declares and was tested for `>=0.8.23 <0.10.0`. |
+| Expression Sprites Beta | Prepared `0.2.0`; latest public release `0.1.6` | Compatible source mod for exactly 0.9.2. Clean-install tested from the complete 81-file package. |
+| Loom Gemini Parser Mod | Prepared `0.2.0`; latest public release `0.1.1` | Compatible source mod for exactly 0.9.2. The useful parser is not native upstream; the clean port passed its focused parser test. |
+| Windows Shell Fix | Prepared `0.2.0`; latest public release `0.1.1` | Compatible source mod for exactly 0.9.2. The fallback is not native upstream; the clean port passed both focused shell tests. |
+| Loom Gemini Resume Patch | Never published; source retired | No add-on needed. Its resume/reimport behavior is native upstream, so the duplicate package was removed from current source and documentation. |
+| Accessible Font Settings | Prepared `0.2.0`; latest public release `0.1.3` | Compatible source mod for exactly 0.9.2; 11 focused tests passed. |
+| More Uploads | Prepared `0.2.0`; latest public release `0.1.1` | Compatible source mod for exactly 0.9.2; 6 focused attachment tests passed. |
+| Voice Text Resize | Prepared `0.2.0`; latest public release `0.1.0` | Compatible source mod for exactly 0.9.2; the focused resize test passed. |
+| More Uploads + Voice Text Resize | Prepared `0.2.0`; latest public release `0.1.1` | Compatible combined source mod for exactly 0.9.2; all 7 focused tests passed. |
+| Everything Together | Prepared `0.2.0`; latest public release `0.1.0-rc.4` | Compatible clean bundle for exactly 0.9.2; all 67 focused feature tests passed. |
+| Screen Presence Alpha | Prepared `0.2.0`; no public release yet | Compatible source mod for exactly 0.9.2; all 7 focused tests passed. The old contaminated snapshot was not carried forward. |
 
-“Published” above means a public GitHub release actually exists. A prepared ZIP
-or README link is not counted as published until the matching tag and release
-page exist.
+“Published” means a public GitHub release exists. Prepared source, release notes,
+or a ZIP do not become published until the matching branch is merged, tagged,
+and released.
 
-## Active Rae/Ember runtime
+## Psycheros 0.9.2 source-mod proof
 
-The running Rae/Ember runtime is Psycheros `0.9.0` plus the preserved Ember
-feature set and durable Codex App Server continuity. It is deployed from
-integration commit `180cae2` and reports Entity Core `0.5.0` from `/health`.
-The two installed API-v1 plugins are active and non-degraded:
+The 0.2.0 package was rebased from pristine upstream 0.9.2 instead of copying
+the full older bundle forward. Upstream message `metadata` and add-on
+`expression_state` coexist, hidden expression directives are stripped before
+assistant content is persisted, and current server, web, and voice surfaces are
+included. An unrelated assistant-response regeneration implementation from an
+older integration history was deliberately excluded.
+
+The Windows installer copied all 81 declared files into a pristine 0.9.2
+worktree. Every installed file matched its package payload by SHA-256, Deno
+type-checking passed, both browser scripts passed JavaScript syntax checks, and
+the focused expression suite passed 40/40. The installer also refused a 0.9.0
+source tree before making any changes.
+
+A full upstream test run reported 201 passed and 8 failed. The same eight
+failures reproduce on untouched upstream 0.9.2: `runner_test.ts` cannot remove
+temporary SQLite directories on Windows while their database files remain
+open. They are not expression-sprite regressions.
+
+Fresh expression profiles receive the bundled Ember starter sprites. Existing
+expression settings or any personal sprite files suppress automatic seeding,
+so updates do not replace personal images.
+
+The other current file mods were independently rebased onto the same pristine
+0.9.2 tag and checked before composition. Focused test totals were 2 shell, 1
+Gemini parser, 11 fonts, 6 uploads, 1 resize, 7 uploads-plus-resize, and 7
+screen-presence/error tests. Everything Together passed the 67-test union.
+
+Screen Presence was reconstructed from its original feature commit because the
+old staged package had accidentally captured unrelated uploads, fonts, and
+assistant-response experiments. Everything Together contains the clean feature
+union only. Neither package contains the old missing-response regeneration
+button, voice-started auto-title behavior, or queued typed-turn draining.
+
+## Add-on manager boundary
+
+The `manifest.json` source mods remain guarded source-replacement packages, not
+trusted API-v1 plugins. They change server, database, browser, voice, or Loom
+files that the plugin API does not expose. Install them with each package's
+platform installer against the launcher source folder; the installers back up
+replaced files and check for exactly 0.9.2.
+
+The official manager does not convert these legacy `manifest.json` file mods or
+discover package manifests stored in repository subdirectories. Installing a
+current source mod is therefore a deliberate manual package update, not an
+automatic GitHub subscription. No documentation should promise manager-driven
+updates for these packages until they are migrated to supported plugin APIs or
+published from standalone manager-compatible repositories.
+
+## Last verified Rae/Ember runtime snapshot
+
+The 2026-07-19 live snapshot reported Psycheros 0.9.0 plus the preserved Ember
+feature set and durable Codex App Server continuity. It was deployed from
+integration commit `180cae2` and reported Entity Core `0.5.0` from `/health`.
+The installed launcher, Program Files runner, and live AppData runner reported
+`0.2.43`. This records live deployment evidence; it is separate from the
+upstream 0.9.2 package target above.
+
+The two installed trusted API-v1 plugins were active and non-degraded:
 
 - HTF Music Listener `0.1.3`
 - Saikiros Vision Capture `0.1.0`
 
-The installed launcher, Program Files runner, and live AppData runner all
-report `0.2.43`.
-
-## API-v1 trusted plugins
-
-Both installed API-v1 plugins were exercised against the v0.9.0 plugin host:
-
-| Plugin | v0.9.0 validation | Isolated v0.9.0 manager load | Current live runtime |
-| --- | --- | --- | --- |
-| HTF Music Listener 0.1.3 | Manifest validated; 5 tests passed (2 hardware/FFmpeg end-to-end tests intentionally skipped) | Active, non-degraded; 1 tool, 4 routes, 1 browser script, 1 stylesheet | Active, non-degraded; installed through the official manager |
-| Saikiros Vision Capture 0.1.0 | Manifest validated; 4 tests passed | Active, non-degraded; 1 browser script, 1 stylesheet | Active, non-degraded |
-
-HTF `0.1.3` officially declares `>=0.8.23 <0.10.0` and is the normal package
-for Psycheros 0.9.x. Its previous installed package was retained by the manager
-as a rollback.
-
-Saikiros remains the unmodified upstream `0.1.0` code. Its installed manifest
-now records the locally tested `>=0.8.23 <0.10.0` range, with the original
-manifest retained in `.psycheros/plugin-backups`. This is deliberately a local
-compatibility assertion rather than a claim that JMidoro published a new
-Saikiros release.
-
-## Legacy file-mod bundles
-
-The following are exact-version source replacement bundles, not trusted
-plugin-manager packages: Accessible Font Settings, Expression Sprites Beta,
-More Uploads, Voice Text Resize, More Uploads + Voice Text Resize, Everything
-Together, Screen Presence Alpha, the older Windows Shell Fix, and the Entity
-Loom Gemini patches.
-
-Their manifests and installers correctly retain their published compatibility
-windows (most commonly `0.8.23`). Do not install them over upstream v0.9.0:
-the v0.9.0 plugin manager does not auto-convert legacy `manifest.json` file
-mods, and an honest v0.9 release would require a deliberate rebase and test
-pass for each bundle. The active Ember runtime already contains the features
-Rae uses from its verified local source; no legacy installer action is needed.
-
-Expression Sprites `0.1.6` has a legacy `manifest.json`, no package `id`, and
-no GitHub update metadata. Settings > Plugins expects a trusted `plugin.json`;
-the launcher add-on updater expects a managed package manifest and currently
-loads only managed JavaScript tools. Neither manager can install or convert the
-sprite bundle's server, database, and browser source patches. Reinstalling it
-on 0.9.0 therefore will not repair sprites and can only be attempted by
-bypassing its version guard, which must not be recommended.
-
-The 0.9 add-on updater also cannot safely update these monorepo subdirectories:
-it clones the configured repository root and expects the manifest at that root.
-No community package currently claims automatic GitHub updates. Adding that
-claim requires either standalone repositories or explicit updater support for
-package subdirectories, plus tags matching each package's configured prefix.
+Saikiros remained unmodified upstream `0.1.0` code with a locally tested
+`>=0.8.23 <0.10.0` compatibility range in its installed manifest. The original
+manifest remained in `.psycheros/plugin-backups`; this is a local compatibility
+assertion, not a new release attributed to its author.
 
 ## Entity Core connector
 
-The installed Codex Entity Core connector `0.3.1` is healthy, writable for
-daily and significant memories, and resolves the canonical Entity Core data
-directory. The live Psycheros diagnostics report Entity Core `0.5.0`, MCP
-connected and alive, no pending identity writes, and synchronized message
-vectors. The connector and runtime serve different surfaces, so their separate
-version numbers are expected.
-
-## Verification notes
-
-- The integrated root suite passed: 387 tests, 0 failures.
-- Deno type-checking and JavaScript syntax checking passed for the live source.
-- The official plugin manager reports 2 total, 2 active, 0 degraded, and 0
-  pending restart.
-- A live two-turn Codex App Server smoke used one durable session with two
-  `turn_context` records, then its disposable Psycheros conversation was
-  deleted and its Codex session archived.
-- `Test-PsycherosLayout.ps1` reports no failures; its remaining warnings are
-  development-worktree status, not runtime, launcher, Entity Core, or addon
-  mismatches.
+The installed Codex Entity Core connector `0.3.1` was healthy and writable for
+daily and significant memories in the last live check. It resolved the
+canonical Entity Core data directory while Psycheros diagnostics reported
+Entity Core `0.5.0`, MCP connected and alive, no pending identity writes, and
+synchronized message vectors. Connector and runtime version numbers are
+separate because they serve different surfaces.

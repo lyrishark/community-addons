@@ -5,7 +5,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$SupportedVersions = @("0.8.23")
+$SupportedVersions = @("0.9.2")
 $PatchRoot = Split-Path -Parent $PSScriptRoot
 $ReplaceRoot = Join-Path $PatchRoot "files\packages\psycheros"
 $PsycherosDir = Join-Path $PsycherosRoot "packages\psycheros"

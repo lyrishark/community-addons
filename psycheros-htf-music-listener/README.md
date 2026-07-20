@@ -1,6 +1,6 @@
 # HTF Music Listener
 
-> **Psycheros 0.9.0 status:** Compatible with plugin version `0.1.3`, whose
+> **Psycheros 0.9.2 status:** Compatible with plugin version `0.1.3`, whose
 > manifest declares `>=0.8.23 <0.10.0`. Its manifest, tests, isolated 0.9 plugin
 > load, and live 0.9 runtime load were verified. The latest public GitHub
 > release is still `0.1.2`; use `0.1.3` as the 0.9 compatibility package once
@@ -98,7 +98,7 @@ plugin version.
 - **Legacy listener plus a source-file upload bundle:** install the upload bundle first,
   then the legacy listener. Reinstall the legacy listener after any source addon or
   Launcher update that replaces `web/js/psycheros.js`.
-- **Everything Together 0.1.0-rc.4:** already includes this legacy listening organ and
+- **Everything Together 0.2.0:** already includes this legacy listening organ and
   the expanded music-upload path. Do not install a second copy of HTF Music Listener.
 
 The release zip includes the HTF worker. If FFmpeg is not already available, the plugin

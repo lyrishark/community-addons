@@ -1,12 +1,12 @@
 {
   "name": "psycheros-expression-sprites-beta",
-  "version": "0.1.6",
+  "version": "0.2.0",
   "description": "Hybrid streaming expression detection and SillyTavern-style sprite display beta for Psycheros.",
   "kind": "psycheros-file-mod",
   "official": false,
   "requires": {
-    "psycheros_version": "0.8.23",
-    "compatible_psycheros_versions": ["0.8.23"]
+    "psycheros_version": "0.9.2",
+    "compatible_psycheros_versions": ["0.9.2"]
   },
   "files": [
     "deno.lock",

@@ -12,6 +12,7 @@ import type { SSEEvent, TurnMetrics } from "../types.ts";
 import JSZip from "jszip";
 import type { DBClient } from "../db/mod.ts";
 import type {
+  ChatImageUrlPart,
   LLMClient,
   LLMConnectionProfile,
   LLMProfileSettings,
@@ -52,6 +53,7 @@ import {
 } from "../memory/memory-settings.ts";
 import { join, toFileUrl } from "@std/path";
 import { captionImageDual } from "../tools/describe-image.ts";
+import { generateThumbnail } from "../utils/thumbnail.ts";
 import {
   getMediaType as getImageMediaType,
   uint8ToBase64,
@@ -180,6 +182,7 @@ import { getServerStartTime } from "./diagnostics.ts";
 import entityCoreDenoJson from "../../../entity-core/deno.json" with {
   type: "json",
 };
+import type { PluginManager } from "../plugins/mod.ts";
 import {
   buildExpressionSpriteFilename,
   type ExpressionSpriteAsset,
@@ -315,6 +318,8 @@ export interface RouteContext {
   /** Voice chat settings */
   getVoiceSettings: () => VoiceSettings;
   updateVoiceSettings: (settings: VoiceSettings) => Promise<void>;
+  /** Trusted local plugin harness */
+  pluginManager: PluginManager;
 }
 
 /**
@@ -347,11 +352,6 @@ const ALLOWED_IMAGE_TYPES = [
   "image/gif",
   "image/webp",
 ];
-
-const JSON_HEADERS = {
-  "Content-Type": "application/json",
-  "Access-Control-Allow-Origin": "*",
-};
 
 /**
  * Maximum file size for background uploads (5MB).
@@ -438,8 +438,8 @@ function normalizePath(path: string): string {
  * @param _ctx - Route context (unused, kept for consistency)
  * @returns HTTP Response with the app shell HTML
  */
-export function handleIndex(_ctx: RouteContext): Response {
-  const html = renderAppShell();
+export function handleIndex(ctx: RouteContext): Response {
+  const html = renderAppShell(ctx.pluginManager.getBrowserHeadHtml());
   return new Response(html, {
     headers: {
       "Content-Type": "text/html; charset=utf-8",
@@ -543,7 +543,7 @@ export function handleConversationView(
 
   // Always return the full app shell
   // Frontend JS will load the conversation content via /fragments/chat/:id
-  const html = renderAppShell();
+  const html = renderAppShell(ctx.pluginManager.getBrowserHeadHtml());
   return new Response(html, {
     headers: {
       "Content-Type": "text/html; charset=utf-8",
@@ -1139,7 +1139,56 @@ interface ChatRequestBody {
   conversationId: string;
   message: string;
   attachmentId?: string;
+  visionImages?: unknown;
   deviceType?: "desktop" | "mobile";
+}
+
+const MAX_TRANSIENT_VISION_IMAGES = 4;
+const MAX_TRANSIENT_VISION_IMAGE_CHARS = 8_000_000;
+const TRANSIENT_IMAGE_DATA_URL_PATTERN =
+  /^data:image\/(?:jpeg|jpg|png|webp);base64,[a-z0-9+/=\r\n]+$/i;
+
+function parseTransientVisionImages(input: unknown): ChatImageUrlPart[] {
+  if (input === undefined || input === null) return [];
+  if (!Array.isArray(input)) {
+    throw new Error("visionImages must be an array");
+  }
+  if (input.length > MAX_TRANSIENT_VISION_IMAGES) {
+    throw new Error(
+      `visionImages supports up to ${MAX_TRANSIENT_VISION_IMAGES} images`,
+    );
+  }
+
+  return input.map((item, index) => {
+    if (!item || typeof item !== "object") {
+      throw new Error(`visionImages[${index}] must be an object`);
+    }
+    const record = item as Record<string, unknown>;
+    const dataUrl = record.dataUrl;
+    if (typeof dataUrl !== "string") {
+      throw new Error(`visionImages[${index}].dataUrl must be a string`);
+    }
+    if (dataUrl.length > MAX_TRANSIENT_VISION_IMAGE_CHARS) {
+      throw new Error(`visionImages[${index}] is too large`);
+    }
+    if (!TRANSIENT_IMAGE_DATA_URL_PATTERN.test(dataUrl)) {
+      throw new Error(
+        `visionImages[${index}] must be a jpeg, png, or webp data URL`,
+      );
+    }
+
+    const detail = record.detail;
+    const image: ChatImageUrlPart = {
+      type: "image_url",
+      image_url: {
+        url: dataUrl.replace(/\r?\n/g, ""),
+      },
+    };
+    if (detail === "low" || detail === "high" || detail === "auto") {
+      image.image_url.detail = detail;
+    }
+    return image;
+  });
 }
 
 /**
@@ -1243,6 +1292,7 @@ export async function handleChat(
 ): Promise<Response> {
   // Parse and validate request body
   let body: ChatRequestBody;
+  let visionImages: ChatImageUrlPart[] = [];
   try {
     body = await request.json();
     if (!body.conversationId || typeof body.conversationId !== "string") {
@@ -1251,10 +1301,13 @@ export async function handleChat(
     if (!body.message || typeof body.message !== "string") {
       throw new Error("Missing or invalid message");
     }
+    visionImages = parseTransientVisionImages(body.visionImages);
   } catch (error) {
     console.error("[Routes] handleChat parse error:", error);
     return new Response(
-      JSON.stringify({ error: "Invalid request body" }),
+      JSON.stringify({
+        error: error instanceof Error ? error.message : "Invalid request body",
+      }),
       {
         status: 400,
         headers: {
@@ -1372,6 +1425,10 @@ export async function handleChat(
             deviceStatusCache: ctx.getDeviceStatusCache(),
             contextLength: activeProfile?.contextLength,
             maxTokens: activeProfile?.maxTokens,
+            persistentReasoningIntraTurn: ctx.llm.persistentReasoningIntraTurn,
+            persistentReasoningInterTurns: activeProfile
+              ?.persistentReasoningInterTurns,
+            pluginManager: ctx.pluginManager,
           },
         );
 
@@ -1384,6 +1441,7 @@ export async function handleChat(
         for await (
           const chunk of turn.process(body.conversationId, userMessage, {
             deviceType: body.deviceType,
+            visionImages: visionImages.length > 0 ? visionImages : undefined,
           })
         ) {
           if (signal.aborted) {
@@ -1581,6 +1639,10 @@ export async function handleChatRetry(
             deviceStatusCache: ctx.getDeviceStatusCache(),
             contextLength: retryProfile?.contextLength,
             maxTokens: retryProfile?.maxTokens,
+            persistentReasoningIntraTurn: ctx.llm.persistentReasoningIntraTurn,
+            persistentReasoningInterTurns: retryProfile
+              ?.persistentReasoningInterTurns,
+            pluginManager: ctx.pluginManager,
           },
         );
 
@@ -1766,6 +1828,7 @@ function convertToSSEEvent(chunk: EntityYield): SSEEvent {
           content: truncatedContent,
           isError: result.isError,
           affectedRegions: result.affectedRegions,
+          metadata: result.metadata,
         }),
       };
     }
@@ -2180,7 +2243,13 @@ export function handleWearableStream(
     return new Response("Unauthorized", { status: 401 });
   }
 
-  const { response, socket } = Deno.upgradeWebSocket(request);
+  const { response, socket } = Deno.upgradeWebSocket(request, {
+    // Long-lived mobile ingest stream. The client's 30s app-heartbeat stalls
+    // during Android Doze (screen off), so Deno's default 120s idle-ping would
+    // close the socket with 1001 "No response from ping frame." Raise the window
+    // so brief heartbeat stalls don't kill an otherwise-healthy stream.
+    idleTimeout: 3600, // seconds (was Deno default: 120)
+  });
   const manager = getWearableConnectionManager();
 
   // Optional: extract device_id from query params for early registration
@@ -6561,7 +6630,8 @@ export async function handleTestLovenseConnection(
       string,
       {
         id: string;
-        status: string;
+        // iOS Lovense Connect returns a number; Android/desktop return a string.
+        status: string | number;
         name: string;
         battery: number;
         nickName: string;
@@ -6573,7 +6643,7 @@ export async function handleTestLovenseConnection(
       name: t.name,
       nickname: t.nickName || "",
       battery: t.battery,
-      connected: t.status === "1",
+      connected: String(t.status) === "1",
     }));
 
     return new Response(
@@ -6672,14 +6742,17 @@ export async function handleLovenseStatus(
       string,
       {
         id: string;
-        status: string;
+        // iOS Lovense Connect returns a number; Android/desktop return a string.
+        status: string | number;
         name: string;
         battery: number;
         nickName: string;
       }
     >;
 
-    const connected = Object.values(toysMap).find((t) => t.status === "1");
+    const connected = Object.values(toysMap).find((t) =>
+      String(t.status) === "1"
+    );
     if (!connected) {
       return new Response(
         JSON.stringify({ connected: false }),
@@ -7185,6 +7258,8 @@ export async function handleDeleteImageGenSlot(
 // Expression Sprite API Routes
 // =============================================================================
 
+const EXPRESSION_JSON_HEADERS = { "Content-Type": "application/json" };
+
 /**
  * Handle GET /api/expression-sprites/settings - Return expression display settings.
  */
@@ -7192,7 +7267,9 @@ export async function handleGetExpressionDisplaySettings(
   ctx: RouteContext,
 ): Promise<Response> {
   const settings = await loadExpressionDisplaySettings(ctx.dataRoot);
-  return new Response(JSON.stringify(settings), { headers: JSON_HEADERS });
+  return new Response(JSON.stringify(settings), {
+    headers: EXPRESSION_JSON_HEADERS,
+  });
 }
 
 /**
@@ -7215,7 +7292,7 @@ export async function handleSaveExpressionDisplaySettings(
     });
     await saveExpressionDisplaySettings(ctx.dataRoot, updated);
     return new Response(JSON.stringify({ success: true, settings: updated }), {
-      headers: JSON_HEADERS,
+      headers: EXPRESSION_JSON_HEADERS,
     });
   } catch (error) {
     console.error(
@@ -7224,7 +7301,7 @@ export async function handleSaveExpressionDisplaySettings(
     );
     return new Response(
       JSON.stringify({ error: "Failed to save expression display settings" }),
-      { status: 500, headers: JSON_HEADERS },
+      { status: 500, headers: EXPRESSION_JSON_HEADERS },
     );
   }
 }
@@ -7242,7 +7319,7 @@ export async function handleUploadExpressionSprite(
     if (!label) {
       return new Response(
         JSON.stringify({ error: "Invalid expression label" }),
-        { status: 400, headers: JSON_HEADERS },
+        { status: 400, headers: EXPRESSION_JSON_HEADERS },
       );
     }
 
@@ -7251,7 +7328,7 @@ export async function handleUploadExpressionSprite(
     if (!file || !(file instanceof File)) {
       return new Response(JSON.stringify({ error: "No file provided" }), {
         status: 400,
-        headers: JSON_HEADERS,
+        headers: EXPRESSION_JSON_HEADERS,
       });
     }
 
@@ -7298,13 +7375,13 @@ export async function handleUploadExpressionSprite(
         cleanupApplied: cleanup.changed,
         settings,
       }),
-      { headers: JSON_HEADERS },
+      { headers: EXPRESSION_JSON_HEADERS },
     );
   } catch (error) {
     console.error("[Routes] Failed to upload expression sprite:", error);
     return new Response(
       JSON.stringify({ error: "Failed to upload expression sprite" }),
-      { status: 500, headers: JSON_HEADERS },
+      { status: 500, headers: EXPRESSION_JSON_HEADERS },
     );
   }
 }
@@ -7322,7 +7399,7 @@ export async function handleImportExpressionSpritePack(
     if (!file || !(file instanceof File)) {
       return new Response(JSON.stringify({ error: "No ZIP file provided" }), {
         status: 400,
-        headers: JSON_HEADERS,
+        headers: EXPRESSION_JSON_HEADERS,
       });
     }
 
@@ -7403,13 +7480,13 @@ export async function handleImportExpressionSpritePack(
         unmatched,
         settings,
       }),
-      { headers: JSON_HEADERS },
+      { headers: EXPRESSION_JSON_HEADERS },
     );
   } catch (error) {
     console.error("[Routes] Failed to import expression sprite pack:", error);
     return new Response(
       JSON.stringify({ error: "Failed to import expression sprite pack" }),
-      { status: 500, headers: JSON_HEADERS },
+      { status: 500, headers: EXPRESSION_JSON_HEADERS },
     );
   }
 }
@@ -7428,7 +7505,7 @@ export async function handleDeleteExpressionSprite(
     if (!existing) {
       return new Response(
         JSON.stringify({ error: "Expression sprite not found" }),
-        { status: 404, headers: JSON_HEADERS },
+        { status: 404, headers: EXPRESSION_JSON_HEADERS },
       );
     }
 
@@ -7443,13 +7520,13 @@ export async function handleDeleteExpressionSprite(
     delete settings.sprites[label];
     await saveExpressionDisplaySettings(ctx.dataRoot, settings);
     return new Response(JSON.stringify({ success: true, settings }), {
-      headers: JSON_HEADERS,
+      headers: EXPRESSION_JSON_HEADERS,
     });
   } catch (error) {
     console.error("[Routes] Failed to delete expression sprite:", error);
     return new Response(
       JSON.stringify({ error: "Failed to delete expression sprite" }),
-      { status: 500, headers: JSON_HEADERS },
+      { status: 500, headers: EXPRESSION_JSON_HEADERS },
     );
   }
 }
@@ -7735,11 +7812,59 @@ export function handleDeleteAnchorImage(
 
 /**
  * Serve files from .psycheros/generated-images/, .psycheros/anchors/, and .psycheros/chat-attachments/.
+ * Also serves 400px WebP thumbnails from the thumbs/ subdir of generated-images
+ * and chat-attachments, with lazy generation on miss.
  */
 export async function handleServeImageFile(
   ctx: RouteContext,
   path: string,
 ): Promise<Response> {
+  const IMAGE_HEADERS = {
+    "Cache-Control": "public, max-age=31536000, immutable",
+    "Access-Control-Allow-Origin": "*",
+  };
+
+  // Thumbnail routes — must be checked before the parent prefix matches.
+  const thumbMatch = path.match(
+    /^\/(generated-images|chat-attachments)\/thumbs\/(.+)$/,
+  );
+  if (thumbMatch) {
+    const dirName = thumbMatch[1];
+    const thumbFilename = thumbMatch[2];
+    if (
+      thumbFilename.includes("..") || thumbFilename.includes("/") ||
+      thumbFilename.includes("\\")
+    ) {
+      return new Response("Forbidden", { status: 403 });
+    }
+    if (!thumbFilename.endsWith(".webp")) {
+      return new Response("Not found", { status: 404 });
+    }
+
+    const dirPath = `${ctx.dataRoot}/.psycheros/${dirName}`;
+    const thumbPath = `${dirPath}/thumbs/${thumbFilename}`;
+    const sourceFilename = thumbFilename.slice(0, -5); // strip ".webp"
+    const sourcePath = `${dirPath}/${sourceFilename}`;
+
+    try {
+      try {
+        const data = await Deno.readFile(thumbPath);
+        return new Response(data, {
+          headers: { "Content-Type": "image/webp", ...IMAGE_HEADERS },
+        });
+      } catch {
+        // Lazy backfill — generate from source then read.
+        await generateThumbnail(sourcePath, thumbPath);
+        const data = await Deno.readFile(thumbPath);
+        return new Response(data, {
+          headers: { "Content-Type": "image/webp", ...IMAGE_HEADERS },
+        });
+      }
+    } catch {
+      return new Response("Not found", { status: 404 });
+    }
+  }
+
   // Map URL paths to filesystem directories
   let dirName: string;
   if (path.startsWith("/generated-images/")) {
@@ -7775,8 +7900,7 @@ export async function handleServeImageFile(
     return new Response(data, {
       headers: {
         "Content-Type": mediaType,
-        "Cache-Control": "public, max-age=31536000, immutable",
-        "Access-Control-Allow-Origin": "*",
+        ...IMAGE_HEADERS,
       },
     });
   } catch {
@@ -7820,6 +7944,15 @@ export async function handleUploadChatAttachment(
 
     const bytes = new Uint8Array(await file.arrayBuffer());
     await Deno.writeFile(`${attachmentsDir}/${filename}`, bytes);
+
+    try {
+      await generateThumbnail(
+        `${attachmentsDir}/${filename}`,
+        `${attachmentsDir}/thumbs/${filename}.webp`,
+      );
+    } catch (thumbError) {
+      console.warn("[Routes] Chat attachment thumbnail failed:", thumbError);
+    }
 
     return new Response(
       JSON.stringify({ id, filename, url: `/chat-attachments/${filename}` }),
@@ -9825,65 +9958,174 @@ export interface GalleryResult {
  * Scan generated-images and chat-attachments directories, cross-referencing
  * with messages table for metadata (prompt, generator, date).
  */
-async function scanGalleryImages(
+const GALLERY_IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "webp", "gif"];
+const GALLERY_CACHE_TTL_MS = 60_000;
+
+interface GalleryCacheEntry {
+  genDirMtime: number | null;
+  attDirMtime: number | null;
+  generatedAt: number;
+  allImages: GalleryImage[];
+  totalSize: number;
+  generatedCount: number;
+  userCount: number;
+}
+
+let galleryCache: GalleryCacheEntry | null = null;
+
+interface GenMetaEntry {
+  createdAt: string;
+  prompt?: string;
+  generator?: string;
+  description?: string;
+}
+
+/**
+ * Parse generated-image metadata from a single message row — checks the new
+ * `metadata` JSON sidecar first, then the legacy `[IMAGE:{...}]` marker.
+ */
+function extractGenMeta(
+  content: string,
+  metadataJson: string | null,
+): Omit<GenMetaEntry, "createdAt"> {
+  if (metadataJson) {
+    try {
+      const meta = JSON.parse(metadataJson) as {
+        image?: {
+          prompt?: string;
+          generatorName?: string;
+          description?: string;
+        };
+      };
+      if (meta.image) {
+        return {
+          prompt: typeof meta.image.prompt === "string"
+            ? meta.image.prompt
+            : undefined,
+          generator: typeof meta.image.generatorName === "string"
+            ? meta.image.generatorName
+            : undefined,
+          description: typeof meta.image.description === "string"
+            ? meta.image.description
+            : undefined,
+        };
+      }
+    } catch {
+      // fall through to legacy marker
+    }
+  }
+  const match = content.match(/\[IMAGE:\s*(\{.*?\})\]/);
+  if (match) {
+    try {
+      const meta = JSON.parse(match[1]);
+      return {
+        prompt: typeof meta.prompt === "string" ? meta.prompt : undefined,
+        generator: typeof meta.generator === "string"
+          ? meta.generator
+          : undefined,
+        description: typeof meta.description === "string"
+          ? meta.description
+          : undefined,
+      };
+    } catch {
+      // ignore malformed
+    }
+  }
+  return {};
+}
+
+/**
+ * Build filename → metadata map from message rows. First row (ASC order) wins
+ * per filename, preserving the previous `LIMIT 1 ORDER BY created_at ASC`
+ * semantics.
+ */
+function buildGenMetaMap(
+  rows: Array<{ content: string; created_at: string; metadata: string | null }>,
+): Map<string, GenMetaEntry> {
+  const map = new Map<string, GenMetaEntry>();
+  const re = /\/generated-images\/([^\s"'\]\]>]+)/g;
+  for (const row of rows) {
+    const meta = extractGenMeta(row.content, row.metadata);
+    const entry: GenMetaEntry = { createdAt: row.created_at, ...meta };
+    re.lastIndex = 0;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(row.content)) !== null) {
+      if (!map.has(m[1])) map.set(m[1], entry);
+    }
+  }
+  return map;
+}
+
+function buildAttDateMap(
+  rows: Array<{ content: string; created_at: string }>,
+): Map<string, string> {
+  const map = new Map<string, string>();
+  const re = /\/chat-attachments\/([^\s"'\]\]>]+)/g;
+  for (const row of rows) {
+    re.lastIndex = 0;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(row.content)) !== null) {
+      if (!map.has(m[1])) map.set(m[1], row.created_at);
+    }
+  }
+  return map;
+}
+
+async function dirMtime(path: string): Promise<number | null> {
+  try {
+    return (await Deno.stat(path)).mtime?.getTime() ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function buildGalleryIndex(
   ctx: RouteContext,
-  offset: number,
-  limit: number,
-): Promise<GalleryResult> {
+  genDirMtime: number | null,
+  attDirMtime: number | null,
+): Promise<GalleryCacheEntry> {
   const genDir = `${ctx.dataRoot}/.psycheros/generated-images`;
   const attDir = `${ctx.dataRoot}/.psycheros/chat-attachments`;
 
-  const allImages: GalleryImage[] = [];
+  const genRows = ctx.db.getRawDb()
+    .prepare(
+      `SELECT content, created_at, metadata FROM messages
+       WHERE content LIKE '%/generated-images/%'
+       ORDER BY created_at ASC`,
+    )
+    .all<{ content: string; created_at: string; metadata: string | null }>();
+  const genMeta = buildGenMetaMap(genRows);
 
-  // Scan generated-images directory
+  const attRows = ctx.db.getRawDb()
+    .prepare(
+      `SELECT content, created_at FROM messages
+       WHERE content LIKE '%/chat-attachments/%'
+       ORDER BY created_at ASC`,
+    )
+    .all<{ content: string; created_at: string }>();
+  const attMeta = buildAttDateMap(attRows);
+
+  const allImages: GalleryImage[] = [];
+  let totalSize = 0;
+  let generatedCount = 0;
+  let userCount = 0;
+
   try {
     for await (const entry of Deno.readDir(genDir)) {
       if (!entry.isFile) continue;
       const ext = entry.name.split(".").pop()?.toLowerCase();
-      if (!["png", "jpg", "jpeg", "webp", "gif"].includes(ext || "")) continue;
+      if (!GALLERY_IMAGE_EXTENSIONS.includes(ext || "")) continue;
 
-      const filePath = `${genDir}/${entry.name}`;
       let stat: Deno.FileInfo;
       try {
-        stat = await Deno.stat(filePath);
+        stat = await Deno.stat(`${genDir}/${entry.name}`);
       } catch {
         continue;
       }
 
-      // Query messages for metadata
-      const row = ctx.db.getRawDb()
-        .prepare(
-          "SELECT content, created_at FROM messages WHERE content LIKE ? ORDER BY created_at ASC LIMIT 1",
-        )
-        .get<{ content: string; created_at: string }>(
-          `%/generated-images/${entry.name}%`,
-        );
-
-      let prompt: string | undefined;
-      let generator: string | undefined;
-      let description: string | undefined;
-      let createdAt = stat.birthtime?.toISOString() ||
-        stat.mtime?.toISOString() || "";
-
-      if (row) {
-        createdAt = row.created_at;
-        // Parse [IMAGE:{...}] metadata
-        const match = row.content.match(/\[IMAGE:\s*(\{.*?\})\]/);
-        if (match) {
-          try {
-            const meta = JSON.parse(match[1]);
-            prompt = typeof meta.prompt === "string" ? meta.prompt : undefined;
-            generator = typeof meta.generator === "string"
-              ? meta.generator
-              : undefined;
-            description = typeof meta.description === "string"
-              ? meta.description
-              : undefined;
-          } catch {
-            // Ignore malformed JSON
-          }
-        }
-      }
+      const meta = genMeta.get(entry.name);
+      const createdAt = meta?.createdAt ||
+        stat.birthtime?.toISOString() || stat.mtime?.toISOString() || "";
 
       allImages.push({
         filename: entry.name,
@@ -9892,39 +10134,32 @@ async function scanGalleryImages(
         size: stat.size,
         url: `/generated-images/${entry.name}`,
         createdAt,
-        prompt,
-        generator,
-        description,
+        prompt: meta?.prompt,
+        generator: meta?.generator,
+        description: meta?.description,
       });
+      totalSize += stat.size;
+      generatedCount++;
     }
   } catch {
     // Directory doesn't exist yet
   }
 
-  // Scan chat-attachments directory
   try {
     for await (const entry of Deno.readDir(attDir)) {
       if (!entry.isFile) continue;
       const ext = entry.name.split(".").pop()?.toLowerCase();
-      if (!["png", "jpg", "jpeg", "webp", "gif"].includes(ext || "")) continue;
+      if (!GALLERY_IMAGE_EXTENSIONS.includes(ext || "")) continue;
 
-      const filePath = `${attDir}/${entry.name}`;
       let stat: Deno.FileInfo;
       try {
-        stat = await Deno.stat(filePath);
+        stat = await Deno.stat(`${attDir}/${entry.name}`);
       } catch {
         continue;
       }
 
-      // Query messages for earliest date
-      const row = ctx.db.getRawDb()
-        .prepare(
-          "SELECT created_at FROM messages WHERE content LIKE ? ORDER BY created_at ASC LIMIT 1",
-        )
-        .get<{ created_at: string }>(`%/chat-attachments/${entry.name}%`);
-
-      const createdAt = row?.created_at || stat.birthtime?.toISOString() ||
-        stat.mtime?.toISOString() || "";
+      const createdAt = attMeta.get(entry.name) ||
+        stat.birthtime?.toISOString() || stat.mtime?.toISOString() || "";
 
       allImages.push({
         filename: entry.name,
@@ -9934,32 +10169,67 @@ async function scanGalleryImages(
         url: `/chat-attachments/${entry.name}`,
         createdAt,
       });
+      totalSize += stat.size;
+      userCount++;
     }
   } catch {
     // Directory doesn't exist yet
   }
 
-  // Sort by date descending (most recent first)
   allImages.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
-  // Compute stats
-  const totalSize = allImages.reduce((sum, img) => sum + img.size, 0);
-  const generatedCount =
-    allImages.filter((img) => img.category === "generated").length;
-  const userCount = allImages.filter((img) => img.category === "user").length;
-
-  // Paginate
-  const paginated = allImages.slice(offset, offset + limit);
-  const hasMore = offset + limit < allImages.length;
-
   return {
+    genDirMtime,
+    attDirMtime,
+    generatedAt: Date.now(),
+    allImages,
     totalSize,
     generatedCount,
     userCount,
-    total: allImages.length,
+  };
+}
+
+async function getCachedGalleryIndex(
+  ctx: RouteContext,
+): Promise<GalleryCacheEntry> {
+  const genDir = `${ctx.dataRoot}/.psycheros/generated-images`;
+  const attDir = `${ctx.dataRoot}/.psycheros/chat-attachments`;
+  const genMtime = await dirMtime(genDir);
+  const attMtime = await dirMtime(attDir);
+
+  if (
+    galleryCache &&
+    galleryCache.genDirMtime === genMtime &&
+    galleryCache.attDirMtime === attMtime &&
+    Date.now() - galleryCache.generatedAt < GALLERY_CACHE_TTL_MS
+  ) {
+    return galleryCache;
+  }
+
+  galleryCache = await buildGalleryIndex(ctx, genMtime, attMtime);
+  return galleryCache;
+}
+
+/**
+ * Scan generated-images and chat-attachments directories, cross-referencing
+ * with messages table for metadata (prompt, generator, date). Results are
+ * cached with directory-mtime + TTL invalidation.
+ */
+async function scanGalleryImages(
+  ctx: RouteContext,
+  offset: number,
+  limit: number,
+): Promise<GalleryResult> {
+  const index = await getCachedGalleryIndex(ctx);
+  const paginated = index.allImages.slice(offset, offset + limit);
+  return {
+    totalSize: index.totalSize,
+    generatedCount: index.generatedCount,
+    userCount: index.userCount,
+    total: index.allImages.length,
     offset,
     limit,
-    hasMore,
+    hasMore: offset + limit < index.allImages.length,
     images: paginated,
   };
 }
@@ -10614,7 +10884,12 @@ export function handleVoiceWebSocket(
     );
   }
 
-  const { response, socket } = Deno.upgradeWebSocket(request);
+  const { response, socket } = Deno.upgradeWebSocket(request, {
+    // Long-lived voice chat session. Users can pause speaking for > 120s,
+    // and Deno's default idle-ping would drop the socket mid-conversation.
+    // Raise to match wearable stream headroom.
+    idleTimeout: 3600, // seconds (was Deno default: 120)
+  });
   const sessionManager = getVoiceSessionManager();
 
   socket.onopen = async () => {
@@ -10643,12 +10918,15 @@ export function handleVoiceWebSocket(
     // Two voice-specific overrides:
     //   1. Voice profile's disableReasoning flips thinkingEnabled on the
     //      LLM client. Latency matters more than reasoning for voice, so
-    //      default is to disable.
+    //      default is to disable. Persistent reasoning is forced off for
+    //      the same reason — voice doesn't want the extra token cost or
+    //      latency of threading reasoning through tool iterations.
     //   2. Voice profile's contextWindowSize overrides the LLM profile's
     //      contextLength. Users may want a tighter context window for
     //      voice to improve latency (cut off older history).
     const voiceLlm = createClientFromProfile(activeProfile, {
       thinkingEnabled: !profile.disableReasoning,
+      persistentReasoningIntraTurn: false,
     });
     const entityTurn = new EntityTurn(
       voiceLlm,

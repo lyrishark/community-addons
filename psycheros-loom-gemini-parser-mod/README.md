@@ -7,14 +7,13 @@ extension.
 It is not an official Psycheros release. It replaces a small set of
 `packages/entity-loom` files in a local Psycheros source checkout.
 
-> **Psycheros 0.9.0 status:** Superseded; do not install this legacy package.
-> Psycheros 0.9.0 includes the Gemini merged-batch parser natively, and its
-> upstream parser test passes. Version `0.1.1` remains historical for 0.8.9
-> through 0.8.11 only.
+> **Psycheros 0.9.2 status:** Compatible in version `0.2.0`. The merged-batch
+> Gemini parser is not native upstream, so this package carries only that
+> feature onto pristine 0.9.2.
 
-Version 0.1.1 is rebased and tested against **Psycheros 0.8.9 through 0.8.11**.
-Upstream 0.8.10 and 0.8.11 did not change Entity Loom or any file replaced by
-this mod. The installer refuses all other versions before changing files.
+Version 0.2.0 is rebased and tested against **Psycheros 0.9.2**. Version 0.1.1
+remains the historical package for Psycheros 0.8.9 through 0.8.11. The
+installer refuses all other versions before changing files.
 
 ## What This Adds
 
@@ -57,7 +56,7 @@ packages\psycheros\
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass
-.\tools\install-source-files.ps1 -PsycherosRoot "C:\Users\<name>\AppData\Roaming\Psycheros"
+.\tools\install-source-files.ps1 -PsycherosRoot "C:\Users\<name>\AppData\Roaming\Psycheros\source"
 ```
 
 The installer checks for a supported Psycheros version and creates a timestamped
@@ -82,10 +81,8 @@ to Loom. The intended flow is:
 3. Merge them in the extension's Gemini Export Merger.
 4. Upload the merged batch JSON to Entity Loom with this mod installed.
 
-If a long import is interrupted and the Loom UI later looks stuck on a running
-stage, see the companion resume/reimport patch:
-
-- [Psycheros Loom Gemini Resume Patch](../psycheros-loom-gemini-resume-patch/README.md)
+Current upstream Psycheros handles interrupted-import resume/reimport behavior;
+no separate community resume patch is needed.
 
 ## Undo
 

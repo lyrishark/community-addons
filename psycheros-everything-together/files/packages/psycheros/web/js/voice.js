@@ -271,8 +271,7 @@ async function openVoiceChat(conversationId) {
   if (earlySttProvider !== 'browser') {
     const tauriInvoke = window.__TAURI__?.core?.invoke;
     const TauriChannel = window.__TAURI__?.core?.Channel;
-    const useNativeMicCapture = shouldUseNativeMicCapture();
-    if (useNativeMicCapture) {
+    if (tauriInvoke && TauriChannel) {
       if (earlyVoiceChatDebug && globalThis.appendVoiceDebug) {
         globalThis.appendVoiceDebug('mic-perm', `Tauri detected — using native mic-capture plugin (STT provider: ${earlySttProvider})`);
       }
@@ -350,7 +349,7 @@ async function openVoiceChat(conversationId) {
       if (earlyVoiceChatDebug && globalThis.appendVoiceDebug) {
         globalThis.appendVoiceDebug(
           'mic-perm',
-          `No Tauri native capture (${tauriInvoke ? 'invoke present, ' : 'no invoke, '}${TauriChannel ? 'Channel present, ' : 'no Channel, '}${isMacLikeBrowser() ? 'mac-like platform' : 'non-mac platform'}) — falling through to getUserMedia`,
+          `No Tauri native capture (${tauriInvoke ? 'invoke present, ' : 'no invoke, '}${TauriChannel ? 'Channel present' : 'no Channel'}) — falling through to getUserMedia`,
         );
       }
     try {
@@ -402,6 +401,7 @@ async function openVoiceChat(conversationId) {
     while (container.firstChild) {
       document.body.appendChild(container.firstChild);
     }
+    globalThis.Psycheros?.updateScreenPresenceButtons?.();
   }
 
   const voiceTextInput = document.getElementById('voice-text-input');
@@ -525,21 +525,6 @@ function releaseWakeLock() {
 function isMobileBrowser() {
   if (typeof navigator === 'undefined') return false;
   return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
-}
-
-function isMacLikeBrowser() {
-  if (typeof navigator === 'undefined') return false;
-  const haystack = `${navigator.userAgent || ''} ${navigator.platform || ''}`;
-  return /Macintosh|Mac OS X|Mac_PowerPC|MacIntel/i.test(haystack);
-}
-
-function shouldUseNativeMicCapture() {
-  const tauriInvoke = window.__TAURI__?.core?.invoke;
-  const TauriChannel = window.__TAURI__?.core?.Channel;
-  // The launcher only grants the native mic-capture plugin to macOS. Windows
-  // WebView2 and Linux should use getUserMedia, so invoking the plugin there
-  // produces a Tauri ACL denial before the fallback can run.
-  return !!tauriInvoke && !!TauriChannel && isMacLikeBrowser();
 }
 
 /**
@@ -2657,7 +2642,6 @@ function voiceAttachmentFallbackText(attachments) {
   if (fileCount > 1) return '(files attached)';
   return '(file attached)';
 }
-
 async function sendVoiceTextInput() {
   const input = document.getElementById('voice-text-input');
   if (!input) return;

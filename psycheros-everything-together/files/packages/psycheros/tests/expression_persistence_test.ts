@@ -11,7 +11,7 @@ const MISCHIEF_STATE: ExpressionState = {
   valence: 0.64,
   arousal: 0.7,
   rationale: "The live turn landed with a playful edge.",
-  source: "llm",
+  source: "manual",
   surface: "chat",
   updatedAt: 1_783_681_200_000,
 };

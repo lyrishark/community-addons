@@ -5,9 +5,9 @@ voice resize package so both changes can live in the same replaced UI files.
 
 It is not an official Psycheros release.
 
-> **Psycheros 0.9.0 status:** Not compatible. Version `0.1.1` is an exact
-> Psycheros 0.8.23 source-replacement package. Do not force it onto 0.9.0 or
-> install it through either 0.9 manager; a separately rebased package is needed.
+> **Psycheros 0.9.2 status:** Compatible in version `0.2.0`. This remains a
+> manual source-file add-on; it is not installed or updated by the plugin/add-on
+> manager.
 
 ## What changes
 
@@ -44,14 +44,14 @@ refuses to install over Everything Together.
 
 ## Compatibility
 
-Version 0.1.1 is tested for **Psycheros 0.8.23**. The installer refuses other
+Version 0.2.0 is tested for **Psycheros 0.9.2**. The installer refuses other
 versions before changing files.
 
 This package replaces chat/voice UI, server route, service-worker, and focused
 test files. Close Psycheros and back up local source edits before installing it.
 
 For HTF Music Listener on plain upstream Psycheros, install this combo first and the
-**HTF Music Listener 0.1.2 legacy** package second. Version 0.1.0 rejects audio; update
+**HTF Music Listener 0.1.3 legacy** package second. Version 0.1.0 rejects audio; update
 before trying music. Do not install this upstream file-replacement package over the
 Rae/Ember trusted-plugin fork, which already contains these upload features.
 
@@ -74,7 +74,7 @@ If the installer cannot find your Psycheros source folder, run it with the path:
 ```
 
 The selected folder must contain `packages\psycheros\deno.json`. The installer
-checks for Psycheros 0.8.23 and creates a timestamped backup before replacing
+checks for Psycheros 0.9.2 and creates a timestamped backup before replacing
 any files.
 
 After install, fully quit and relaunch Psycheros so the embedded desktop app

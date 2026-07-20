@@ -32,3 +32,14 @@ d388183887cbc0b466d52b95e924016bab13df3783fc05a7babe7ba3a98ab716  psycheros-htf-
 72e6f69e8457765e74e833a0f5a936403995116926c9998c27143c9c4cdfd265  psycheros-more-uploads-0.1.1.zip
 382e9f9113b4145361a869ce152af28508416902c1a26091f193b8ae7b36477a  psycheros-more-uploads-voice-resize-0.1.1.zip
 00f867934f09cd9fe01fc5c06563708af42954f3bf66761d9c0e6d49a780aab2  psycheros-everything-together-0.1.0-rc.4.zip
+83cee29f056ba6915bb09c5e9132a445e3f3211fd0b7cec934b4d2445766f781  psycheros-htf-music-listener-0.1.3-windows-x64.zip
+abf19184c2cdf68a97baabf9f45cb81834078a714e7a4e5877e5f797a5227155  psycheros-htf-music-listener-0.1.3-legacy-windows-x64.zip
+4897d5a9160bbdf698937f4b9e4e22b34a3aaca175b515d2b7a817bc3fa1c3d0  psycheros-expression-sprites-beta-0.2.0.zip
+d05e40c52331621129aaf294a4c82bd2edcc565d3989d88b80c1c1280c2ab75d  psycheros-accessible-font-settings-0.2.0.zip
+dae5f0c05c64add555ca3c61c07bc5099f49a2791ae5811befcb305ba570b2e0  psycheros-everything-together-0.2.0.zip
+dae87c29a9b0a399cd47046211d915001074689cdd85ef969b4161d8404cf5b9  psycheros-loom-gemini-parser-mod-0.2.0.zip
+98bd64605ef4f9fdd32347fa903907867a0abb5e13d635b76e130cae5a007b3c  psycheros-more-uploads-0.2.0.zip
+50fa72fc216dda744df40d8fe725a50bce89003c88a51d417236836af1ec4f0a  psycheros-more-uploads-voice-resize-0.2.0.zip
+2bcdd1054c799077effc2625e323e81a918d00bb9a8908c61163a74ebf6b7282  psycheros-screen-presence-alpha-0.2.0.zip
+faaa82bb6a7780530c114d6c8951da162ba754145b02d925668ab1cf7df767a9  psycheros-voice-text-resize-0.2.0.zip
+4d5d159e9531118e60718667540c7ae3f11647c4f058f272b9e47c9db4bb4c11  psycheros-windows-shell-fix-0.2.0.zip

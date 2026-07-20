@@ -1,11 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-supported_version="0.8.23"
+supported_version="0.9.2"
 addon_name="Everything Together"
 addon_id="psycheros-everything-together"
-addon_version="0.1.0-rc.4"
-superseded_addon_ids=("psycheros-more-uploads" "psycheros-voice-text-resize" "psycheros-more-uploads-voice-resize")
+addon_version="0.2.0"
+superseded_addon_ids=(
+  "psycheros-more-uploads"
+  "psycheros-voice-text-resize"
+  "psycheros-more-uploads-voice-resize"
+  "psycheros-accessible-font-settings"
+  "psycheros-windows-shell-fix"
+  "psycheros-screen-presence-alpha"
+  "psycheros-expression-sprites-beta"
+)
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 patch_root="$(cd -- "$script_dir/.." && pwd -P)"
 files_root="$patch_root/files"
@@ -45,6 +53,10 @@ known_addon_name() {
     psycheros-more-uploads) printf 'More Uploads\n' ;;
     psycheros-voice-text-resize) printf 'Voice Text Resize\n' ;;
     psycheros-more-uploads-voice-resize) printf 'More Uploads + Voice Text Resize\n' ;;
+    psycheros-accessible-font-settings) printf 'Accessible Font Settings\n' ;;
+    psycheros-windows-shell-fix) printf 'Windows Shell Fix\n' ;;
+    psycheros-screen-presence-alpha) printf 'Screen Presence Alpha\n' ;;
+    psycheros-expression-sprites-beta) printf 'Expression Sprites\n' ;;
     psycheros-everything-together) printf 'Everything Together\n' ;;
     *) printf '%s\n' "$1" ;;
   esac
@@ -61,7 +73,7 @@ legacy_backup_pattern() {
 
 is_tracked_source_addon() {
   case "$1" in
-    psycheros-more-uploads|psycheros-voice-text-resize|psycheros-more-uploads-voice-resize|psycheros-everything-together) return 0 ;;
+    psycheros-more-uploads|psycheros-voice-text-resize|psycheros-more-uploads-voice-resize|psycheros-accessible-font-settings|psycheros-windows-shell-fix|psycheros-screen-presence-alpha|psycheros-expression-sprites-beta|psycheros-everything-together) return 0 ;;
     *) return 1 ;;
   esac
 }
@@ -122,7 +134,7 @@ check_addon_conflicts() {
   if [ "${#blocked[@]}" -gt 0 ]; then
     printf 'Cannot install %s because another overlapping Psycheros source add-on is already present:\n' "$addon_name" >&2
     printf '%s\n' "${blocked[@]}" >&2
-    die "Restore the official Psycheros 0.8.23 source before installing this bundle."
+    die "Restore the official Psycheros 0.9.2 source before installing this bundle."
   fi
 
   if [ "${#superseded[@]}" -gt 0 ]; then
