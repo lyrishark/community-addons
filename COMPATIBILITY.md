@@ -1,7 +1,8 @@
 # Compatibility snapshot
 
 Checked 2026-07-20 against upstream `psycheros-v0.9.2`
-(`e5f61e7`, tool-result metadata sidecars and gallery thumbnails).
+(`e5f61e7`, tool-result metadata sidecars and gallery thumbnails). A fresh
+fetch confirmed upstream `main` points to that same commit.
 
 ## Current package matrix
 
@@ -12,21 +13,21 @@ Checked 2026-07-20 against upstream `psycheros-v0.9.2`
 | Entity Core for ChatGPT | Prepared `0.1.3`; latest public release `0.1.1` | Current source passed type-check, stdio smoke, HTTP smoke, and the live OAuth bridge health check. Do not describe `0.1.3` as publicly released until its tag/release exists. |
 | HTF Music Listener | Prepared `0.1.3`; latest public release `0.1.2` | Compatible trusted plugin; `0.1.3` declares and was tested for `>=0.8.23 <0.10.0`. |
 | Expression Sprites Beta | Prepared `0.2.0`; latest public release `0.1.6` | Compatible source mod for exactly 0.9.2. Clean-install tested from the complete 81-file package. |
-| Loom Gemini Parser Mod | Published `0.1.1` | Port needed. The useful merged-batch Gemini parser is not native in upstream 0.9.2, but the published package is an old 0.8.9–0.8.11 source mod and must not be installed on 0.9.2. |
-| Windows Shell Fix | Published `0.1.1` | Port needed. PowerShell/cmd fallback is not native in upstream 0.9.2, but the published package is an old 0.8.9–0.8.11 source mod and must not be installed on 0.9.2. |
+| Loom Gemini Parser Mod | Prepared `0.2.0`; latest public release `0.1.1` | Compatible source mod for exactly 0.9.2. The useful parser is not native upstream; the clean port passed its focused parser test. |
+| Windows Shell Fix | Prepared `0.2.0`; latest public release `0.1.1` | Compatible source mod for exactly 0.9.2. The fallback is not native upstream; the clean port passed both focused shell tests. |
 | Loom Gemini Resume Patch | Never published; source retired | No add-on needed. Its resume/reimport behavior is native upstream, so the duplicate package was removed from current source and documentation. |
-| Accessible Font Settings | Published `0.1.3` | Not compatible; exact 0.8.23 source replacement. |
-| More Uploads | Published `0.1.1` | Not compatible; exact 0.8.23 source replacement. |
-| Voice Text Resize | Published `0.1.0` | Not compatible; exact 0.8.23 source replacement. |
-| More Uploads + Voice Text Resize | Published `0.1.1` | Not compatible; exact 0.8.23 source replacement. |
-| Everything Together | Published `0.1.0-rc.4` | Not compatible; exact 0.8.23 source-replacement bundle. |
-| Screen Presence Alpha | Staged `0.1.0`, not published | Not compatible; exact 0.8.20 source replacement. |
+| Accessible Font Settings | Prepared `0.2.0`; latest public release `0.1.3` | Compatible source mod for exactly 0.9.2; 11 focused tests passed. |
+| More Uploads | Prepared `0.2.0`; latest public release `0.1.1` | Compatible source mod for exactly 0.9.2; 6 focused attachment tests passed. |
+| Voice Text Resize | Prepared `0.2.0`; latest public release `0.1.0` | Compatible source mod for exactly 0.9.2; the focused resize test passed. |
+| More Uploads + Voice Text Resize | Prepared `0.2.0`; latest public release `0.1.1` | Compatible combined source mod for exactly 0.9.2; all 7 focused tests passed. |
+| Everything Together | Prepared `0.2.0`; latest public release `0.1.0-rc.4` | Compatible clean bundle for exactly 0.9.2; all 67 focused feature tests passed. |
+| Screen Presence Alpha | Prepared `0.2.0`; no public release yet | Compatible source mod for exactly 0.9.2; all 7 focused tests passed. The old contaminated snapshot was not carried forward. |
 
 “Published” means a public GitHub release exists. Prepared source, release notes,
 or a ZIP do not become published until the matching branch is merged, tagged,
 and released.
 
-## Expression Sprites 0.2.0 proof
+## Psycheros 0.9.2 source-mod proof
 
 The 0.2.0 package was rebased from pristine upstream 0.9.2 instead of copying
 the full older bundle forward. Upstream message `metadata` and add-on
@@ -50,13 +51,24 @@ Fresh expression profiles receive the bundled Ember starter sprites. Existing
 expression settings or any personal sprite files suppress automatic seeding,
 so updates do not replace personal images.
 
+The other current file mods were independently rebased onto the same pristine
+0.9.2 tag and checked before composition. Focused test totals were 2 shell, 1
+Gemini parser, 11 fonts, 6 uploads, 1 resize, 7 uploads-plus-resize, and 7
+screen-presence/error tests. Everything Together passed the 67-test union.
+
+Screen Presence was reconstructed from its original feature commit because the
+old staged package had accidentally captured unrelated uploads, fonts, and
+assistant-response experiments. Everything Together contains the clean feature
+union only. Neither package contains the old missing-response regeneration
+button, voice-started auto-title behavior, or queued typed-turn draining.
+
 ## Add-on manager boundary
 
-Expression Sprites remains a guarded source-replacement package, not a trusted
-API-v1 plugin. It changes server, database, browser, and voice files that the
-plugin API does not expose. Install it with the package's platform installer
-against the launcher source folder; the installer backs up replaced files and
-checks for exactly 0.9.2.
+The `manifest.json` source mods remain guarded source-replacement packages, not
+trusted API-v1 plugins. They change server, database, browser, voice, or Loom
+files that the plugin API does not expose. Install them with each package's
+platform installer against the launcher source folder; the installers back up
+replaced files and check for exactly 0.9.2.
 
 The official manager does not convert these legacy `manifest.json` file mods or
 discover package manifests stored in repository subdirectories. Installing a

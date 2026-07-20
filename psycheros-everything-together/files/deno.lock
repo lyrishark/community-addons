@@ -15,6 +15,7 @@
     "jsr:@std/path@0.217": "0.217.0",
     "jsr:@std/path@1": "1.1.4",
     "jsr:@std/path@^1.1.4": "1.1.4",
+    "jsr:@std/semver@1": "1.0.8",
     "npm:@huggingface/transformers@3.3.1": "3.3.1",
     "npm:@modelcontextprotocol/sdk@1": "1.27.1_zod@3.25.76",
     "npm:@zendrex/buttplug.js@0.3": "0.3.3",
@@ -28,6 +29,7 @@
     "npm:pdf-parse@^1.1.1": "1.1.4",
     "npm:pngjs@7": "7.0.0",
     "npm:sanitize-html@2": "2.17.4",
+    "npm:sharp@0.33.5": "0.33.5",
     "npm:web-push@^3.6.0": "3.6.7",
     "npm:xlsx@~0.18.5": "0.18.5",
     "npm:zod@3": "3.25.76"
@@ -97,6 +99,9 @@
       "dependencies": [
         "jsr:@std/internal"
       ]
+    },
+    "@std/semver@1.0.8": {
+      "integrity": "dc830e8b8b6a380c895d53fbfd1258dc253704ca57bbe1629ac65fd7830179b7"
     }
   },
   "npm": {
@@ -1340,6 +1345,7 @@
       "jsr:@std/dotenv@0.225",
       "jsr:@std/fs@1",
       "jsr:@std/path@1",
+      "jsr:@std/semver@1",
       "npm:@huggingface/transformers@3.3.1",
       "npm:@modelcontextprotocol/sdk@1",
       "npm:jszip@3"
@@ -1359,12 +1365,14 @@
         "dependencies": [
           "npm:@zendrex/buttplug.js@0.3",
           "npm:emojilib@3",
+          "npm:jszip@3",
           "npm:mammoth@^1.8.0",
           "npm:marked@15",
           "npm:mpg123-decoder@^1.0.3",
           "npm:pdf-parse@^1.1.1",
           "npm:pngjs@7",
           "npm:sanitize-html@2",
+          "npm:sharp@0.33.5",
           "npm:web-push@^3.6.0",
           "npm:xlsx@~0.18.5"
         ]

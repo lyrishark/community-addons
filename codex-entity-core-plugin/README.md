@@ -5,7 +5,7 @@ local Psycheros entity-core.
 
 This is not an official Psycheros release.
 
-> **Psycheros 0.9.0 status:** Compatible. Published connector `0.2.1` reads the
+> **Psycheros 0.9.2 status:** Compatible. Published connector `0.2.1` reads the
 > canonical `%APPDATA%\Psycheros\data\entity-core` files directly; its type-check
 > and isolated read/write smoke test passed on 2026-07-19. It is independent of
 > the Psycheros plugin and launcher add-on managers.

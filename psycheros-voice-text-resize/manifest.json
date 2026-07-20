@@ -1,12 +1,12 @@
 {
   "name": "psycheros-voice-text-resize",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Resizable and auto-growing Yin Yang typed voice input for Psycheros.",
   "kind": "psycheros-file-mod",
   "official": false,
   "requires": {
-    "psycheros_version": "0.8.23",
-    "compatible_psycheros_versions": ["0.8.23"]
+    "psycheros_version": "0.9.2",
+    "compatible_psycheros_versions": ["0.9.2"]
   },
   "installer": {
     "conflicts": [

@@ -20,7 +20,6 @@ Suggested structure:
   codex-entity-core-plugin/
   chatgpt-entity-core-private/
   docs/
-  site/
 ```
 
 Public docs and source are now in the repo. Keep this checklist as a release
@@ -48,10 +47,15 @@ Release assets to upload:
 - `psycheros-thread-exporter-0.3.2.zip`
 - `psycheros-entity-core-codex-plugin-0.2.1.zip`
 - `psycheros-entity-core-chatgpt-private-0.1.3.zip`
-- `psycheros-more-uploads-0.1.1.zip`
-- `psycheros-voice-text-resize-0.1.0.zip`
-- `psycheros-more-uploads-voice-resize-0.1.1.zip`
-- `psycheros-everything-together-0.1.0-rc.4.zip`
+- `psycheros-loom-gemini-parser-mod-0.2.0.zip`
+- `psycheros-accessible-font-settings-0.2.0.zip`
+- `psycheros-windows-shell-fix-0.2.0.zip`
+- `psycheros-screen-presence-alpha-0.2.0.zip`
+- `psycheros-expression-sprites-beta-0.2.0.zip`
+- `psycheros-more-uploads-0.2.0.zip`
+- `psycheros-voice-text-resize-0.2.0.zip`
+- `psycheros-more-uploads-voice-resize-0.2.0.zip`
+- `psycheros-everything-together-0.2.0.zip`
 - `psycheros-htf-music-listener-0.1.3-windows-x64.zip`
 - `psycheros-htf-music-listener-0.1.3-legacy-windows-x64.zip`
 - `SHA256SUMS.txt`
@@ -73,7 +77,7 @@ the installer conflict guard before uploading:
   Everything Together markers
 - More Uploads + Voice Text Resize warns when superseding either standalone
   package and blocks Everything Together
-- Everything Together warns when superseding the narrower upload/voice packages
+- Everything Together warns when superseding the narrower source packages
 
 ## 4. Publish GitHub Release
 

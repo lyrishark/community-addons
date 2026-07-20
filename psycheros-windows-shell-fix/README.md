@@ -9,10 +9,9 @@ Failed to spawn sh: entity not found
 
 It is not an official Psycheros release.
 
-> **Psycheros 0.9.2 status:** Port needed; do not install this legacy package.
-> PowerShell/cmd fallback is not native in upstream 0.9.2. Version `0.1.1`
-> remains historical for 0.8.9 through 0.8.11 while a deliberate 0.9.2 rebase
-> and test pass are pending.
+> **Psycheros 0.9.2 status:** Compatible in version `0.2.0`. This package was
+> rebuilt from pristine upstream 0.9.2 and the installer refuses other source
+> versions before changing files.
 
 ## What changes
 
@@ -27,9 +26,8 @@ shell languages.
 
 ## Compatibility
 
-Version 0.1.1 is tested for **Psycheros 0.8.9 through 0.8.11**. Upstream 0.8.10
-and 0.8.11 did not change the shell-tool files replaced by this patch. The
-installer refuses all other versions before changing files.
+Version 0.2.0 is tested for **Psycheros 0.9.2**. Version 0.1.1 remains the
+historical package for Psycheros 0.8.9 through 0.8.11.
 
 ## Install on Windows
 
@@ -37,7 +35,7 @@ Close Psycheros, open PowerShell in this patch folder, and run:
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass
-.\tools\install-source-files.ps1 -PsycherosRoot "C:\Users\<name>\AppData\Roaming\Psycheros"
+.\tools\install-source-files.ps1 -PsycherosRoot "C:\Users\<name>\AppData\Roaming\Psycheros\source"
 ```
 
 The installer creates a timestamped backup inside `packages\psycheros`.

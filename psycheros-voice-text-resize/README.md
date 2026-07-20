@@ -5,9 +5,9 @@ keeping its adaptive default behavior.
 
 It is not an official Psycheros release.
 
-> **Psycheros 0.9.0 status:** Not compatible. Version `0.1.0` is an exact
-> Psycheros 0.8.23 source-replacement package. Do not force it onto 0.9.0 or
-> install it through either 0.9 manager; a separately rebased package is needed.
+> **Psycheros 0.9.2 status:** Compatible in version `0.2.0`. This remains a
+> manual source-file add-on; it is not installed or updated by the plugin/add-on
+> manager.
 
 ## What changes
 
@@ -24,7 +24,7 @@ or image attachment changes.
 
 ## Compatibility
 
-Version 0.1.0 is tested for **Psycheros 0.8.23**. The installer refuses other
+Version 0.2.0 is tested for **Psycheros 0.9.2**. The installer refuses other
 versions before changing files.
 
 This package replaces voice UI, app-shell template, service-worker, and focused
@@ -35,7 +35,7 @@ also checks for older backup folders. It refuses to install over More Uploads,
 the More Uploads + Voice Text Resize combo, or Everything Together, because
 those packages replace overlapping full UI files. Use the combo package when
 you want uploads and voice resize together, or restore the official Psycheros
-0.8.23 source before switching back to this standalone package.
+0.9.2 source before switching back to this standalone package.
 
 ## Install on Windows
 
@@ -56,7 +56,7 @@ If the installer cannot find your Psycheros source folder, run it with the path:
 ```
 
 The selected folder must contain `packages\psycheros\deno.json`. The installer
-checks for Psycheros 0.8.23 and creates a timestamped backup before replacing
+checks for Psycheros 0.9.2 and creates a timestamped backup before replacing
 any files.
 
 After install, fully quit and relaunch Psycheros so the embedded desktop app

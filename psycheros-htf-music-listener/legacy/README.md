@@ -1,4 +1,4 @@
-# HTF Music Listener 0.1.2 - legacy Psycheros package
+# HTF Music Listener 0.1.3 - legacy Psycheros package
 
 Use this package only when **Settings > Plugins does not exist**.
 
@@ -20,7 +20,8 @@ update can replace that block; rerun the installer if the panel disappears.
 
 If More Uploads or another source-file addon is also installed, install that package
 first and this legacy listener second. Source-file addons replace the browser file that
-contains this bridge. More Uploads 0.1.0 rejects audio; update to 0.1.1.
+contains this bridge. More Uploads 0.1.0 rejects audio; use 0.2.0 with
+Psycheros 0.9.2.
 
 Before moving to the normal trusted-plugin package, run
 `Uninstall Legacy HTF Music Listener.bat`, restart, and then install the normal plugin

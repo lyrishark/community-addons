@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-supported_version="0.8.23"
+supported_version="0.9.2"
 addon_name="More Uploads"
 addon_id="psycheros-more-uploads"
-addon_version="0.1.1"
+addon_version="0.2.0"
 superseded_addon_ids=()
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 patch_root="$(cd -- "$script_dir/.." && pwd -P)"
@@ -122,7 +122,7 @@ check_addon_conflicts() {
   if [ "${#blocked[@]}" -gt 0 ]; then
     printf 'Cannot install %s because another overlapping Psycheros source add-on is already present:\n' "$addon_name" >&2
     printf '%s\n' "${blocked[@]}" >&2
-    die "Use the combined package for multiple features, or restore the official Psycheros 0.8.23 source before installing this standalone package."
+    die "Use the combined package for multiple features, or restore the official Psycheros 0.9.2 source before installing this standalone package."
   fi
 
   if [ "${#superseded[@]}" -gt 0 ]; then

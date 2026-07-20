@@ -16,7 +16,6 @@
   justify-content: center;
   background: var(--bg-elevated, rgba(0, 0, 0, 0.92));
   backdrop-filter: blur(12px);
-  overflow: hidden;
 }
 
 .voice-overlay--hidden {
@@ -28,15 +27,13 @@
 /* ========================================================================== */
 
 .voice-call {
-  position: relative;
-  z-index: 2;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 1.5rem;
-  padding: clamp(1rem, 3vw, 2rem);
-  max-width: 780px;
-  width: min(780px, calc(100vw - 2rem));
+  padding: 2rem;
+  max-width: 420px;
+  width: 100%;
 }
 
 /* ========================================================================== */
@@ -87,17 +84,13 @@
 /* ========================================================================== */
 
 .voice-transcript {
-  width: min(100%, 560px);
-  box-sizing: border-box;
   min-height: 2.5rem;
-  max-height: min(22dvh, 160px);
   padding: 0.5rem 0.75rem;
   border-radius: 8px;
   background: var(--bg-card, rgba(255, 255, 255, 0.05));
   border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
   font-size: 0.85rem;
   color: var(--text-secondary, #aaa);
-  overflow: auto;
   overflow-wrap: break-word;
 }
 
@@ -649,19 +642,6 @@ body.voice-text-resizing-ns {
     padding-inline: 1rem;
   }
 
-  .voice-expression-stage {
-    left: 0.75rem;
-    bottom: 1rem;
-    width: min(34vw, 128px);
-    height: min(34dvh, 260px);
-    opacity: 0.92;
-  }
-
-  .voice-expression-stage-label {
-    max-width: 120px;
-    font-size: 9px;
-  }
-
   .voice-text-input-area {
     max-width: calc(100vw - 2rem);
   }
@@ -776,6 +756,21 @@ body.voice-text-resizing-ns {
 
 .voice-banner--hidden {
   display: none;
+}
+
+@media (max-width: 640px) {
+  .voice-expression-stage {
+    left: 0.75rem;
+    bottom: 1rem;
+    width: min(34vw, 128px);
+    height: min(34dvh, 260px);
+    opacity: 0.92;
+  }
+
+  .voice-expression-stage-label {
+    max-width: 120px;
+    font-size: 9px;
+  }
 }
 
 /* ========================================================================== */

@@ -1,6 +1,6 @@
 Hi! I wanted to share a Psycheros community add-on we have been testing:
 
-**Psycheros More Uploads + Voice Text Resize v0.1.1**
+**Psycheros More Uploads + Voice Text Resize v0.2.0**
 
 It combines two chat/voice UI upgrades in one compatible package:
 
@@ -15,11 +15,10 @@ This combo package is recommended if you want both More Uploads and Voice Text
 Resize, because the separate standalone packages replace some of the same UI
 files.
 
-It is tested for Psycheros 0.8.23 and is a community add-on, not an official
-Psycheros release.
+It is tested for Psycheros 0.9.2 exactly and is a community source-file add-on,
+not an official Psycheros release or add-on-manager plugin.
 
-Release:
-https://github.com/lyrishark/community-addons/releases/tag/psycheros-more-uploads-voice-resize-v0.1.1
+Release: add the matching v0.2.0 GitHub release URL after publication.
 
 Source:
 https://github.com/lyrishark/community-addons/tree/main/psycheros-more-uploads-voice-resize

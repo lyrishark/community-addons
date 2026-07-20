@@ -23,7 +23,13 @@
  * data integrity, with the assumption that DB failures are rare and transient.
  */
 
-import type { ChatMessage, LLMClient, StreamChunk } from "../llm/mod.ts";
+import type {
+  ChatContent,
+  ChatImageUrlPart,
+  ChatMessage,
+  LLMClient,
+  StreamChunk,
+} from "../llm/mod.ts";
 import type { WebSearchSettings } from "../llm/web-search-settings.ts";
 import type { DiscordSettings } from "../llm/discord-settings.ts";
 import type { HomeSettings } from "../llm/home-settings.ts";
@@ -60,11 +66,11 @@ import { acquireLock } from "../utils/conversation-lock.ts";
 import { createCollector, finalize, setFinishReason } from "../metrics/mod.ts";
 import { getWearableDataCache } from "../wearable/cache.ts";
 import { formatScreenPresence, formatWearableData } from "./sa-formatters.ts";
+import type { PluginManager } from "../plugins/mod.ts";
 import {
   EXPRESSION_SPRITE_PROTOCOL,
   ExpressionDirectiveStreamFilter,
   ExpressionTracker,
-  extractExpressionDirectives,
   stripExpressionDirectives,
 } from "../expression/mod.ts";
 
@@ -74,6 +80,22 @@ import {
 function escapeXml(str: string): string {
   return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+function renderChatContentForSnapshot(content: ChatContent): string {
+  if (typeof content === "string") return content;
+  return content.map((part) => {
+    if (part.type === "text") return part.text;
+    return "[transient vision image]";
+  }).join("\n");
+}
+
+function estimateChatContentChars(content: ChatContent): number {
+  if (typeof content === "string") return content.length;
+  return content.reduce((sum, part) => {
+    if (part.type === "text") return sum + part.text.length;
+    return sum + 1200;
+  }, 0);
 }
 
 /**
@@ -213,6 +235,8 @@ export interface ProcessOptions {
   skipUserPersist?: boolean;
   /** Device type of the user for this turn (from frontend detection) */
   deviceType?: "desktop" | "mobile";
+  /** Transient images I send to the LLM for this turn without saving them in chat history */
+  visionImages?: ChatImageUrlPart[];
   /** When true, sticky lorebook entries are not decremented.
    *  Set automatically for Pulse turns so automated messages
    *  don't consume sticky duration earned by real user conversation. */
@@ -314,6 +338,22 @@ export interface EntityConfig {
   contextLength?: number;
   /** Maximum tokens reserved for the response (from active LLM profile) */
   maxTokens?: number;
+  /**
+   * Whether I carry my reasoning_content back to the next inference call
+   * within one entity turn (between tool-call iterations). Resolved from
+   * the active profile's `persistentReasoningIntraTurn` tri-state. When
+   * undefined, treated as false (preserves existing behavior for voice
+   * and pulse paths that don't set it).
+   */
+  persistentReasoningIntraTurn?: boolean;
+  /**
+   * How many of my prior entity turns I attach reasoning_content from when
+   * building context for a new user message. 0 or undefined disables.
+   * Counted in user-visible turns, not DB rows.
+   */
+  persistentReasoningInterTurns?: number;
+  /** Trusted local plugins that can contribute prompt-time context */
+  pluginManager?: PluginManager;
 }
 
 /**
@@ -335,7 +375,6 @@ const IMAGE_DESCRIPTION_FADE_TURNS = 5;
  */
 export type EntityYield =
   | StreamChunk
-  | { type: "expression_state"; state: ExpressionState }
   | { type: "tool_result"; result: ToolResult }
   | { type: "dom_update"; update: UIUpdate }
   | {
@@ -349,12 +388,14 @@ export type EntityYield =
   | { type: "metrics"; metrics: TurnMetrics }
   | { type: "context"; context: LLMContextSnapshot }
   | { type: "message_id"; role: "user" | "assistant"; id: string }
+  | { type: "expression_state"; state: ExpressionState }
   | {
     type: "image_generated";
     imagePath: string;
     prompt: string;
     generatorName: string;
     description?: string;
+    toolCallId: string;
   }
   | {
     type: "thinking_corrected";
@@ -882,6 +923,22 @@ Discord interaction:
       discordChannelContent = parts.join("\n");
     }
 
+    const pluginContent = await this.config.pluginManager?.buildPromptContent({
+      conversationId,
+      sourceType: options?.sourceType ?? (options?.pulseId ? "pulse" : "web"),
+      userMessage,
+      sections: {
+        memories: memoriesContent,
+        chatHistory: chatHistoryContent,
+        lorebook: lorebookContent,
+        graph: graphContent,
+        vault: vaultContent,
+        situationalAwareness: saContent,
+        discord: discordChannelContent,
+      },
+      mcpClient: this.config.mcpClient,
+    }, this.computePluginContextBudget());
+
     const systemMessage = buildSystemMessage(
       baseInstructions,
       selfContent,
@@ -896,7 +953,9 @@ Discord interaction:
       imageGenContent,
       saContent,
       discordChannelContent,
-    ) + EXPRESSION_SPRITE_PROTOCOL + (options?.systemPromptSuffix ?? "");
+      pluginContent,
+    ) + EXPRESSION_SPRITE_PROTOCOL +
+      (options?.systemPromptSuffix ?? "");
 
     // Get conversation history from DB
     const history = this.db.getMessages(conversationId);
@@ -987,6 +1046,7 @@ Discord interaction:
         displayContent,
         shouldPersist,
         toolDefinitions,
+        options?.visionImages,
       );
 
       // Create and yield context snapshot for debugging
@@ -1006,9 +1066,10 @@ Discord interaction:
         graphContent,
         vaultContent,
         situationalAwarenessContent: saContent,
+        pluginContent,
         messages: messages.slice(1).map((msg) => ({
           role: msg.role,
-          content: msg.content,
+          content: renderChatContentForSnapshot(msg.content),
           toolCalls: msg.tool_calls,
           toolCallId: msg.tool_call_id,
         })),
@@ -1019,12 +1080,17 @@ Discord interaction:
           estimatedTokens: this.lastBudgetResult?.estimatedTotalTokens ??
             Math.ceil(systemMessage.length / 4) +
               messages.reduce(
-                (acc, m) => acc + Math.ceil((m.content?.length || 0) / 4),
+                (acc, m) =>
+                  acc + Math.ceil(estimateChatContentChars(m.content) / 4),
                 0,
               ),
           contextLength: this.config.contextLength,
           budgetAvailable: this.lastBudgetResult?.availableBudget,
           messagesTruncated: this.lastBudgetResult?.messagesRemoved,
+          pluginBudgetUsed: this.config.pluginManager?.getLastBudgetReport()
+            ?.used,
+          pluginBudgetMax: this.config.pluginManager?.getLastBudgetReport()
+            ?.cap,
         },
       };
 
@@ -1344,24 +1410,6 @@ Discord interaction:
           // assistant-text. Emitted before done so the frontend finalizes
           // with the corrected state.
           if (recovered) {
-            const recoveredExpression = extractExpressionDirectives(
-              assistantContent,
-              {
-                surface: options?.voiceMode
-                  ? "voice"
-                  : options?.pulseId
-                  ? "pulse"
-                  : "chat",
-              },
-            );
-            if (recoveredExpression.states.length > 0) {
-              assistantContent = recoveredExpression.visibleText;
-              manualExpressionOverride = true;
-              for (const state of recoveredExpression.states) {
-                persistedExpressionState = state;
-                yield { type: "expression_state", state };
-              }
-            }
             yield {
               type: "thinking_corrected",
               thinking: assistantReasoning.trim()
@@ -1419,14 +1467,14 @@ Discord interaction:
             // Index the assistant message for chat RAG (non-blocking, non-fatal)
             // Skip for Discord and other non-web source turns
             if (
-              this.config.chatRAG && messageId && cleanedAssistantContent &&
+              this.config.chatRAG && messageId && assistantContent &&
               !this.config.discordContext
             ) {
               this.config.chatRAG.indexMessage(
                 messageId,
                 conversationId,
                 "assistant",
-                cleanedAssistantContent,
+                assistantContent,
               ).catch((error) => {
                 console.warn(
                   "[ChatRAG] Failed to index assistant message:",
@@ -1492,35 +1540,23 @@ Discord interaction:
           // Yield the tool result
           yield { type: "tool_result", result };
 
-          // Detect [IMAGE:...] markers in tool results for inline image display
-          const imageMatch = result.content.match(/\[IMAGE:(\{.*\})\]/);
-          if (imageMatch) {
-            try {
-              const img = JSON.parse(imageMatch[1]);
-              yield {
-                type: "image_generated",
-                imagePath: img.path,
-                prompt: img.prompt,
-                generatorName: img.generator,
-                description: img.description,
-              };
-              // Append image marker to persisted content so it survives page reload
-              if (messageId) {
-                const imgMarker = `\n\n[IMAGE:${imageMatch[1]}]`;
-                assistantContent += imgMarker;
-                const imageContent = stripExpressionDirectives(
-                  assistantContent,
-                );
-                this.db.getRawDb().prepare(
-                  "UPDATE messages SET content = ? WHERE id = ?",
-                ).run(imageContent, messageId);
-                console.log(
-                  `[ImageGen] Persisted image marker to message ${messageId}: ${img.path}`,
-                );
-              }
-            } catch {
-              // Invalid JSON in marker — skip
-            }
+          // Image sidecar path: when a tool returns structured image data
+          // (currently only generate_image via metadata.image), emit an
+          // image_generated SSE event so the live UI can surface the image
+          // inline. The legacy `[IMAGE:...]` marker path that used to live
+          // here is gone — new tool messages persist image data in
+          // `metadata.image`, and old messages still render via the retained
+          // legacy parser in templates.ts.
+          if (result.metadata?.image) {
+            const img = result.metadata.image;
+            yield {
+              type: "image_generated",
+              imagePath: img.path,
+              prompt: img.prompt,
+              generatorName: img.generatorName,
+              description: img.description,
+              toolCallId: result.toolCallId,
+            };
           }
 
           // Collect affected UI regions from the result
@@ -1533,16 +1569,14 @@ Discord interaction:
 
           // Persist to DB with error handling
           try {
-            // Strip [IMAGE:{...}] markers — they're UI-only, stored in the
-            // assistant message content instead
-            const persistedContent = result.content.replace(
-              /\[IMAGE:\{.*?\}\]/g,
-              "",
-            );
+            // Persist sidecar metadata (image data from generate_image, fade
+            // data from describe_image / look_closer) on the tool message row.
+            const metadata = result.metadata;
             this.db.addMessage(conversationId, {
               role: "tool",
-              content: persistedContent,
+              content: result.content,
               toolCallId: result.toolCallId,
+              metadata,
             });
           } catch (dbError) {
             // Non-fatal: result already yielded and in LLM context (see Error Handling Strategy)
@@ -1584,6 +1618,18 @@ Discord interaction:
           content: `${assistantTimestamp} ${cleanAssistantContent}`,
           tool_calls: toolCalls,
         };
+        // Scope 1: thread my reasoning_content back to the next inference
+        // call within this entity turn (between tool iterations). Required
+        // by DeepSeek's spec on tool-call turns and essential for Z.ai's
+        // Preserved Thinking coherence on multi-step tool chains. The
+        // .trim() guard prevents sending an empty string, which some
+        // providers (DeepSeek) reject with a 400.
+        if (
+          this.config.persistentReasoningIntraTurn &&
+          assistantReasoning.trim()
+        ) {
+          assistantMsg.reasoning_content = assistantReasoning;
+        }
         messages.push(assistantMsg);
 
         // Add tool results to messages for next LLM call
@@ -1651,6 +1697,14 @@ Discord interaction:
     const lookCloserTurns = new Map<number, number>();
     // Track generate_image and describe_image tool results for fading
     const imageDescToolTurns = new Map<number, number>();
+    // Track tool messages that carry the new image sidecar (post-refactor
+    // generate_image results). Their long description lives verbatim in
+    // content text; fading swaps it for metadata.image.shortDescription.
+    const imageSidecarTurns = new Map<number, number>();
+    // Track tool messages that carry a generic fade sidecar (post-refactor
+    // describe_image / look_closer results). Content is replaced wholesale
+    // with metadata.fade.replacementContent past the threshold.
+    const fadeSidecarTurns = new Map<number, number>();
 
     // First pass: identify image markers and look_closer results with their turn positions
     for (let i = 0; i < history.length; i++) {
@@ -1672,6 +1726,14 @@ Discord interaction:
           msg.content.startsWith("[describe_image]"))
       ) {
         imageDescToolTurns.set(i, turnCount);
+      }
+      // New path: tool messages with metadata.image sidecar
+      if (msg.role === "tool" && msg.metadata?.image) {
+        imageSidecarTurns.set(i, turnCount);
+      }
+      // New path: tool messages with metadata.fade sidecar
+      if (msg.role === "tool" && msg.metadata?.fade) {
+        fadeSidecarTurns.set(i, turnCount);
       }
     }
 
@@ -1706,7 +1768,7 @@ Discord interaction:
       }
     }
 
-    // Fade generate_image and describe_image tool results
+    // Fade generate_image and describe_image tool results (legacy prefix path)
     for (const [msgIdx, resultTurn] of imageDescToolTurns) {
       if (currentTurn - resultTurn > IMAGE_DESCRIPTION_FADE_TURNS) {
         const msg = history[msgIdx];
@@ -1720,7 +1782,75 @@ Discord interaction:
       }
     }
 
+    // Fade tool messages with metadata.image sidecar. The long description
+    // is embedded verbatim in content; swap it for shortDescription in memory.
+    // The persisted DB row is unchanged — fading is LLM-context-only.
+    for (const [msgIdx, resultTurn] of imageSidecarTurns) {
+      if (currentTurn - resultTurn > IMAGE_DESCRIPTION_FADE_TURNS) {
+        const msg = history[msgIdx];
+        const img = msg.metadata?.image;
+        if (
+          img?.description && img.shortDescription &&
+          msg.content.includes(img.description)
+        ) {
+          fadeMap.set(
+            msg.id,
+            msg.content.replace(img.description, img.shortDescription),
+          );
+        }
+      }
+    }
+
+    // Fade tool messages with metadata.fade sidecar (describe_image /
+    // look_closer post-refactor). Replace content wholesale with the
+    // precomputed replacementContent — no string matching needed because
+    // the tool already built the faded version at execution time.
+    for (const [msgIdx, resultTurn] of fadeSidecarTurns) {
+      if (currentTurn - resultTurn > IMAGE_DESCRIPTION_FADE_TURNS) {
+        const msg = history[msgIdx];
+        const fade = msg.metadata?.fade;
+        if (fade?.replacementContent) {
+          fadeMap.set(msg.id, fade.replacementContent);
+        }
+      }
+    }
+
     return fadeMap;
+  }
+
+  /**
+   * Select which historical assistant messages should carry their
+   * `reasoning_content` into the outgoing context.
+   *
+   * Walks history newest→oldest, treating each `user` message as a turn
+   * boundary. Collects assistant message IDs from the last `n` entity
+   * turns (one entity turn = one user message + all the assistant and
+   * tool messages that followed it before the next user message). Tool
+   * messages never carry reasoning_content; only assistant rows do.
+   *
+   * The current user message — passed separately to `buildMessages` —
+   * is not in `history` and so is never counted as a turn boundary
+   * here. On the retry path, the last user message IS in history and
+   * correctly counts as the most recent turn boundary.
+   */
+  private selectReasoningEligibleHistory(
+    history: Message[],
+    n: number,
+  ): Set<string> {
+    if (n <= 0) return new Set();
+    const eligible = new Set<string>();
+    let turnsSeen = 0;
+    for (let i = history.length - 1; i >= 0; i--) {
+      const msg = history[i];
+      if (msg.role === "user") {
+        if (turnsSeen >= n) break;
+        turnsSeen++;
+      }
+      if (msg.role === "assistant" && msg.reasoningContent) {
+        eligible.add(msg.id);
+      }
+    }
+    return eligible;
   }
 
   /**
@@ -1739,6 +1869,7 @@ Discord interaction:
     userMessage: string,
     appendUserMessage: boolean = true,
     toolDefinitions?: ToolDefinition[],
+    visionImages?: ChatImageUrlPart[],
   ): ChatMessage[] {
     const messages: ChatMessage[] = [];
 
@@ -1750,6 +1881,12 @@ Discord interaction:
 
     // Add history with timestamps (convert from DB format to LLM format)
     const fadeMap = this.buildFadeMap(history);
+    // Scope 2: pick which assistant messages carry their reasoning_content
+    // into this request. Empty when persistent reasoning is off (n=0).
+    const reasoningEligible = this.selectReasoningEligibleHistory(
+      history,
+      this.config.persistentReasoningInterTurns ?? 0,
+    );
     for (const msg of history) {
       // Skip system messages in history — LLM APIs only allow system role at position 0
       if (msg.role === "system") continue;
@@ -1793,15 +1930,30 @@ Discord interaction:
         chatMsg.tool_calls = fadeToolCallArguments(msg.toolCalls);
       }
 
+      // Scope 2: attach my reasoning_content from prior entity turns so
+      // my thinking carries forward across conversational beats. Only
+      // fires for assistant messages in the eligible window AND only
+      // when reasoning content actually exists on the row.
+      if (
+        msg.role === "assistant" &&
+        msg.reasoningContent &&
+        reasoningEligible.has(msg.id)
+      ) {
+        chatMsg.reasoning_content = msg.reasoningContent;
+      }
+
       messages.push(chatMsg);
     }
 
     // Add the new user message with timestamp (skip on retry — it's already in history)
     if (appendUserMessage) {
       const now = formatMessageTimestamp(new Date());
+      const content = `${now} ${userMessage}`;
       messages.push({
         role: "user",
-        content: `${now} ${userMessage}`,
+        content: visionImages?.length
+          ? [{ type: "text", text: content }, ...visionImages]
+          : content,
       });
     }
 
@@ -1814,16 +1966,43 @@ Discord interaction:
         this.config.maxTokens,
       );
       this.lastBudgetResult = result;
-      if (result.truncated) {
+      if (result.truncated || result.reasoningStripped > 0) {
         console.log(
           `[Context] Truncated ${result.messagesRemoved} oldest messages — ` +
             `~${result.estimatedTotalTokens}/${result.contextLength} tokens ` +
-            `(system: ~${result.systemMessageTokens}, tools: ~${result.toolTokens}, history: ~${result.historyTokens})`,
+            `(system: ~${result.systemMessageTokens}, tools: ~${result.toolTokens}, history: ~${result.historyTokens}` +
+            (result.reasoningStripped > 0 || result.reasoningRetained > 0
+              ? `, reasoning: ${result.reasoningRetained} retained / ${result.reasoningStripped} stripped`
+              : "") +
+            `)`,
         );
       }
       return result.messages;
     }
 
     return messages;
+  }
+
+  /**
+   * Compute the aggregate prompt-hook context budget for this turn.
+   *
+   * Returns undefined when the LLM profile's context window is unknown, in
+   * which case the plugin manager falls back to its built-in default. When
+   * known, the budget is 15% of (contextLength - maxTokens), clamped to
+   * [4_000, 60_000] chars. The floor keeps plugin context meaningful on
+   * small-context models; the ceiling prevents plugin context from
+   * dominating on huge-context models.
+   */
+  private computePluginContextBudget():
+    | { maxTotalChars: number }
+    | undefined {
+    const { contextLength, maxTokens } = this.config;
+    if (!contextLength || !maxTokens) return undefined;
+    const usable = contextLength - maxTokens;
+    if (usable <= 0) return { maxTotalChars: 4_000 };
+    const computed = Math.floor(usable * 0.15);
+    return {
+      maxTotalChars: Math.max(4_000, Math.min(60_000, computed)),
+    };
   }
 }

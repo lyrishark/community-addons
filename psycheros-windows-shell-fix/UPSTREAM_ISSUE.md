@@ -25,5 +25,5 @@ Failed to spawn sh: entity not found
 
 ## Verification
 
-The patch is rebased onto Psycheros 0.8.9. `deno check` passes, and the focused
-tests execute a successful command plus a non-zero exit on Windows.
+The current patch is rebased onto Psycheros 0.9.2. `deno check` passes, and the
+two focused tests execute a successful command plus a non-zero exit on Windows.

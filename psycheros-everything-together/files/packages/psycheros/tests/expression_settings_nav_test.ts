@@ -15,24 +15,24 @@ Deno.test("vision settings initial tab bar exposes expressions", () => {
 
 Deno.test({
   name:
-    "everything-together addon stamps client assets for webview cache refresh",
+    "combined addon stamps client assets for webview cache refresh",
   permissions: { env: ["PSYCHEROS_ACCENT_COLOR"] },
   fn() {
     const html = renderAppShell();
 
     assertStringIncludes(
       html,
-      "/css/main.css?v=everything-together-0.1.0-rc.4",
+      "/css/main.css?v=everything-together-0.2.0",
     );
     assertStringIncludes(
       html,
-      "/js/psycheros.js?v=everything-together-0.1.0-rc.4",
+      "/js/psycheros.js?v=everything-together-0.2.0",
     );
   },
 });
 
 Deno.test({
-  name: "everything-together addon does not offline-cache the app shell",
+  name: "combined addon does not offline-cache the app shell",
   permissions: { read: true },
   async fn() {
     const sw = await Deno.readTextFile(
@@ -41,7 +41,7 @@ Deno.test({
 
     assertStringIncludes(
       sw,
-      "psycheros-offline-__VERSION__-everything-together-0-1-0-rc-4",
+      "psycheros-offline-__VERSION__-everything-together-0-2-0",
     );
     assertStringIncludes(sw, 'path === "/"');
     assertFalse(sw.includes('  "/",'));

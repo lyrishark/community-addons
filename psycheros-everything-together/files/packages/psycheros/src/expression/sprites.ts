@@ -110,6 +110,8 @@ export async function loadExpressionDisplaySettings(
   options: { seedBundledSprites?: boolean } = {},
 ): Promise<ExpressionDisplaySettings> {
   const settingsPath = getExpressionDisplaySettingsPath(dataRoot);
+  const establishedPersonalState = await fileExists(settingsPath) ||
+    await hasExpressionSpriteFiles(dataRoot);
   let settings: ExpressionDisplaySettings;
 
   try {
@@ -119,7 +121,9 @@ export async function loadExpressionDisplaySettings(
     settings = getDefaultExpressionDisplaySettings();
   }
 
-  if (options.seedBundledSprites === false) return settings;
+  if (options.seedBundledSprites === false || establishedPersonalState) {
+    return settings;
+  }
 
   try {
     return (await seedBundledExpressionSpritePack(dataRoot, settings)).settings;
@@ -543,6 +547,17 @@ function getBundledExpressionSpritePackDir(): string {
 
 async function fileExists(path: string): Promise<boolean> {
   return (await statOrNull(path)) !== null;
+}
+
+async function hasExpressionSpriteFiles(dataRoot: string): Promise<boolean> {
+  try {
+    for await (const entry of Deno.readDir(getExpressionSpritesDir(dataRoot))) {
+      if (entry.isFile && getExpressionSpriteExtension(entry.name)) return true;
+    }
+  } catch {
+    // A missing sprite directory is the expected state on a first run.
+  }
+  return false;
 }
 
 async function statOrNull(path: string): Promise<Deno.FileInfo | null> {

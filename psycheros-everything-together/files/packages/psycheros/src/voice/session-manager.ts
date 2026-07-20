@@ -37,8 +37,6 @@ export type PrepareVoiceTextTurn = (
   attachmentIds: string[],
 ) => Promise<string>;
 
-export type VoiceUserTurnAccepted = (text: string) => void;
-
 export interface VoiceSession {
   id: string;
   conversationId: string;
@@ -151,7 +149,6 @@ export class VoiceSessionManager {
     voiceSuffix: string,
     pttEnabled: boolean,
     prepareTextTurn?: PrepareVoiceTextTurn,
-    onUserTurnAccepted?: VoiceUserTurnAccepted,
   ): { session: VoiceSession } | { error: string } {
     // Multi-device lock: reject if conversation already in voice
     const existingId = this.conversationLocks.get(conversationId);
@@ -166,7 +163,6 @@ export class VoiceSessionManager {
       entityTurn,
       conversationId,
       systemPromptSuffix: voiceSuffix,
-      onUserTurnAccepted,
     });
 
     const session: VoiceSession = {
@@ -497,16 +493,12 @@ export class VoiceSessionManager {
   ): Promise<void> {
     const rawText = String(msg.text ?? "");
     const attachmentIds = normalizeVoiceAttachmentIds(msg.attachmentIds);
-    const isTyped = msg.source === "typed";
 
     try {
       const text = session.prepareTextTurn
         ? await session.prepareTextTurn(rawText, attachmentIds)
         : rawText;
-      await session.pipeline.processTextTurn(text, {
-        applyCorrections: !isTyped,
-        queueWhileBusy: isTyped,
-      });
+      await session.pipeline.processTextTurn(text);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.error("[Voice] Failed to process browser transcript:", message);

@@ -4,12 +4,12 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$SupportedVersions = @("0.8.23")
+$SupportedVersions = @("0.9.2")
 $PatchRoot = Split-Path -Parent $PSScriptRoot
 $FilesRoot = Join-Path $PatchRoot "files"
 $AddonName = "More Uploads"
 $AddonId = "psycheros-more-uploads"
-$AddonVersion = "0.1.1"
+$AddonVersion = "0.2.0"
 $SupersededAddonIds = @()
 
 function Resolve-FullPath {
@@ -121,7 +121,7 @@ function Assert-AddonInstallCompatible {
 
   if ($Blocking.Count -gt 0) {
     $List = ($Blocking | ForEach-Object { Format-AddonRecord $_ }) -join [Environment]::NewLine
-    throw "Cannot install $AddonName because another overlapping Psycheros source add-on is already present:$([Environment]::NewLine)$List$([Environment]::NewLine)Use the combined package for multiple features, or restore the official Psycheros 0.8.23 source before installing this standalone package."
+    throw "Cannot install $AddonName because another overlapping Psycheros source add-on is already present:$([Environment]::NewLine)$List$([Environment]::NewLine)Use the combined package for multiple features, or restore the official Psycheros 0.9.2 source before installing this standalone package."
   }
 
   if ($Superseded.Count -gt 0) {

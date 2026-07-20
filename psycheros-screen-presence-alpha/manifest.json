@@ -1,12 +1,12 @@
 {
   "name": "psycheros-screen-presence-alpha",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Screen-share presence alpha for Psycheros chat and voice surfaces.",
   "kind": "psycheros-file-mod",
   "official": false,
   "requires": {
-    "psycheros_version": "0.8.20",
-    "compatible_psycheros_versions": ["0.8.20"]
+    "psycheros_version": "0.9.2",
+    "compatible_psycheros_versions": ["0.9.2"]
   },
   "files": [
     "packages/psycheros/src/entity/loop.ts",

@@ -64,13 +64,20 @@ function Compress-Package {
     Write-Output "$zipName  $hash"
 }
 
+function Get-SourcePackageVersion {
+    param([Parameter(Mandatory)] [string]$PackageName)
+    $manifestPath = Join-Path $repoRoot "$PackageName\manifest.json"
+    return (Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json).version
+}
+
 try {
     & (Join-Path $repoRoot "psycheros-htf-music-listener\scripts\Build-Release.ps1") `
         -OutputDirectory $OutputDirectory `
         -BuildRoot (Join-Path $buildRoot "htf-build") `
         -WorkerExecutable $WorkerExecutable
 
-    $legacyZip = Join-Path $OutputDirectory "psycheros-htf-music-listener-0.1.2-legacy-windows-x64.zip"
+    $musicVersion = (Get-Content -LiteralPath (Join-Path $repoRoot "psycheros-htf-music-listener\plugin.json") -Raw | ConvertFrom-Json).version
+    $legacyZip = Join-Path $OutputDirectory "psycheros-htf-music-listener-$musicVersion-legacy-windows-x64.zip"
     $legacyExpanded = Join-Path $buildRoot "legacy-expanded"
     Expand-Archive -LiteralPath $legacyZip -DestinationPath $legacyExpanded -Force
     $legacyRoot = Get-ChildItem -LiteralPath $legacyExpanded -Directory |
@@ -78,11 +85,11 @@ try {
         Select-Object -First 1
     if (-not $legacyRoot) { throw "Could not locate the expanded legacy listener package." }
 
-    Compress-Package -PackageName "psycheros-more-uploads" -Version "0.1.1"
-    Compress-Package -PackageName "psycheros-more-uploads-voice-resize" -Version "0.1.1"
+    Compress-Package -PackageName "psycheros-more-uploads" -Version (Get-SourcePackageVersion "psycheros-more-uploads")
+    Compress-Package -PackageName "psycheros-more-uploads-voice-resize" -Version (Get-SourcePackageVersion "psycheros-more-uploads-voice-resize")
     Compress-Package `
         -PackageName "psycheros-everything-together" `
-        -Version "0.1.0-rc.4" `
+        -Version (Get-SourcePackageVersion "psycheros-everything-together") `
         -BundledLegacyPath $legacyRoot.FullName
 } finally {
     if (Test-Path -LiteralPath $buildRoot) {

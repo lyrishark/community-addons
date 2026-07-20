@@ -312,7 +312,7 @@
   overflow-wrap: break-word;
   font-size: var(--font-size-base);
   line-height: var(--line-height);
-  letter-spacing: 0;
+  letter-spacing: -0.01em;
   min-width: 0;
 }
 
@@ -673,6 +673,40 @@
   background-color: rgba(255, 68, 68, 0.1);
 }
 
+/* Caption disclosure on generated-image containers. Lives as a sibling of
+   the <img>, below the generator-name meta line. */
+.generated-image-caption-toggle {
+  display: inline-block;
+  margin-top: var(--sp-2);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-xs);
+  color: var(--c-fg-muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.generated-image-caption-toggle:hover {
+  color: var(--c-fg);
+  text-decoration: underline;
+}
+
+.generated-image-caption {
+  margin: var(--sp-2) auto 0;
+  padding: var(--sp-2) var(--sp-3);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
+  color: var(--c-fg-muted);
+  text-align: left;
+  background-color: var(--c-bg-sunken);
+  border-radius: var(--radius-sm);
+  line-height: 1.5;
+  max-width: 640px;
+}
+
+.generated-image-caption[hidden] {
+  display: none;
+}
+
 .tool-result-label {
   font-family: var(--font-mono);
   font-size: var(--font-size-xs);
@@ -694,11 +728,6 @@
   display: flex;
   align-items: flex-end;
   gap: var(--sp-1);
-  border-radius: 12px;
-  transition:
-    background var(--transition),
-    box-shadow var(--transition),
-    outline-color var(--transition);
 }
 
 .input-field {
@@ -1570,7 +1599,7 @@
 /* ==========================================================================
    Mobile Touch Feedback
    ========================================================================== */
-@media (max-width: 640px), (hover: none) {
+@media (hover: none) {
   .conv-item-wrapper .conv-item {
     touch-action: pan-y pinch-zoom;
   }
@@ -2100,9 +2129,8 @@
    Message Edit
    ========================================================================== */
 
-/* Message action buttons - always visible */
-.msg-edit-btn,
-.msg-regenerate-btn {
+/* Edit button - always visible */
+.msg-edit-btn {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2119,17 +2147,9 @@
   margin-left: var(--sp-2);
 }
 
-.msg-edit-btn:hover,
-.msg-regenerate-btn:hover {
+.msg-edit-btn:hover {
   background-color: var(--c-bg-hover);
   color: var(--c-accent);
-}
-
-@media (max-width: 640px), (hover: none) {
-  .msg-edit-btn,
-  .msg-regenerate-btn {
-    opacity: 0.72;
-  }
 }
 
 /* Edited indicator */
@@ -2245,29 +2265,12 @@
   background: var(--c-bg-hover);
 }
 
-.input-area.is-attachment-dragover .input-container {
-  outline: 2px solid var(--c-accent);
-  outline-offset: 4px;
-  background: color-mix(in srgb, var(--c-accent) 12%, transparent);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--c-accent) 30%, transparent);
-}
-
-.input-area.is-attachment-dragover .attach-btn {
-  color: var(--c-accent);
-  background: color-mix(in srgb, var(--c-accent) 16%, transparent);
-}
-
 .attachment-preview {
   display: flex;
-  align-items: flex-start;
-  flex-wrap: wrap;
+  align-items: center;
   gap: var(--sp-2);
   padding: var(--sp-1) var(--sp-2);
-}
-
-.attachment-preview-item {
   position: relative;
-  display: inline-flex;
 }
 
 .attachment-thumb {
@@ -2281,8 +2284,8 @@
 
 .attachment-remove {
   position: absolute;
-  top: -6px;
-  right: -6px;
+  top: 0;
+  left: 0;
   width: 20px;
   height: 20px;
   border-radius: 50%;
