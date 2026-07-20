@@ -3,7 +3,8 @@ param(
     [string]$OutputDirectory = "",
     [string]$BuildRoot = "",
     [string]$PythonCommand = "python",
-    [string]$WorkerExecutable = ""
+    [string]$WorkerExecutable = "",
+    [string]$NowPlayingExecutable = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -114,6 +115,18 @@ if (-not (Test-Path -LiteralPath $WorkerExecutable)) {
     throw "The HTF worker executable was not created: $WorkerExecutable"
 }
 
+if ($NowPlayingExecutable) {
+    $NowPlayingExecutable = (Resolve-Path -LiteralPath $NowPlayingExecutable).Path
+} else {
+    $watcherRoot = Join-Path $pluginRoot "watcher"
+    & cargo build --manifest-path (Join-Path $watcherRoot "Cargo.toml") --release
+    if ($LASTEXITCODE -ne 0) { throw "Cargo could not build the Windows Now Playing helper." }
+    $NowPlayingExecutable = Join-Path $watcherRoot "target\release\psycheros-now-playing-watcher.exe"
+}
+if (-not (Test-Path -LiteralPath $NowPlayingExecutable)) {
+    throw "The Windows Now Playing helper was not created: $NowPlayingExecutable"
+}
+
 $stageRoot = Join-Path $BuildRoot "stage"
 $stagePlugin = Join-Path $stageRoot $manifest.id
 Reset-BuildDirectory -Parent $BuildRoot -Path $stageRoot
@@ -127,6 +140,7 @@ $sourceItems = @(
     "PRIVACY.md",
     "SECURITY.md",
     "CHANGELOG.md",
+    "RELEASE_NOTES_v0.2.0-rc.1.md",
     "THIRD_PARTY_NOTICES.md",
     "lib",
     "tests",
@@ -136,11 +150,18 @@ $sourceItems = @(
 foreach ($item in $sourceItems) {
     Copy-Item -LiteralPath (Join-Path $pluginRoot $item) -Destination $stagePlugin -Recurse -Force
 }
+$stageWatcher = Join-Path $stagePlugin "watcher"
+New-Item -ItemType Directory -Path (Join-Path $stageWatcher "src") -Force | Out-Null
+foreach ($item in @("Cargo.toml", "Cargo.lock")) {
+    Copy-Item -LiteralPath (Join-Path $pluginRoot "watcher\$item") -Destination $stageWatcher -Force
+}
+Copy-Item -LiteralPath (Join-Path $pluginRoot "watcher\src\main.rs") -Destination (Join-Path $stageWatcher "src\main.rs") -Force
 Copy-Item -LiteralPath (Join-Path $communityRoot "LICENSE") -Destination (Join-Path $stagePlugin "LICENSE") -Force
 
 $vendor = Join-Path $stagePlugin "vendor\windows-x86_64"
 New-Item -ItemType Directory -Path $vendor -Force | Out-Null
 Copy-Item -LiteralPath $WorkerExecutable -Destination (Join-Path $vendor "htf-worker.exe") -Force
+Copy-Item -LiteralPath $NowPlayingExecutable -Destination (Join-Path $vendor "now-playing-watcher.exe") -Force
 
 $thirdParty = Join-Path $stagePlugin "third-party"
 $pythonInfo = & $buildPython -c "import json, pathlib, site, sys; print(json.dumps({'prefix':sys.base_prefix,'sites':site.getsitepackages(),'version':sys.version}))"
@@ -155,6 +176,23 @@ Copy-LicenseMatches `
     -SearchRoots @($pythonMetadata.sites) `
     -PackagePrefixes @("numpy", "scipy", "matplotlib", "soundfile", "cffi", "pycparser") `
     -Destination (Join-Path $thirdParty "python-packages")
+
+$cargoMetadataJson = & cargo metadata --manifest-path (Join-Path $pluginRoot "watcher\Cargo.toml") --format-version 1
+if ($LASTEXITCODE -ne 0) { throw "Could not inspect Rust dependency metadata." }
+$cargoMetadata = $cargoMetadataJson | ConvertFrom-Json
+$rustLicenses = Join-Path $thirdParty "rust-crates"
+New-Item -ItemType Directory -Path $rustLicenses -Force | Out-Null
+foreach ($package in $cargoMetadata.packages) {
+    if (-not $package.source) { continue }
+    $packageRoot = Split-Path -Parent $package.manifest_path
+    $licenseFiles = Get-ChildItem -LiteralPath $packageRoot -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -match '^(LICENSE|COPYING|NOTICE)' }
+    foreach ($license in $licenseFiles) {
+        $safePackage = "$($package.name)-$($package.version)" -replace '[^A-Za-z0-9._-]', '_'
+        $safeName = $license.Name -replace '[^A-Za-z0-9._-]', '_'
+        Copy-Item -LiteralPath $license.FullName -Destination (Join-Path $rustLicenses "$safePackage-$safeName") -Force
+    }
+}
 
 $workerHash = (Get-FileHash -LiteralPath $WorkerExecutable -Algorithm SHA256).Hash
 $buildInfo = [ordered]@{
@@ -171,6 +209,7 @@ $buildInfo = [ordered]@{
         sha256 = "6f58ce889f59c311410f7d2b18895b33c03456463486f3b1ebc93d97a0f54541"
     }
     workerSha256 = $workerHash
+    nowPlayingWatcherSha256 = (Get-FileHash -LiteralPath $NowPlayingExecutable -Algorithm SHA256).Hash
 }
 $buildInfo | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $stagePlugin "build-info.json") -Encoding utf8
 
@@ -202,6 +241,7 @@ Copy-Item -LiteralPath (Join-Path $pluginRoot "lib") -Destination $legacyBundle 
 $legacyVendor = Join-Path $legacyBundle "vendor\windows-x86_64"
 New-Item -ItemType Directory -Path $legacyVendor -Force | Out-Null
 Copy-Item -LiteralPath $WorkerExecutable -Destination (Join-Path $legacyVendor "htf-worker.exe") -Force
+Copy-Item -LiteralPath $NowPlayingExecutable -Destination (Join-Path $legacyVendor "now-playing-watcher.exe") -Force
 $buildInfo | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $legacyBundle "build-info.json") -Encoding utf8
 
 $safeVersion = $manifest.version -replace '[^A-Za-z0-9._-]', '-'

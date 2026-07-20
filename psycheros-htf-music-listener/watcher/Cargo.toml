@@ -1,0 +1,19 @@
+[package]
+name = "psycheros-now-playing-watcher"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+publish = false
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+windows = { version = "0.62.2", features = [
+  "Foundation",
+  "Media_Control",
+] }
+
+[profile.release]
+lto = true
+opt-level = "s"
+strip = true

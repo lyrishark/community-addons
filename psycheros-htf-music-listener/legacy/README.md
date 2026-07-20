@@ -1,6 +1,11 @@
-# HTF Music Listener 0.1.3 - legacy Psycheros package
+# HTF Music Listener 0.2.0-rc.1 - legacy Psycheros package
 
 Use this package only when **Settings > Plugins does not exist**.
+
+This compatibility package keeps the one-song-at-a-time listening tool and audio
+upload support. The shared Windows Now Playing library, background HTF cache, and
+pre-song lyric review queue require Psycheros's native plugin surface and are not
+available through the legacy bridge.
 
 1. Extract this zip fully.
 2. Double-click `Install Legacy HTF Music Listener.bat`.

@@ -212,76 +212,293 @@ function scanEntityViews() {
 }
 
 function settingRow() {
-  const row = document.createElement("div");
-  row.id = "htf-music-listener-settings";
-  row.className = "htf-listener-settings";
+  const panel = document.createElement("section");
+  panel.id = "htf-music-listener-settings";
+  panel.className = "htf-listener-settings";
 
-  const copy = document.createElement("div");
+  const heading = document.createElement("div");
+  heading.className = "htf-listener-settings__heading";
   const title = document.createElement("div");
   title.className = "htf-listener-settings__title";
-  title.textContent = "Display entity view";
-  const description = document.createElement("div");
-  description.className = "htf-listener-settings__description";
-  description.textContent =
-    "Show the HTF JSON and four listening graphs beneath music turns. The entity receives the sensory handoff either way.";
+  title.textContent = "HTF music listening";
+  const intro = document.createElement("div");
+  intro.className = "htf-listener-settings__description";
+  intro.textContent =
+    "Build a private sensory library, fetch synchronized lyrics before playback, and share the local Windows Now Playing clock with the entity.";
+  heading.append(title, intro);
+  panel.append(heading);
+
   const status = document.createElement("div");
   status.className = "htf-listener-settings__status";
   status.textContent = "Checking listening runtime…";
-  copy.append(title, description, status);
+  panel.append(status);
 
-  const label = document.createElement("label");
-  label.className = "toggle-label htf-listener-settings__toggle";
-  const input = document.createElement("input");
-  input.type = "checkbox";
-  input.disabled = true;
-  input.setAttribute("aria-label", "Display HTF entity view");
-  const slider = document.createElement("span");
-  slider.className = "toggle-slider";
-  label.append(input, slider);
-  row.append(copy, label);
+  const pathLabel = document.createElement("label");
+  pathLabel.className = "htf-listener-settings__field";
+  const pathText = document.createElement("span");
+  pathText.textContent = "Music-library folder";
+  const pathInput = document.createElement("input");
+  pathInput.type = "text";
+  pathInput.placeholder = "H:\\Music";
+  pathInput.autocomplete = "off";
+  pathInput.spellcheck = false;
+  pathLabel.append(pathText, pathInput);
+  panel.append(pathLabel);
+
+  const toggles = document.createElement("div");
+  toggles.className = "htf-listener-settings__toggles";
+  const controls = {};
+  const addToggle = (key, labelText, description) => {
+    const row = document.createElement("div");
+    row.className = "htf-listener-settings__option";
+    const copy = document.createElement("div");
+    const name = document.createElement("div");
+    name.className = "htf-listener-settings__option-name";
+    name.textContent = labelText;
+    const detail = document.createElement("div");
+    detail.className = "htf-listener-settings__description";
+    detail.textContent = description;
+    copy.append(name, detail);
+    const label = document.createElement("label");
+    label.className = "toggle-label htf-listener-settings__toggle";
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.disabled = true;
+    input.setAttribute("aria-label", labelText);
+    const slider = document.createElement("span");
+    slider.className = "toggle-slider";
+    label.append(input, slider);
+    row.append(copy, label);
+    toggles.append(row);
+    controls[key] = input;
+  };
+  addToggle(
+    "libraryEnabled",
+    "Maintain sensory library",
+    "Notice new audio automatically and keep completed HTF work across restarts.",
+  );
+  addToggle(
+    "sharedListening",
+    "Share Now Playing",
+    "Use local playback metadata as a clock; no Spotify audio is captured.",
+  );
+  addToggle(
+    "autoLyrics",
+    "Fetch synchronized lyrics",
+    "Auto-save only confident LRCLIB matches and flag ambiguous songs here first.",
+  );
+  addToggle(
+    "precomputeHtf",
+    "Precompute HTF sensory objects",
+    "Build the collection quietly in the background, one song at a time.",
+  );
+  addToggle(
+    "displayEntityView",
+    "Display entity view",
+    "Show HTF JSON and graphs beneath one-off uploaded music turns.",
+  );
+  panel.append(toggles);
+
+  const actions = document.createElement("div");
+  actions.className = "htf-listener-settings__actions";
+  const save = document.createElement("button");
+  save.type = "button";
+  save.className = "btn btn-primary";
+  save.textContent = "Save listening settings";
+  const scan = document.createElement("button");
+  scan.type = "button";
+  scan.className = "btn btn-secondary";
+  scan.textContent = "Scan now";
+  scan.disabled = true;
+  const review = document.createElement("button");
+  review.type = "button";
+  review.className = "btn btn-secondary";
+  review.textContent = "Lyrics needing review";
+  review.disabled = true;
+  actions.append(save, scan, review);
+  panel.append(actions);
+
+  const libraryStatus = document.createElement("div");
+  libraryStatus.className = "htf-listener-settings__library-status";
+  const reviewList = document.createElement("div");
+  reviewList.className = "htf-listener-reviews";
+  reviewList.hidden = true;
+  panel.append(libraryStatus, reviewList);
+
+  const setDisabled = (value) => {
+    pathInput.disabled = value;
+    save.disabled = value;
+    for (const input of Object.values(controls)) input.disabled = value;
+  };
+
+  const updateStatus = async () => {
+    try {
+      const response = await fetch(`${API_ROOT}/library/status`);
+      const payload = await response.json();
+      const library = payload.library ?? {};
+      const playback = payload.playback ?? {};
+      const parts = [];
+      if (library.enabled) {
+        parts.push(
+          `${library.discovered ?? 0} songs; ${library.metadataReady ?? 0} tagged; ${
+            library.lyricsReady ?? 0
+          } lyrics ready; ${library.htfReady ?? 0} HTFs ready`,
+        );
+        if (library.lyricsReview) parts.push(`${library.lyricsReview} lyric reviews`);
+        if (library.running) parts.push(`${library.stage}: ${library.detail}`);
+      } else {
+        parts.push("Library is off.");
+      }
+      if (playback.title) {
+        parts.push(
+          `Now Playing: ${playback.title}${
+            playback.artist ? ` — ${playback.artist}` : ""
+          } (${playback.playbackStatus ?? "unknown"})`,
+        );
+      } else if (controls.sharedListening.checked && playback.error) {
+        parts.push(`Now Playing needs attention: ${playback.error}`);
+      }
+      libraryStatus.textContent = parts.join(" · ");
+      libraryStatus.classList.toggle("is-error", !!library.lastError);
+      scan.disabled = !controls.libraryEnabled.checked;
+      review.disabled = !(library.lyricsReview > 0);
+      review.textContent = library.lyricsReview > 0
+        ? `Lyrics needing review (${library.lyricsReview})`
+        : "Lyrics needing review";
+    } catch (error) {
+      libraryStatus.textContent = `Could not read library status: ${error.message}`;
+      libraryStatus.classList.add("is-error");
+    }
+  };
+
+  const renderReviews = async () => {
+    reviewList.replaceChildren();
+    const response = await fetch(`${API_ROOT}/library/reviews`);
+    const payload = await response.json();
+    for (const track of payload.reviews ?? []) {
+      const card = document.createElement("article");
+      card.className = "htf-listener-review";
+      const song = document.createElement("div");
+      song.className = "htf-listener-review__song";
+      song.textContent = `${track.title}${track.artist ? ` — ${track.artist}` : ""}`;
+      const file = document.createElement("div");
+      file.className = "htf-listener-settings__description";
+      file.textContent = track.relativePath;
+      card.append(song, file);
+      for (const candidate of track.lyricCandidates ?? []) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "htf-listener-review__candidate";
+        button.textContent = `${candidate.trackName} — ${candidate.artistName}${
+          candidate.albumName ? ` (${candidate.albumName})` : ""
+        } · ${Math.round(candidate.duration)}s`;
+        button.addEventListener(
+          "click",
+          () => submitReview(track.key, { candidateId: candidate.id }, card),
+        );
+        card.append(button);
+      }
+      const none = document.createElement("button");
+      none.type = "button";
+      none.className = "htf-listener-review__none";
+      none.textContent = "No safe synchronized lyric match";
+      none.addEventListener(
+        "click",
+        () => submitReview(track.key, { noLyrics: true }, card),
+      );
+      card.append(none);
+      reviewList.append(card);
+    }
+    if (!reviewList.childElementCount) {
+      reviewList.textContent = "No lyric matches need review.";
+    }
+  };
+
+  const submitReview = async (key, decision, card) => {
+    for (const button of card.querySelectorAll("button")) button.disabled = true;
+    try {
+      const response = await fetch(`${API_ROOT}/library/review`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ key, ...decision }),
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload.success) {
+        throw new Error(payload.error ?? "Could not save lyric review");
+      }
+      card.remove();
+      await updateStatus();
+    } catch (error) {
+      status.textContent = `Could not save lyric review: ${error.message}`;
+      status.classList.add("is-error");
+      for (const button of card.querySelectorAll("button")) button.disabled = false;
+    }
+  };
 
   Promise.all([
     fetch(`${API_ROOT}/settings`).then((response) => response.json()),
     fetch(`${API_ROOT}/status`).then((response) => response.json()),
   ]).then(([settings, runtime]) => {
-    input.checked = settings.displayEntityView === true;
-    input.disabled = false;
+    pathInput.value = settings.libraryPath ?? "";
+    for (const [key, input] of Object.entries(controls)) {
+      input.checked = settings[key] === true;
+    }
+    setDisabled(false);
     status.textContent = runtime.ready
       ? `Listening runtime ready (${runtime.worker}).`
       : `Listening runtime needs attention: ${runtime.error ?? "unknown error"}`;
     status.classList.toggle("is-error", !runtime.ready);
+    updateStatus();
   }).catch((error) => {
     status.textContent = `Could not read plugin settings: ${error.message}`;
     status.classList.add("is-error");
   });
 
-  input.addEventListener("change", async () => {
-    const requested = input.checked;
-    input.disabled = true;
+  save.addEventListener("click", async () => {
+    setDisabled(true);
     status.textContent = "Saving…";
+    status.classList.remove("is-error");
     try {
+      const body = { libraryPath: pathInput.value.trim() };
+      for (const [key, input] of Object.entries(controls)) body[key] = input.checked;
       const response = await fetch(`${API_ROOT}/settings`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ displayEntityView: requested }),
+        body: JSON.stringify(body),
       });
       const payload = await response.json();
       if (!response.ok || !payload.success) {
-        throw new Error(payload.error ?? "Could not save setting");
+        throw new Error(payload.error ?? "Could not save settings");
       }
-      status.textContent = requested
-        ? "Entity view will appear beneath new music-listening turns."
-        : "Entity view is hidden; the entity still receives the full sensory handoff.";
+      status.textContent = "Listening settings saved.";
+      await updateStatus();
     } catch (error) {
-      input.checked = !requested;
       status.textContent = `Could not save: ${error.message}`;
       status.classList.add("is-error");
     } finally {
-      input.disabled = false;
+      setDisabled(false);
     }
   });
 
-  return row;
+  scan.addEventListener("click", async () => {
+    scan.disabled = true;
+    await fetch(`${API_ROOT}/library/scan`, { method: "POST" });
+    await updateStatus();
+  });
+  review.addEventListener("click", async () => {
+    reviewList.hidden = !reviewList.hidden;
+    if (!reviewList.hidden) await renderReviews();
+  });
+
+  const polling = setInterval(() => {
+    if (!panel.isConnected) {
+      clearInterval(polling);
+      return;
+    }
+    updateStatus();
+  }, 3_000);
+
+  return panel;
 }
 
 function findSettingsMount(root = document) {
