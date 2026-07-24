@@ -1,23 +1,50 @@
 {
   "name": "psycheros-screen-presence-alpha",
-  "version": "0.2.0",
-  "description": "Screen-share presence alpha for Psycheros chat and voice surfaces.",
-  "kind": "psycheros-file-mod",
+  "version": "0.3.0-rc.1",
+  "description": "Guarded Psycheros 0.10 source bridge for consent-based screen presence in chat and voice.",
+  "kind": "psycheros-source-bridge",
   "official": false,
   "requires": {
-    "psycheros_version": "0.9.2",
-    "compatible_psycheros_versions": ["0.9.2"]
+    "psycheros_version": "0.10.0",
+    "compatible_psycheros_versions": [
+      "0.10.0"
+    ]
+  },
+  "source_bridge": {
+    "base": "psycheros-v0.10.0",
+    "backup_package": "packages/psycheros",
+    "stock_sha256": {
+      "packages/psycheros/src/entity/loop.ts": "9fe231f730120963e04059299eec6a1b4c1bae735ae3a42e784f49f3db0bb027",
+      "packages/psycheros/src/entity/sa-formatters.ts": "10e71f53e1207df4daae8c3bf9a3d447834c3332655fcc6d390d3de8692c21af",
+      "packages/psycheros/src/pulse/engine.ts": "995015524e649712acab6641e9ca42ad69b87efcdd32354f0c3938de13d773b3",
+      "packages/psycheros/src/server/routes.ts": "eb7de44afaa17288c9ab612bf47bd73c6b5b85f12ef4ee3a5f34ae45d3b3e70f",
+      "packages/psycheros/src/server/server.ts": "4868a3271d83753aed380e3a22a3db19dd42dc71d486ec7ee0e9d0907b11dedd",
+      "packages/psycheros/src/server/templates.ts": "c612d5508c2228df6e26615fc30126cda7dc396d89c39e5ca46c50187b63c077",
+      "packages/psycheros/web/css/components.css": "3f20ebfcc548c16372e89923043660f31558f5b4221c82db398d8f5ce7d9cd2d",
+      "packages/psycheros/web/css/voice.css": "37afc3b5c8648b340f648a782f2c0f8605f165aad2afe3e1f4a936f585c4106f",
+      "packages/psycheros/web/js/psycheros.js": "8becf0782bd4f750e1f5d5c5a6d6bd919e859ada6226c98b3970f536ae5e30ff",
+      "packages/psycheros/web/js/voice.js": "5aa6f6e9beaa715cdd74509d5d92ff30aa9451b340948ec421e5d8027a5c9fe4"
+    }
+  },
+  "installer": {
+    "conflicts": [
+      "psycheros-more-uploads",
+      "psycheros-more-uploads-voice-resize",
+      "psycheros-expression-sprites-beta",
+      "psycheros-everything-together"
+    ],
+    "supersedes": [
+      "psycheros-screen-presence-alpha@0.2.0"
+    ]
   },
   "files": [
     "packages/psycheros/src/entity/loop.ts",
     "packages/psycheros/src/entity/sa-formatters.ts",
     "packages/psycheros/src/pulse/engine.ts",
-    "packages/psycheros/src/server/llm-errors.ts",
     "packages/psycheros/src/server/routes.ts",
     "packages/psycheros/src/server/screen-presence.ts",
     "packages/psycheros/src/server/server.ts",
     "packages/psycheros/src/server/templates.ts",
-    "packages/psycheros/tests/llm_errors_test.ts",
     "packages/psycheros/tests/screen_presence_test.ts",
     "packages/psycheros/web/css/components.css",
     "packages/psycheros/web/css/voice.css",
