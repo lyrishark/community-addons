@@ -1,4 +1,4 @@
-088382c5cedb660b342573ba9c24bc0676b8ae9dfd3b79fb34a61d12ad1e78db  psycheros-htf-music-listener-0.2.0-windows-x64.zip
+1deafd357c5f77ca4df5fac175b216a34e511c535e8f3d0be59ff6a70ce1f1b5  psycheros-htf-music-listener-0.2.0-windows-x64.zip
 280fbb242ced8e974496d43124040163ac88113979871a7a73edd5c54fa59236  psycheros-accessibility-controls-0.1.0-rc.1.zip
 98ae2afe8ca499dab80d87d3832e9bc9156b2430a8edc505a9b3077642d2d654  psycheros-windows-shell-fix-0.3.0-rc.1.zip
 a903950e3ebf3914a2b8798db056ea928a09127b81d220187c78cf5009fa5c6c  psycheros-more-uploads-0.3.0-rc.1.zip
