@@ -1,64 +1,51 @@
 # Psycheros Windows Shell Fix
 
-This community patch fixes Psycheros shell-tool failures on Windows when `sh` is
-not installed:
+A trusted API-v1 plugin that makes Psycheros's existing shell tool use the host
+platform shell. It fixes stock Psycheros 0.10 failures on Windows systems
+without sh:
 
-```text
-Failed to spawn sh: entity not found
-```
+    Failed to spawn sh: entity not found
 
-It is not an official Psycheros release.
-
-> **Psycheros 0.9.2 status:** Compatible in version `0.2.0`. This package was
-> rebuilt from pristine upstream 0.9.2 and the installer refuses other source
-> versions before changing files.
-
-## What changes
-
-- Windows uses `powershell.exe` as its command shell.
-- If PowerShell itself cannot be spawned, the tool falls back to `cmd.exe`.
-- macOS and Linux continue to use `sh -c`.
-- Command timeouts, captured output, and non-zero exit reporting are preserved.
-
-The fallback only occurs when the shell executable cannot be started. An
-ordinary command failure remains a command failure and does not silently switch
-shell languages.
+It does not replace Psycheros source files.
 
 ## Compatibility
 
-Version 0.2.0 is tested for **Psycheros 0.9.2**. Version 0.1.1 remains the
-historical package for Psycheros 0.8.9 through 0.8.11.
+Version 0.3.0-rc.1 supports Psycheros 0.10.x. The historical 0.1.x and 0.2.0
+source overlays remain attached to their original releases.
 
-## Install on Windows
+## Install
 
-Close Psycheros, open PowerShell in this patch folder, and run:
+1. Download psycheros-windows-shell-fix-0.3.0-rc.1.zip from GitHub Releases.
+2. Open **Settings > Plugins** in Psycheros 0.10.
+3. Preview the ZIP, review its trusted entrypoint and warnings, and install it.
+4. Restart Psycheros when prompted and leave the plugin enabled.
 
-```powershell
-Set-ExecutionPolicy -Scope Process Bypass
-.\tools\install-source-files.ps1 -PsycherosRoot "C:\Users\<name>\AppData\Roaming\Psycheros\source"
-```
+The plugin exports a tool named shell. Psycheros 0.10 merges plugin tools after
+stock tools, so this implementation replaces the stock registration without
+patching the host.
 
-The installer creates a timestamped backup inside `packages\psycheros`.
+## Behavior
 
-## Verify
+- Windows uses powershell.exe, with cmd.exe only as a spawn fallback.
+- macOS and Linux continue to use sh -c.
+- Command timeouts, stdout/stderr capture, non-zero exits, and basic secret
+  redaction are preserved.
+- A normal command failure never changes shell languages.
 
-Developers can run:
+## Verify from source
 
-```powershell
-deno check packages/psycheros/src/tools/shell.ts packages/psycheros/tests/shell_tool_test.ts
-deno test -A packages/psycheros/tests/shell_tool_test.ts
-```
+    deno task check
+    deno task test
 
-The test suite executes a real command through the Windows shell and confirms
-that non-zero exits remain errors.
+The test suite executes real success and failure commands through the selected
+platform shell and checks output redaction.
 
-## Security note
+## Security
 
-This patch does not grant new privileges. The Psycheros shell tool already runs
-commands with the daemon process's user permissions; only enable that tool for
-an entity you trust with those permissions.
+This plugin does not grant new privileges. The shell tool already runs commands
+with the Psycheros daemon user's permissions. Enable it only for an entity you
+trust with those permissions.
 
-## Undo
-
-Close Psycheros and restore the timestamped backup, or update/reinstall the
-official source. Official source updates replace tracked mod files.
+The underlying stock defect is tracked in
+[Psycheros #40](https://github.com/PsycherosAI/Psycheros/issues/40). When a
+future Psycheros release includes an equivalent host fix, uninstall this plugin.

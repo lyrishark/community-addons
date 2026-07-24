@@ -1,4 +1,5 @@
 088382c5cedb660b342573ba9c24bc0676b8ae9dfd3b79fb34a61d12ad1e78db  psycheros-htf-music-listener-0.2.0-windows-x64.zip
 280fbb242ced8e974496d43124040163ac88113979871a7a73edd5c54fa59236  psycheros-accessibility-controls-0.1.0-rc.1.zip
+98ae2afe8ca499dab80d87d3832e9bc9156b2430a8edc505a9b3077642d2d654  psycheros-windows-shell-fix-0.3.0-rc.1.zip
 a6cfb75f3f7b31ff04c44e594ef1ad70d735713ba4e964c0af586a1d8349443b  psycheros-entity-core-codex-plugin-0.2.2.zip
 146b87ed6b97d2c0ba087f30b31191c3ae60586fe11dd28858ee7f98f2205ec0  psycheros-entity-core-chatgpt-private-0.1.3.zip

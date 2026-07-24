@@ -46,6 +46,10 @@ Current Psycheros 0.10 manager-addon release:
 
 - `psycheros-htf-music-listener-0.2.0-windows-x64.zip`
 - `psycheros-htf-music-listener-0.2.0-windows-x64.zip.sha256`
+- `psycheros-accessibility-controls-0.1.0-rc.1.zip`
+- `psycheros-accessibility-controls-0.1.0-rc.1.zip.sha256`
+- `psycheros-windows-shell-fix-0.3.0-rc.1.zip`
+- `psycheros-windows-shell-fix-0.3.0-rc.1.zip.sha256`
 
 Current manager-native release candidate:
 

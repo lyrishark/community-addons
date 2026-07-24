@@ -1,0 +1,20 @@
+{
+  "id": "psycheros-windows-shell-fix",
+  "name": "Windows Shell Fix",
+  "version": "0.3.0-rc.1",
+  "apiVersion": 1,
+  "description": "Uses the host platform shell so Psycheros shell commands work on Windows without sh.",
+  "homepageUrl": "https://github.com/lyrishark/community-addons/tree/main/psycheros-windows-shell-fix",
+  "enabled": true,
+  "compatibility": {
+    "psycheros": ">=0.10.0 <0.11.0"
+  },
+  "update": {
+    "repoUrl": "https://github.com/lyrishark/community-addons",
+    "tagPrefix": "psycheros-windows-shell-fix-v",
+    "packagePath": "psycheros-windows-shell-fix"
+  },
+  "entrypoints": {
+    "psycheros": "./psycheros.ts"
+  }
+}

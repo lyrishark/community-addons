@@ -11,10 +11,11 @@ Read [COMPATIBILITY.md](COMPATIBILITY.md) before installing anything.
 | --- | --- | --- | --- |
 | [HTF Music Listener](psycheros-htf-music-listener/README.md) | [0.2.0 public](https://github.com/lyrishark/community-addons/releases/tag/psycheros-htf-music-listener-v0.2.0) | Settings > Plugins | Explicit one-off HTF listening, an opt-in local sensory library, verified synced lyrics, and shared Windows Now Playing presence. |
 | [Accessibility Controls](psycheros-accessibility-controls/README.md) | [0.1.0-rc.1](https://github.com/lyrishark/community-addons/releases/tag/psycheros-accessibility-controls-v0.1.0-rc.1) | Settings > Plugins | Persistent font presets and text scale plus adaptive, manually resizable Yin Yang voice text input. |
+| [Windows Shell Fix](psycheros-windows-shell-fix/README.md) | 0.3.0-rc.1 staged | Settings > Plugins | Platform-aware replacement for the stock shell tool, including native Windows PowerShell support. |
 
-Both packages are trusted API-v1 plugins for Psycheros `>=0.10.0 <0.11.0`.
-They use the official plugin settings capability and declare package-scoped
-GitHub update metadata.
+These packages are trusted API-v1 plugins for Psycheros `>=0.10.0 <0.11.0`.
+The configurable plugins use the official plugin settings capability, and each
+package declares package-scoped GitHub update metadata.
 
 Install release zips through **Settings > Plugins**. The plugin manager shows
 the declared entrypoint, browser assets, capabilities, compatibility range, and

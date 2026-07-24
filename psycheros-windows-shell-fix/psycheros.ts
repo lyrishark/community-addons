@@ -1,74 +1,72 @@
-/**
- * Shell Tool Implementation
- *
- * Provides shell command execution capability for the entity.
- * Uses Deno.Command for secure subprocess management.
- */
-
-import type { ToolResult } from "../types.ts";
-import type { ShellToolArgs, Tool, ToolContext } from "./types.ts";
-
-/** Default timeout for shell commands in milliseconds */
 const DEFAULT_TIMEOUT_MS = 30_000;
+
+interface ToolResult {
+  toolCallId: string;
+  content: string;
+  isError: boolean;
+}
+
+interface ToolContext {
+  toolCallId: string;
+}
+
+interface ShellToolArgs {
+  command: string;
+  workingDir?: string;
+  timeout?: number;
+}
 
 interface ShellInvocation {
   executable: string;
   args: string[];
 }
 
-/**
- * Type guard for validating command argument.
- */
+interface Tool {
+  definition: {
+    type: "function";
+    function: {
+      name: string;
+      description: string;
+      parameters: Record<string, unknown>;
+    };
+  };
+  execute: (
+    args: Record<string, unknown>,
+    context: ToolContext,
+  ) => Promise<ToolResult>;
+}
+
 function isValidCommand(value: unknown): value is string {
   return typeof value === "string" && value.trim() !== "";
 }
 
-/**
- * Type guard for optional string argument.
- */
 function isOptionalString(value: unknown): value is string | undefined {
   return value === undefined || typeof value === "string";
 }
 
-/**
- * Type guard for optional positive number argument.
- */
 function isOptionalPositiveNumber(value: unknown): value is number | undefined {
   return value === undefined || (typeof value === "number" && value > 0);
 }
 
-/**
- * Parse and validate shell tool arguments.
- *
- * @param args - Raw arguments from the tool call
- * @returns Validated ShellToolArgs
- * @throws Error if required arguments are missing or invalid
- */
-function parseArgs(args: Record<string, unknown>): ShellToolArgs {
+export function parseArgs(args: Record<string, unknown>): ShellToolArgs {
   const { command, workingDir, timeout } = args;
-
   if (!isValidCommand(command)) {
     throw new Error("Shell tool requires a non-empty 'command' argument");
   }
-
   if (!isOptionalString(workingDir)) {
     throw new Error("'workingDir' must be a string if provided");
   }
-
   if (!isOptionalPositiveNumber(timeout)) {
     throw new Error("'timeout' must be a positive number if provided");
   }
-
-  // Type guards have narrowed these types - no assertions needed
-  return {
-    command: command.trim(),
-    workingDir,
-    timeout,
-  };
+  return { command: command.trim(), workingDir, timeout };
 }
 
-function getShellInvocations(command: string): ShellInvocation[] {
-  if (Deno.build.os === "windows") {
+export function getShellInvocations(
+  command: string,
+  os: typeof Deno.build.os = Deno.build.os,
+): ShellInvocation[] {
+  if (os === "windows") {
     return [
       {
         executable: "powershell.exe",
@@ -88,8 +86,46 @@ function getShellInvocations(command: string): ShellInvocation[] {
       },
     ];
   }
-
   return [{ executable: "sh", args: ["-c", command] }];
+}
+
+const SECRET_LABEL =
+  "(?:api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret|secret|password)";
+const QUOTED_SECRET_LABEL = "(?:" + SECRET_LABEL + "|auth(?:orization)?)";
+
+export function redactSecrets(value: string): string {
+  let redacted = value
+    .replace(
+      /\b(Authorization\s*[:=]\s*)(Bearer|Token)\s+[A-Za-z0-9._~+/=-]{12,}/gi,
+      "$1$2 [REDACTED]",
+    )
+    .replace(
+      /\b(Authorization\s*[:=]\s*)(?!Bearer\b|Token\b|\[REDACTED\])([^\s,;}]+)/gi,
+      "$1[REDACTED]",
+    );
+
+  redacted = redacted.replace(
+    new RegExp(
+      "((?:[\"']?" + QUOTED_SECRET_LABEL +
+        "[\"']?)\\s*[:=]\\s*)([\"'])([^\"'\\r\\n]+)\\2",
+      "gi",
+    ),
+    "$1$2[REDACTED]$2",
+  );
+  redacted = redacted.replace(
+    new RegExp(
+      "(\\b" + SECRET_LABEL +
+        "\\b\\s*[:=]\\s*)(?![\"']|\\[REDACTED\\])([^\\s,;}\\]]+)",
+      "gi",
+    ),
+    "$1[REDACTED]",
+  );
+  return redacted
+    .replace(/\b(Bearer|Token)\s+[A-Za-z0-9._~+/=-]{12,}/gi, "$1 [REDACTED]")
+    .replace(
+      /\b(?:sk-(?:or-v1-)?[A-Za-z0-9_-]{12,}|github_pat_[A-Za-z0-9_]{20,}|gh[pousr]_[A-Za-z0-9]{20,}|AIza[A-Za-z0-9_-]{20,}|AKIA[A-Z0-9]{16}|eyJ[A-Za-z0-9_-]{16,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,})\b/g,
+      "[REDACTED]",
+    );
 }
 
 async function runInvocation(
@@ -97,23 +133,21 @@ async function runInvocation(
   args: ShellToolArgs,
   timeoutMs: number,
 ): Promise<Deno.CommandOutput> {
-  const command = new Deno.Command(invocation.executable, {
+  const process = new Deno.Command(invocation.executable, {
     args: invocation.args,
     cwd: args.workingDir,
     stdout: "piped",
     stderr: "piped",
-  });
-
-  const process = command.spawn();
+  }).spawn();
 
   return await new Promise<Deno.CommandOutput>((resolve, reject) => {
     const timeoutId = setTimeout(() => {
       try {
         process.kill("SIGTERM");
       } catch {
-        // Process may already have exited.
+        // The process may already have exited.
       }
-      reject(new Error(`Command timed out after ${timeoutMs}ms`));
+      reject(new Error("Command timed out after " + timeoutMs + "ms"));
     }, timeoutMs);
 
     process.output().then(
@@ -134,101 +168,67 @@ function isMissingExecutableError(error: unknown): boolean {
   return /entity not found|no such file|os error 2|not found/i.test(message);
 }
 
-/**
- * Execute a shell command and capture its output.
- *
- * @param args - The validated shell tool arguments
- * @param toolCallId - The ID of the tool call for result tracking
- * @returns ToolResult with command output
- */
-async function executeCommand(
+export async function executeCommand(
   args: ShellToolArgs,
   toolCallId: string,
 ): Promise<ToolResult> {
   const timeoutMs = args.timeout ?? DEFAULT_TIMEOUT_MS;
   const invocations = getShellInvocations(args.command);
-
   try {
     let result: Deno.CommandOutput | undefined;
     let lastSpawnError: unknown;
-
-    for (let i = 0; i < invocations.length; i += 1) {
+    for (let index = 0; index < invocations.length; index += 1) {
       try {
-        result = await runInvocation(invocations[i], args, timeoutMs);
+        result = await runInvocation(invocations[index], args, timeoutMs);
         lastSpawnError = undefined;
         break;
       } catch (error) {
         lastSpawnError = error;
         if (
-          i === invocations.length - 1 ||
+          index === invocations.length - 1 ||
           !isMissingExecutableError(error)
         ) {
           throw error;
         }
       }
     }
-
     if (!result) {
       throw lastSpawnError instanceof Error
         ? lastSpawnError
         : new Error("Command did not produce a result");
     }
 
-    // Decode output
     const decoder = new TextDecoder();
-    const stdout = decoder.decode(result.stdout);
-    const stderr = decoder.decode(result.stderr);
-
-    // Build result content
+    const stdout = redactSecrets(decoder.decode(result.stdout));
+    const stderr = redactSecrets(decoder.decode(result.stderr));
     const parts: string[] = [];
-
-    if (stdout.length > 0) {
-      parts.push(stdout);
-    }
-
-    if (stderr.length > 0) {
-      parts.push(`[stderr]\n${stderr}`);
-    }
-
-    if (result.code !== 0) {
-      parts.push(`[exit code: ${result.code}]`);
-    }
-
-    const content = parts.length > 0 ? parts.join("\n") : "(no output)";
-
+    if (stdout.length > 0) parts.push(stdout);
+    if (stderr.length > 0) parts.push("[stderr]\n" + stderr);
+    if (result.code !== 0) parts.push("[exit code: " + result.code + "]");
     return {
       toolCallId,
-      content,
+      content: parts.length > 0 ? parts.join("\n") : "(no output)",
       isError: result.code !== 0,
     };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-
+    const message = redactSecrets(
+      error instanceof Error ? error.message : String(error),
+    );
     return {
       toolCallId,
-      content: `Error executing command: ${errorMessage}`,
+      content: "Error executing command: " + message,
       isError: true,
     };
   }
 }
 
-/**
- * The shell tool enables executing shell commands.
- *
- * Features:
- * - Executes commands through the host platform shell
- * - Captures both stdout and stderr
- * - Handles non-zero exit codes gracefully
- * - Supports configurable timeout (default 30s)
- * - Supports custom working directory
- */
 export const shellTool: Tool = {
   definition: {
     type: "function",
     function: {
       name: "shell",
       description:
-        "Execute a shell command and return the output. I use this to run any command-line operation including file operations, git commands, build tools, and more.",
+        "Execute a command through the host platform shell and return stdout, stderr, and exit status.",
       parameters: {
         type: "object",
         properties: {
@@ -238,35 +238,34 @@ export const shellTool: Tool = {
           },
           workingDir: {
             type: "string",
-            description: "Optional working directory for the command",
+            description: "Optional working directory",
           },
           timeout: {
             type: "number",
-            description:
-              "Optional timeout in milliseconds (default: 30000). Commands exceeding this will be terminated.",
+            description: "Optional timeout in milliseconds (default: 30000)",
           },
         },
         required: ["command"],
       },
     },
   },
-
   execute: async (
     args: Record<string, unknown>,
-    ctx: ToolContext,
+    context: ToolContext,
   ): Promise<ToolResult> => {
     try {
-      const parsedArgs = parseArgs(args);
-      return await executeCommand(parsedArgs, ctx.toolCallId);
+      return await executeCommand(parseArgs(args), context.toolCallId);
     } catch (error) {
-      const errorMessage = error instanceof Error
-        ? error.message
-        : String(error);
+      const message = error instanceof Error ? error.message : String(error);
       return {
-        toolCallId: ctx.toolCallId,
-        content: `Error: ${errorMessage}`,
+        toolCallId: context.toolCallId,
+        content: "Error: " + message,
         isError: true,
       };
     }
   },
+};
+
+export default {
+  tools: [shellTool],
 };
