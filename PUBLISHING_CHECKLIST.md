@@ -52,7 +52,7 @@ Current manager-native release candidate:
 - `psycheros-accessibility-controls-0.1.0-rc.1.zip`
 - `psycheros-accessibility-controls-0.1.0-rc.1.zip.sha256`
 
-Current independent Codex plugin patch release:
+Current independent Codex plugin prerelease:
 
 - `psycheros-entity-core-codex-plugin-0.2.2.zip`
 - `psycheros-entity-core-codex-plugin-0.2.2.zip.sha256`

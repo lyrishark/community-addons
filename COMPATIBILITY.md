@@ -8,7 +8,7 @@ the Psycheros plugin API v1 validator.
 | Package | Version | Psycheros status |
 | --- | --- | --- |
 | HTF Music Listener | [0.2.0 public](https://github.com/lyrishark/community-addons/releases/tag/psycheros-htf-music-listener-v0.2.0) | Compatible with Psycheros `>=0.10.0 <0.11.0` and Launcher `>=0.2.45`. |
-| Accessibility Controls | 0.1.0-rc.1 prepared | Compatible with Psycheros `>=0.10.0 <0.11.0`; no launcher dependency. |
+| Accessibility Controls | [0.1.0-rc.1](https://github.com/lyrishark/community-addons/releases/tag/psycheros-accessibility-controls-v0.1.0-rc.1) | Compatible with Psycheros `>=0.10.0 <0.11.0`; no launcher dependency. |
 
 HTF Music Listener 0.2.0 passed Deno checks, seven plugin tests, the stock 0.10
 validator, Windows helper builds, an exact-ZIP manager install, restart,
