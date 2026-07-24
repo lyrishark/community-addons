@@ -51,14 +51,6 @@ let wakeLock = null;
 // bytes) looped at low-but-nonzero volume.
 let silentAudioEl = null;
 let voiceTextAttachments = [];
-const VOICE_TEXT_RESIZE_STORAGE_KEY = 'psycheros.voiceTextInputResize.v1';
-let voiceTextResizeState = {
-  manualWidth: false,
-  manualHeight: false,
-  width: null,
-  height: null,
-};
-let activeVoiceTextResize = null;
 
 const VOICE_CHAT_ATTACHMENT_ACCEPT = [
   '.png', '.jpg', '.jpeg', '.gif', '.webp', '.avif', '.svg',
@@ -404,12 +396,6 @@ async function openVoiceChat(conversationId) {
     globalThis.Psycheros?.updateScreenPresenceButtons?.();
   }
 
-  const voiceTextInput = document.getElementById('voice-text-input');
-  if (voiceTextInput) {
-    voiceTextInput.addEventListener('input', resizeVoiceTextInput);
-  }
-  initVoiceTextResizeControls();
-
   // Read config embedded by the server
   const cfg = document.getElementById('voice-status-cfg');
   if (cfg) {
@@ -676,13 +662,6 @@ function cleanup() {
   pulseToastEl = null;
   toolToastEl = null;
   toolChips.clear();
-
-  window.removeEventListener('resize', handleVoiceTextWindowResize);
-  document.removeEventListener('pointermove', updateVoiceTextResize);
-  document.removeEventListener('pointerup', finishVoiceTextResize);
-  document.removeEventListener('pointercancel', finishVoiceTextResize);
-  document.body.classList.remove('voice-text-resizing', 'voice-text-resizing-ew', 'voice-text-resizing-ns');
-  activeVoiceTextResize = null;
 
   const overlay = document.getElementById('voice-overlay');
   if (overlay) overlay.remove();
@@ -2133,201 +2112,6 @@ function toggleVoiceDeafen() {
 
 let yinYangMode = false;
 
-function clampNumber(value, min, max) {
-  return Math.max(min, Math.min(max, value));
-}
-
-function readVoiceTextResizeState() {
-  try {
-    const raw = localStorage.getItem(VOICE_TEXT_RESIZE_STORAGE_KEY);
-    if (!raw) return { manualWidth: false, manualHeight: false, width: null, height: null };
-    const parsed = JSON.parse(raw);
-    return {
-      manualWidth: !!parsed.manualWidth,
-      manualHeight: !!parsed.manualHeight,
-      width: Number.isFinite(parsed.width) ? parsed.width : null,
-      height: Number.isFinite(parsed.height) ? parsed.height : null,
-    };
-  } catch {
-    return { manualWidth: false, manualHeight: false, width: null, height: null };
-  }
-}
-
-function saveVoiceTextResizeState() {
-  try {
-    if (!voiceTextResizeState.manualWidth && !voiceTextResizeState.manualHeight) {
-      localStorage.removeItem(VOICE_TEXT_RESIZE_STORAGE_KEY);
-      return;
-    }
-    localStorage.setItem(VOICE_TEXT_RESIZE_STORAGE_KEY, JSON.stringify(voiceTextResizeState));
-  } catch {}
-}
-
-function getVoiceTextResizeBounds() {
-  const viewportWidth = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
-  const viewportHeight = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
-  const maxWidth = Math.max(280, Math.min(760, viewportWidth - 32));
-  const maxHeight = Math.max(96, Math.min(360, viewportHeight * 0.52));
-  return {
-    minWidth: Math.min(280, maxWidth),
-    maxWidth,
-    minHeight: Math.min(64, maxHeight),
-    maxHeight,
-  };
-}
-
-function applyVoiceTextResizeState() {
-  const area = document.getElementById('voice-text-input-area');
-  const input = document.getElementById('voice-text-input');
-  if (!area || !input) return;
-
-  const bounds = getVoiceTextResizeBounds();
-  if (voiceTextResizeState.manualWidth && voiceTextResizeState.width) {
-    const width = clampNumber(voiceTextResizeState.width, bounds.minWidth, bounds.maxWidth);
-    voiceTextResizeState.width = width;
-    area.style.width = `${width}px`;
-  } else {
-    area.style.width = '';
-  }
-
-  if (voiceTextResizeState.manualHeight && voiceTextResizeState.height) {
-    const height = clampNumber(voiceTextResizeState.height, bounds.minHeight, bounds.maxHeight);
-    voiceTextResizeState.height = height;
-    input.style.height = `${height}px`;
-    input.style.overflowY = input.scrollHeight > height ? 'auto' : 'hidden';
-  } else {
-    resizeVoiceTextInput();
-  }
-}
-
-function resizeVoiceTextInput() {
-  const input = document.getElementById('voice-text-input');
-  if (!input) return;
-
-  if (voiceTextResizeState.manualHeight && voiceTextResizeState.height) {
-    input.style.height = `${voiceTextResizeState.height}px`;
-    input.style.overflowY = input.scrollHeight > voiceTextResizeState.height ? 'auto' : 'hidden';
-    return;
-  }
-
-  const { minHeight, maxHeight } = getVoiceTextResizeBounds();
-  input.style.height = 'auto';
-  const height = clampNumber(input.scrollHeight, minHeight, maxHeight);
-  input.style.height = `${height}px`;
-  input.style.overflowY = input.scrollHeight > height ? 'auto' : 'hidden';
-}
-
-function initVoiceTextResizeControls() {
-  voiceTextResizeState = readVoiceTextResizeState();
-  applyVoiceTextResizeState();
-  window.addEventListener('resize', handleVoiceTextWindowResize);
-  document.querySelectorAll('[data-voice-text-resize-handle]').forEach((handle) => {
-    handle.addEventListener('pointerdown', startVoiceTextResize);
-    handle.addEventListener('dblclick', resetVoiceTextInputSize);
-  });
-}
-
-function handleVoiceTextWindowResize() {
-  applyVoiceTextResizeState();
-}
-
-function startVoiceTextResize(event) {
-  if (event.button !== undefined && event.button !== 0) return;
-  const handle = event.currentTarget;
-  if (!(handle instanceof HTMLElement)) return;
-  const area = document.getElementById('voice-text-input-area');
-  const input = document.getElementById('voice-text-input');
-  if (!area || !input) return;
-
-  event.preventDefault();
-  event.stopPropagation();
-  const mode = handle.dataset.voiceTextResizeHandle || 'corner';
-  activeVoiceTextResize = {
-    mode,
-    startX: event.clientX,
-    startY: event.clientY,
-    startWidth: area.getBoundingClientRect().width,
-    startHeight: input.getBoundingClientRect().height,
-  };
-  area.classList.add('is-resizing');
-  document.body.classList.add('voice-text-resizing');
-  document.body.classList.toggle('voice-text-resizing-ew', mode === 'east');
-  document.body.classList.toggle('voice-text-resizing-ns', mode === 'south');
-  try {
-    handle.setPointerCapture(event.pointerId);
-  } catch {}
-  document.addEventListener('pointermove', updateVoiceTextResize);
-  document.addEventListener('pointerup', finishVoiceTextResize, { once: true });
-  document.addEventListener('pointercancel', finishVoiceTextResize, { once: true });
-}
-
-function updateVoiceTextResize(event) {
-  if (!activeVoiceTextResize) return;
-  const area = document.getElementById('voice-text-input-area');
-  const input = document.getElementById('voice-text-input');
-  if (!area || !input) return;
-
-  const bounds = getVoiceTextResizeBounds();
-  const mode = activeVoiceTextResize.mode;
-  const resizeWidth = mode === 'east' || mode === 'corner';
-  const resizeHeight = mode === 'south' || mode === 'corner';
-
-  if (resizeWidth) {
-    const width = clampNumber(
-      activeVoiceTextResize.startWidth + event.clientX - activeVoiceTextResize.startX,
-      bounds.minWidth,
-      bounds.maxWidth,
-    );
-    voiceTextResizeState.manualWidth = true;
-    voiceTextResizeState.width = width;
-    area.style.width = `${width}px`;
-  }
-
-  if (resizeHeight) {
-    const height = clampNumber(
-      activeVoiceTextResize.startHeight + event.clientY - activeVoiceTextResize.startY,
-      bounds.minHeight,
-      bounds.maxHeight,
-    );
-    voiceTextResizeState.manualHeight = true;
-    voiceTextResizeState.height = height;
-    input.style.height = `${height}px`;
-    input.style.overflowY = input.scrollHeight > height ? 'auto' : 'hidden';
-  } else if (!voiceTextResizeState.manualHeight) {
-    resizeVoiceTextInput();
-  }
-}
-
-function finishVoiceTextResize() {
-  if (!activeVoiceTextResize) return;
-  activeVoiceTextResize = null;
-  document.removeEventListener('pointermove', updateVoiceTextResize);
-  document.removeEventListener('pointerup', finishVoiceTextResize);
-  document.removeEventListener('pointercancel', finishVoiceTextResize);
-  document.getElementById('voice-text-input-area')?.classList.remove('is-resizing');
-  document.body.classList.remove('voice-text-resizing', 'voice-text-resizing-ew', 'voice-text-resizing-ns');
-  saveVoiceTextResizeState();
-}
-
-function resetVoiceTextInputSize(event) {
-  event?.preventDefault();
-  event?.stopPropagation();
-  voiceTextResizeState = {
-    manualWidth: false,
-    manualHeight: false,
-    width: null,
-    height: null,
-  };
-  try {
-    localStorage.removeItem(VOICE_TEXT_RESIZE_STORAGE_KEY);
-  } catch {}
-  const area = document.getElementById('voice-text-input-area');
-  const input = document.getElementById('voice-text-input');
-  if (area) area.style.width = '';
-  if (input) input.style.height = '';
-  resizeVoiceTextInput();
-}
-
 function toggleYinYangMode() {
   yinYangMode = !yinYangMode;
   const btn = document.getElementById('voice-btn-yinyang');
@@ -2355,10 +2139,7 @@ function toggleYinYangMode() {
     // Focus the text input so the user can start typing immediately
     setTimeout(() => {
       const input = document.getElementById('voice-text-input');
-      if (input) {
-        resizeVoiceTextInput();
-        input.focus();
-      }
+      if (input) input.focus();
     }, 50);
   } else {
     // Leaving Yin Yang mode — hide text input, re-acquire the mic
@@ -2642,6 +2423,7 @@ function voiceAttachmentFallbackText(attachments) {
   if (fileCount > 1) return '(files attached)';
   return '(file attached)';
 }
+
 async function sendVoiceTextInput() {
   const input = document.getElementById('voice-text-input');
   if (!input) return;
@@ -2658,7 +2440,6 @@ async function sendVoiceTextInput() {
   voiceTextAttachments = [];
   renderVoiceTextAttachmentPreview();
   input.value = '';
-  resizeVoiceTextInput();
   // Disable the send button immediately with inline styles for guaranteed
   // visual feedback regardless of CSS specificity battles with .voice-btn.
   setSendButtonDisabled(true);
@@ -2669,10 +2450,9 @@ async function sendVoiceTextInput() {
       source: 'typed',
       attachmentIds
     });
-    if (!sent) throw new Error('Voice connection is not ready');
+    if (!sent) throw new Error('Voice connection closed before send');
   } catch (error) {
     input.value = text;
-    resizeVoiceTextInput();
     voiceTextAttachments = attachments;
     renderVoiceTextAttachmentPreview();
     setSendButtonDisabled(false);

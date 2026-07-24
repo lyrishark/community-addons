@@ -1,23 +1,74 @@
 {
   "name": "psycheros-everything-together",
-  "version": "0.2.0",
-  "description": "Combined Psycheros community bundle with uploads, comprehensive HTF music listening, voice resize, fonts, Windows shell, screen presence, and expression sprites.",
-  "kind": "psycheros-file-mod",
+  "version": "0.3.0-rc.1",
+  "description": "Psycheros 0.10 suite for expanded attachments, expressions, screen presence, accessibility, Windows shell support, and HTF listening.",
+  "kind": "psycheros-release-suite",
   "official": false,
   "requires": {
-    "psycheros_version": "0.9.2",
-    "compatible_psycheros_versions": ["0.9.2"]
+    "psycheros_version": "0.10.0",
+    "compatible_psycheros_versions": [
+      "0.10.0"
+    ]
+  },
+  "source_bridge": {
+    "base": "psycheros-v0.10.0",
+    "backup_package": ".",
+    "stock_sha256": {
+      "deno.lock": "088b25f524c8c544433a19176da6503da2a8a4298ee9a7dd876ed82a93bc3fc9",
+      "packages/psycheros/deno.json": "5bb1157ad31d0d9e1085a0c10388ad3eab662d733cabe4db7314fad51789f346",
+      "packages/psycheros/docs/ui-features.md": "d9e995d035745793fe15b4f9c141adec0b0fc4c3c3c53431e0f083f1653cb886",
+      "packages/psycheros/src/db/client.ts": "1b150f7ff68bdbb49afaaf11ae30283ef6af456fcc37481fb814622d2c6e713c",
+      "packages/psycheros/src/db/schema.ts": "1bad1d5b32d1fdd27464f2237fcbadb7b52edd67ad1e2aefa7b51121d69e1a2e",
+      "packages/psycheros/src/entity/loop.ts": "9fe231f730120963e04059299eec6a1b4c1bae735ae3a42e784f49f3db0bb027",
+      "packages/psycheros/src/entity/sa-formatters.ts": "10e71f53e1207df4daae8c3bf9a3d447834c3332655fcc6d390d3de8692c21af",
+      "packages/psycheros/src/pulse/engine.ts": "995015524e649712acab6641e9ca42ad69b87efcdd32354f0c3938de13d773b3",
+      "packages/psycheros/src/server/routes.ts": "eb7de44afaa17288c9ab612bf47bd73c6b5b85f12ef4ee3a5f34ae45d3b3e70f",
+      "packages/psycheros/src/server/server.ts": "4868a3271d83753aed380e3a22a3db19dd42dc71d486ec7ee0e9d0907b11dedd",
+      "packages/psycheros/src/server/templates.ts": "c612d5508c2228df6e26615fc30126cda7dc396d89c39e5ca46c50187b63c077",
+      "packages/psycheros/src/types.ts": "4eb0cf45d5c10e38612226766799419e4addea4b1e9f966e565c2559c574c1c2",
+      "packages/psycheros/src/voice/pipeline.ts": "e3707bb65b8cd7855ff0bd19ee1b20e862becf947d9c7c7c8956bb89707e5667",
+      "packages/psycheros/src/voice/session-manager.ts": "911e2495c0b8fcb492fb3c0cc0f1c37c3f50764f958e7a4158c0c6a89e8a338a",
+      "packages/psycheros/web/css/components.css": "3f20ebfcc548c16372e89923043660f31558f5b4221c82db398d8f5ce7d9cd2d",
+      "packages/psycheros/web/css/voice.css": "37afc3b5c8648b340f648a782f2c0f8605f165aad2afe3e1f4a936f585c4106f",
+      "packages/psycheros/web/js/psycheros.js": "8becf0782bd4f750e1f5d5c5a6d6bd919e859ada6226c98b3970f536ae5e30ff",
+      "packages/psycheros/web/js/voice.js": "5aa6f6e9beaa715cdd74509d5d92ff30aa9451b340948ec421e5d8027a5c9fe4",
+      "packages/psycheros/web/sw.js": "1c6bf021d733f6d3abd7a8620d3f186b16ecfa51ee0779aadac9d63cb229840f",
+      "site/src/content/docs/psycheros/ui-features.md": "552be1a3a3309344bd7a50247b5d0324372c0a9b3ce0f3cae4ae8160e1853250"
+    }
+  },
+  "suite": {
+    "source_components": [
+      "psycheros-more-uploads@0.3.0-rc.1",
+      "psycheros-expression-sprites-beta@0.3.0-rc.1",
+      "psycheros-screen-presence-alpha@0.3.0-rc.1"
+    ],
+    "manager_plugins": [
+      {
+        "id": "psycheros-accessibility-controls",
+        "version": "0.1.0-rc.1",
+        "package_path": "psycheros-accessibility-controls"
+      },
+      {
+        "id": "psycheros-windows-shell-fix",
+        "version": "0.3.0-rc.1",
+        "package_path": "psycheros-windows-shell-fix"
+      },
+      {
+        "id": "psycheros-htf-music-listener",
+        "version": "0.2.0",
+        "package_path": "psycheros-htf-music-listener"
+      }
+    ]
   },
   "installer": {
-    "conflicts": [],
-    "supersedes": [
+    "conflicts": [
       "psycheros-more-uploads",
-      "psycheros-voice-text-resize",
       "psycheros-more-uploads-voice-resize",
-      "psycheros-accessible-font-settings",
-      "psycheros-windows-shell-fix",
-      "psycheros-screen-presence-alpha",
-      "psycheros-expression-sprites-beta"
+      "psycheros-expression-sprites-beta",
+      "psycheros-screen-presence-alpha"
+    ],
+    "supersedes": [
+      "psycheros-everything-together@0.2.0"
     ]
   },
   "files": [
@@ -35,85 +86,25 @@
     "packages/psycheros/src/expression/sprites.ts",
     "packages/psycheros/src/expression/tracker.ts",
     "packages/psycheros/src/expression/types.ts",
-    "packages/psycheros/assets/expression-sprites/ember/manifest.json",
-    "packages/psycheros/assets/expression-sprites/ember/Admiration.png",
-    "packages/psycheros/assets/expression-sprites/ember/Affection.png",
-    "packages/psycheros/assets/expression-sprites/ember/Amusement.png",
-    "packages/psycheros/assets/expression-sprites/ember/Anger.png",
-    "packages/psycheros/assets/expression-sprites/ember/Annoyance.png",
-    "packages/psycheros/assets/expression-sprites/ember/Anxiety.png",
-    "packages/psycheros/assets/expression-sprites/ember/Approval.png",
-    "packages/psycheros/assets/expression-sprites/ember/Awe.png",
-    "packages/psycheros/assets/expression-sprites/ember/Boredom.png",
-    "packages/psycheros/assets/expression-sprites/ember/Caring.png",
-    "packages/psycheros/assets/expression-sprites/ember/Confidence.png",
-    "packages/psycheros/assets/expression-sprites/ember/Confusion.png",
-    "packages/psycheros/assets/expression-sprites/ember/Curiosity.png",
-    "packages/psycheros/assets/expression-sprites/ember/Desire.png",
-    "packages/psycheros/assets/expression-sprites/ember/Determination.png",
-    "packages/psycheros/assets/expression-sprites/ember/Disappointment.png",
-    "packages/psycheros/assets/expression-sprites/ember/Disapproval.png",
-    "packages/psycheros/assets/expression-sprites/ember/Disgust.png",
-    "packages/psycheros/assets/expression-sprites/ember/Doubt.png",
-    "packages/psycheros/assets/expression-sprites/ember/Embarrassment.png",
-    "packages/psycheros/assets/expression-sprites/ember/Excitement.png",
-    "packages/psycheros/assets/expression-sprites/ember/Exhaustion.png",
-    "packages/psycheros/assets/expression-sprites/ember/Fear.png",
-    "packages/psycheros/assets/expression-sprites/ember/Flirtation.png",
-    "packages/psycheros/assets/expression-sprites/ember/Focus.png",
-    "packages/psycheros/assets/expression-sprites/ember/Frustration.png",
-    "packages/psycheros/assets/expression-sprites/ember/Gratitude.png",
-    "packages/psycheros/assets/expression-sprites/ember/Grief.png",
-    "packages/psycheros/assets/expression-sprites/ember/Guilt.png",
-    "packages/psycheros/assets/expression-sprites/ember/Joy.png",
-    "packages/psycheros/assets/expression-sprites/ember/Love.png",
-    "packages/psycheros/assets/expression-sprites/ember/Mischief.png",
-    "packages/psycheros/assets/expression-sprites/ember/Nervousness.png",
-    "packages/psycheros/assets/expression-sprites/ember/Neutral.png",
-    "packages/psycheros/assets/expression-sprites/ember/Nostalgia.png",
-    "packages/psycheros/assets/expression-sprites/ember/Optimism.png",
-    "packages/psycheros/assets/expression-sprites/ember/Panic.png",
-    "packages/psycheros/assets/expression-sprites/ember/Playfulness.png",
-    "packages/psycheros/assets/expression-sprites/ember/Pride.png",
-    "packages/psycheros/assets/expression-sprites/ember/Protectiveness.png",
-    "packages/psycheros/assets/expression-sprites/ember/Realization.png",
-    "packages/psycheros/assets/expression-sprites/ember/Relief.png",
-    "packages/psycheros/assets/expression-sprites/ember/Remorse.png",
-    "packages/psycheros/assets/expression-sprites/ember/Reverence.png",
-    "packages/psycheros/assets/expression-sprites/ember/Sadness.png",
-    "packages/psycheros/assets/expression-sprites/ember/Skepticism.png",
-    "packages/psycheros/assets/expression-sprites/ember/Surprise.png",
-    "packages/psycheros/assets/expression-sprites/ember/Tenderness.png",
-    "packages/psycheros/assets/expression-sprites/ember/Trepidation.png",
-    "packages/psycheros/assets/expression-sprites/ember/Warmth.png",
     "packages/psycheros/src/pulse/engine.ts",
     "packages/psycheros/src/server/chat-attachments.ts",
-    "packages/psycheros/src/server/llm-errors.ts",
     "packages/psycheros/src/server/routes.ts",
     "packages/psycheros/src/server/screen-presence.ts",
     "packages/psycheros/src/server/server.ts",
     "packages/psycheros/src/server/templates.ts",
-    "packages/psycheros/src/tools/shell.ts",
     "packages/psycheros/src/types.ts",
     "packages/psycheros/src/voice/pipeline.ts",
     "packages/psycheros/src/voice/session-manager.ts",
     "packages/psycheros/tests/chat_attachments_test.ts",
     "packages/psycheros/tests/expression_checkerboard_test.ts",
     "packages/psycheros/tests/expression_classifier_test.ts",
+    "packages/psycheros/tests/expression_persistence_test.ts",
     "packages/psycheros/tests/expression_settings_nav_test.ts",
     "packages/psycheros/tests/expression_sprites_test.ts",
-    "packages/psycheros/tests/expression_persistence_test.ts",
-    "packages/psycheros/tests/llm_errors_test.ts",
     "packages/psycheros/tests/screen_presence_test.ts",
-    "packages/psycheros/tests/shell_tool_test.ts",
-    "packages/psycheros/tests/theme_test.ts",
-    "packages/psycheros/tests/voice_text_resize_addon_test.ts",
     "packages/psycheros/web/css/components.css",
-    "packages/psycheros/web/css/settings.css",
-    "packages/psycheros/web/css/tokens.css",
     "packages/psycheros/web/css/voice.css",
     "packages/psycheros/web/js/psycheros.js",
-    "packages/psycheros/web/js/theme.js",
     "packages/psycheros/web/js/voice.js",
     "packages/psycheros/web/sw.js",
     "site/src/content/docs/psycheros/ui-features.md"

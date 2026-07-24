@@ -110,7 +110,7 @@ export async function loadExpressionDisplaySettings(
   options: { seedBundledSprites?: boolean } = {},
 ): Promise<ExpressionDisplaySettings> {
   const settingsPath = getExpressionDisplaySettingsPath(dataRoot);
-  const establishedPersonalState = await fileExists(settingsPath) ||
+  const establishedUserState = await fileExists(settingsPath) ||
     await hasExpressionSpriteFiles(dataRoot);
   let settings: ExpressionDisplaySettings;
 
@@ -121,7 +121,7 @@ export async function loadExpressionDisplaySettings(
     settings = getDefaultExpressionDisplaySettings();
   }
 
-  if (options.seedBundledSprites === false || establishedPersonalState) {
+  if (options.seedBundledSprites === false || establishedUserState) {
     return settings;
   }
 
@@ -466,7 +466,7 @@ async function seedBundledExpressionSpritePack(
     const currentExists = current
       ? await fileExists(getExpressionSpritePath(dataRoot, current.filename))
       : false;
-    const destinationFilename = `ember-default-${label}.${sourceExt}`;
+    const destinationFilename = `bundled-default-${label}.${sourceExt}`;
     const ownsCurrent = current?.filename === destinationFilename;
 
     if (!overwrite && current && currentExists && !ownsCurrent) {
@@ -541,7 +541,7 @@ function getBundledExpressionSpritePackDir(): string {
     "..",
     "assets",
     "expression-sprites",
-    "ember",
+    "default",
   );
 }
 
