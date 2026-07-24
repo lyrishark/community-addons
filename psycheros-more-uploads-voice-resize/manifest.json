@@ -1,20 +1,49 @@
 {
   "name": "psycheros-more-uploads-voice-resize",
-  "version": "0.2.0",
-  "description": "Multiple image, document, and music uploads plus resizable Yin Yang typed voice input for Psycheros.",
-  "kind": "psycheros-file-mod",
+  "version": "0.3.0-rc.1",
+  "description": "Psycheros 0.10 release suite for expanded attachments and accessible voice text controls.",
+  "kind": "psycheros-release-suite",
   "official": false,
   "requires": {
-    "psycheros_version": "0.9.2",
-    "compatible_psycheros_versions": ["0.9.2"]
+    "psycheros_version": "0.10.0",
+    "compatible_psycheros_versions": [
+      "0.10.0"
+    ]
+  },
+  "source_bridge": {
+    "base": "psycheros-v0.10.0",
+    "backup_package": "packages/psycheros",
+    "stock_sha256": {
+      "packages/psycheros/src/server/routes.ts": "eb7de44afaa17288c9ab612bf47bd73c6b5b85f12ef4ee3a5f34ae45d3b3e70f",
+      "packages/psycheros/src/server/templates.ts": "c612d5508c2228df6e26615fc30126cda7dc396d89c39e5ca46c50187b63c077",
+      "packages/psycheros/src/voice/session-manager.ts": "911e2495c0b8fcb492fb3c0cc0f1c37c3f50764f958e7a4158c0c6a89e8a338a",
+      "packages/psycheros/web/css/components.css": "3f20ebfcc548c16372e89923043660f31558f5b4221c82db398d8f5ce7d9cd2d",
+      "packages/psycheros/web/css/voice.css": "37afc3b5c8648b340f648a782f2c0f8605f165aad2afe3e1f4a936f585c4106f",
+      "packages/psycheros/web/js/psycheros.js": "8becf0782bd4f750e1f5d5c5a6d6bd919e859ada6226c98b3970f536ae5e30ff",
+      "packages/psycheros/web/js/voice.js": "5aa6f6e9beaa715cdd74509d5d92ff30aa9451b340948ec421e5d8027a5c9fe4",
+      "packages/psycheros/web/sw.js": "1c6bf021d733f6d3abd7a8620d3f186b16ecfa51ee0779aadac9d63cb229840f"
+    }
+  },
+  "suite": {
+    "manager_plugins": [
+      {
+        "id": "psycheros-accessibility-controls",
+        "version": "0.1.0-rc.1",
+        "package_path": "psycheros-accessibility-controls"
+      }
+    ]
   },
   "installer": {
     "conflicts": [
+      "psycheros-more-uploads",
+      "psycheros-expression-sprites-beta",
+      "psycheros-screen-presence-alpha",
       "psycheros-everything-together"
     ],
     "supersedes": [
-      "psycheros-more-uploads",
-      "psycheros-voice-text-resize"
+      "psycheros-more-uploads-voice-resize@0.2.0",
+      "psycheros-voice-text-resize",
+      "psycheros-accessible-font-settings"
     ]
   },
   "files": [
@@ -23,7 +52,6 @@
     "packages/psycheros/src/server/templates.ts",
     "packages/psycheros/src/voice/session-manager.ts",
     "packages/psycheros/tests/chat_attachments_test.ts",
-    "packages/psycheros/tests/voice_text_resize_addon_test.ts",
     "packages/psycheros/web/css/components.css",
     "packages/psycheros/web/css/voice.css",
     "packages/psycheros/web/js/psycheros.js",

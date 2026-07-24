@@ -42,10 +42,6 @@ Deno.test("raw music uploads stream to disk and retain audio metadata", async ()
   }
 });
 
-function readPackageText(path: string): Promise<string> {
-  return Deno.readTextFile(new URL(`../${path}`, import.meta.url));
-}
-
 Deno.test("extractLeadingUserAttachments reads mixed leading attachment markers", () => {
   const parsed = extractLeadingUserAttachments([
     "[USER_IMAGE: /chat-attachments/one.png | Image 1]",
@@ -68,7 +64,6 @@ Deno.test("extractLeadingUserAttachments leaves non-leading markers visible", ()
   const parsed = extractLeadingUserAttachments([
     "look at this later",
     "[USER_IMAGE: /chat-attachments/one.png | Image 1]",
-    "[USER_AUDIO: /chat-attachments/song.flac | Audio 2 | Name: song.flac]",
   ].join("\n"));
 
   assertEquals(parsed.attachments.length, 0);
@@ -95,9 +90,9 @@ Deno.test("renderUserMessage renders mixed attachments and hides marker payload"
 });
 
 Deno.test("main chat composer supports images, documents, and music uploads", async () => {
-  const js = await readPackageText("web/js/psycheros.js");
-  const templates = await readPackageText("src/server/templates.ts");
-  const routes = await readPackageText("src/server/routes.ts");
+  const js = await Deno.readTextFile("web/js/psycheros.js");
+  const templates = await Deno.readTextFile("src/server/templates.ts");
+  const routes = await Deno.readTextFile("src/server/routes.ts");
 
   assertStringIncludes(js, "let pendingAttachments = []");
   assertStringIncludes(js, "attachmentIds");
@@ -117,11 +112,13 @@ Deno.test("main chat composer supports images, documents, and music uploads", as
   assertStringIncludes(routes, "extractText");
 });
 
-Deno.test("Yin Yang typed voice input supports attachments with resize controls", async () => {
-  const templates = await readPackageText("src/server/templates.ts");
-  const voiceJs = await readPackageText("web/js/voice.js");
-  const voiceCss = await readPackageText("web/css/voice.css");
-  const sessionManager = await readPackageText("src/voice/session-manager.ts");
+Deno.test("Yin Yang typed voice input supports attachments without resize controls", async () => {
+  const templates = await Deno.readTextFile("src/server/templates.ts");
+  const voiceJs = await Deno.readTextFile("web/js/voice.js");
+  const voiceCss = await Deno.readTextFile("web/css/voice.css");
+  const sessionManager = await Deno.readTextFile(
+    "src/voice/session-manager.ts",
+  );
 
   assertStringIncludes(templates, 'id="voice-text-attach-input"');
   assertStringIncludes(templates, "handleVoiceTextAttachment(this)");
@@ -131,9 +128,8 @@ Deno.test("Yin Yang typed voice input supports attachments with resize controls"
   assertStringIncludes(voiceJs, "source: 'typed'");
   assertStringIncludes(voiceJs, "handleVoiceTextDrop");
   assertStringIncludes(voiceCss, ".voice-text-attach-btn");
-  assertStringIncludes(templates, "voice-text-resize-handle");
-  assertStringIncludes(voiceJs, "VOICE_TEXT_RESIZE_STORAGE_KEY");
-  assertStringIncludes(voiceCss, ".voice-text-resize-handle");
   assertStringIncludes(sessionManager, "prepareTextTurn");
   assertStringIncludes(sessionManager, "normalizeVoiceAttachmentIds");
+  assertFalse(voiceJs.includes("voice-text-resize-handle"));
+  assertFalse(templates.includes("voice-text-resize-handle"));
 });

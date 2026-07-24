@@ -387,37 +387,23 @@
    know it's typed vs speech-recognized. For when the user can hear but
    can't speak (library, sleeping baby, meeting). */
 .voice-text-input-area {
-  width: min(100%, 620px);
-  max-width: calc(100vw - 2rem);
+  width: 100%;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
   align-items: stretch;
   margin-bottom: 0.5rem;
-  transition: width 0.12s ease;
-}
-
-.voice-text-input-area.is-resizing {
-  transition: none;
 }
 
 .voice-text-input-row {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   gap: 0.5rem;
   width: 100%;
 }
 
-.voice-text-input-frame {
-  position: relative;
-  flex: 1 1 auto;
-  min-width: 0;
-  max-width: 100%;
-}
-
 .voice-text-input {
-  display: block;
-  width: 100%;
+  flex: 1;
   padding: 0.6rem 0.9rem;
   border-radius: 8px;
   background: var(--c-bg-sunken);
@@ -427,76 +413,8 @@
   font-size: 0.95rem;
   line-height: 1.4;
   resize: none;
-  min-height: 64px;
-  max-height: min(52dvh, 360px);
-  overflow-y: auto;
-}
-
-.voice-text-resize-handle {
-  position: absolute;
-  z-index: 3;
-  display: block;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--c-accent);
-  opacity: 0;
-  transition: opacity 0.12s ease;
-}
-
-.voice-text-input-frame:hover .voice-text-resize-handle,
-.voice-text-input-frame:focus-within .voice-text-resize-handle,
-.voice-text-input-area.is-resizing .voice-text-resize-handle {
-  opacity: 0.68;
-}
-
-.voice-text-resize-handle--east {
-  top: 10px;
-  right: -6px;
-  bottom: 20px;
-  width: 12px;
-  cursor: ew-resize;
-}
-
-.voice-text-resize-handle--south {
-  right: 22px;
-  bottom: -6px;
-  left: 12px;
-  height: 12px;
-  cursor: ns-resize;
-}
-
-.voice-text-resize-handle--corner {
-  right: -7px;
-  bottom: -7px;
-  width: 22px;
-  height: 22px;
-  cursor: nwse-resize;
-}
-
-.voice-text-resize-handle--corner::after {
-  content: "";
-  position: absolute;
-  right: 6px;
-  bottom: 6px;
-  width: 9px;
-  height: 9px;
-  border-right: 2px solid currentColor;
-  border-bottom: 2px solid currentColor;
-  border-radius: 1px;
-}
-
-body.voice-text-resizing {
-  cursor: nwse-resize;
-  user-select: none;
-}
-
-body.voice-text-resizing-ew {
-  cursor: ew-resize;
-}
-
-body.voice-text-resizing-ns {
-  cursor: ns-resize;
+  min-height: 44px;
+  max-height: 120px;
 }
 
 .voice-text-input:focus {
@@ -567,29 +485,6 @@ body.voice-text-resizing-ns {
   max-width: 190px;
   min-height: 34px;
   padding: 0.35rem 0.55rem;
-}
-
-@media (max-width: 640px) {
-  .voice-call {
-    padding-inline: 1rem;
-  }
-
-  .voice-text-input-area {
-    max-width: calc(100vw - 2rem);
-  }
-
-  .voice-text-resize-handle--east {
-    right: -4px;
-  }
-
-  .voice-text-resize-handle--south {
-    bottom: -4px;
-  }
-
-  .voice-text-resize-handle--corner {
-    right: -5px;
-    bottom: -5px;
-  }
 }
 
 /* ========================================================================== */
