@@ -7,7 +7,7 @@ and the reconciled Ember/Nyx 0.10 source.
 
 | Package | Version | Psycheros status |
 | --- | --- | --- |
-| HTF Music Listener | 0.2.0 prepared | Compatible with Psycheros `>=0.10.0 <0.11.0` and Launcher `>=0.2.45`. Trusted plugin only; no 0.10 source patch. |
+| HTF Music Listener | [0.2.0 public](https://github.com/lyrishark/community-addons/releases/tag/psycheros-htf-music-listener-v0.2.0) | Compatible with Psycheros `>=0.10.0 <0.11.0` and Launcher `>=0.2.45`. Trusted plugin only; no 0.10 source patch. |
 
 Verification for HTF Music Listener 0.2.0:
 
@@ -21,7 +21,9 @@ Verification for HTF Music Listener 0.2.0:
 - The manifest records the community monorepo, package path, and
   `psycheros-htf-music-listener-v*` tag stream.
 
-The release zip works with the stock Psycheros 0.10 plugin installer. Automatic
+The published release zip works with the stock Psycheros 0.10 plugin installer.
+The live 0.10 manager install, restart, settings fragment, and GitHub update
+check were verified on 2026-07-24. Automatic
 updates from a plugin stored below a monorepo root additionally require the
 compatibility-safe updater in Ember/Nyx or upstream PR #37. That updater checks
 the tagged manifest before replacement, skips incompatible versions, and keeps
