@@ -2849,7 +2849,7 @@
 
       // Render a single package row for the Resume list. Paths are carried in
       // data-* attributes (not inline onclick string literals) so backslashes
-      // in Windows paths like H:\Psycheros\... survive intact — inline JS
+      // in Windows paths like D:\Apps\Psycheros\... survive intact — inline JS
       // string literals treat \ as an escape and corrupt the path before the
       // handler ever sees it. Click handling is delegated to #resume-list.
       function packageRowHtml(p) {
