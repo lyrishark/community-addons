@@ -1,9 +1,4 @@
-import {
-  assert,
-  assertEquals,
-  assertRejects,
-  assertStringIncludes,
-} from "@std/assert";
+import { assertEquals, assertRejects, assertStringIncludes } from "@std/assert";
 import { join } from "@std/path";
 import {
   DEFAULT_EXPRESSION_LABELS,
@@ -12,7 +7,6 @@ import {
   ExpressionDirectiveStreamFilter,
   extractExpressionDirectives,
   getDefaultExpressionDisplaySettings,
-  getExpressionSpritePath,
   loadExpressionDisplaySettings,
   matchExpressionLabelFromFilename,
   normalizeExpressionDisplaySettings,
@@ -98,29 +92,19 @@ Deno.test("expression display settings default invalid stage sides", () => {
   assertEquals(settings.mobileSide, "right");
 });
 
-Deno.test("bundled Ember sprite pack seeds a fresh expression data root", async () => {
+Deno.test("missing optional bundled pack leaves a fresh profile empty", async () => {
   const tempRoot = await Deno.makeTempDir();
   try {
     const result = await ensureBundledExpressionSpritePack(tempRoot);
-    assertEquals(result.available, true);
-    assertEquals(result.packName, "Ember expression sprite seed pack");
-    assertEquals(result.seeded, DEFAULT_EXPRESSION_LABELS.length);
+    assertEquals(result.available, false);
+    assertEquals(result.packName, null);
+    assertEquals(result.seeded, 0);
 
     const settings = await loadExpressionDisplaySettings(tempRoot);
     assertEquals(
       Object.keys(settings.sprites).length,
-      DEFAULT_EXPRESSION_LABELS.length,
+      0,
     );
-    assertEquals(
-      settings.sprites.neutral.filename,
-      "ember-default-neutral.png",
-    );
-    assertEquals(settings.sprites.warmth.originalName, "Warmth.png");
-
-    const neutralInfo = await Deno.stat(
-      getExpressionSpritePath(tempRoot, settings.sprites.neutral.filename),
-    );
-    assert(neutralInfo.size > 0);
 
     const second = await ensureBundledExpressionSpritePack(tempRoot);
     assertEquals(second.seeded, 0);
@@ -129,7 +113,7 @@ Deno.test("bundled Ember sprite pack seeds a fresh expression data root", async 
   }
 });
 
-Deno.test("loading established personal expression settings never seeds bundled Ember sprites", async () => {
+Deno.test("loading established user settings never seeds bundled sprites", async () => {
   const tempRoot = await Deno.makeTempDir();
   try {
     const settings = getDefaultExpressionDisplaySettings();
@@ -147,7 +131,7 @@ Deno.test("loading established personal expression settings never seeds bundled 
   }
 });
 
-Deno.test("orphaned personal sprite files block bundled Ember first-run seeding", async () => {
+Deno.test("orphaned user sprite files block bundled first-run seeding", async () => {
   const tempRoot = await Deno.makeTempDir();
   try {
     const spritesDir = join(tempRoot, ".psycheros", "expression-sprites");

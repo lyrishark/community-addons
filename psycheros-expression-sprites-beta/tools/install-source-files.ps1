@@ -1,186 +1,153 @@
+[CmdletBinding()]
 param(
+  [Parameter(Mandatory = $true)]
   [string]$PsycherosRoot
 )
 
 $ErrorActionPreference = "Stop"
+Set-StrictMode -Version Latest
 
-$SupportedVersions = @("0.9.2")
-$PatchRoot = Split-Path -Parent $PSScriptRoot
-$FilesRoot = Join-Path $PatchRoot "files"
-$AddonName = "Expression Sprites Beta"
+$PackageRoot = (Resolve-Path -LiteralPath (Split-Path -Parent $PSScriptRoot)).Path
+$ManifestPath = Join-Path $PackageRoot "manifest.json"
+$FilesRoot = Join-Path $PackageRoot "files"
+$Manifest = Get-Content -LiteralPath $ManifestPath -Raw | ConvertFrom-Json
+$Root = (Resolve-Path -LiteralPath $PsycherosRoot).Path
+$DenoJson = Join-Path $Root "packages\psycheros\deno.json"
+$TargetPackageRel = [string]$Manifest.source_bridge.backup_package
+$TargetPackageDir = Join-Path $Root $TargetPackageRel
 
-function Resolve-FullPath {
-  param([Parameter(Mandatory = $true)][string]$Path)
-  return [System.IO.Path]::GetFullPath($Path)
-}
-
-function Test-PsycherosSourceRoot {
-  param([string]$Path)
-  if (-not $Path) {
-    return $false
-  }
-  $DenoJson = Join-Path $Path "packages\psycheros\deno.json"
-  return Test-Path -LiteralPath $DenoJson
-}
-
-function Get-PsycherosSourceVersion {
-  param([string]$Path)
-  $DenoJson = Join-Path $Path "packages\psycheros\deno.json"
-  try {
-    return (Get-Content -LiteralPath $DenoJson -Raw | ConvertFrom-Json).version
-  } catch {
-    return "unknown"
-  }
-}
-
-function Format-PsycherosSourceMatches {
-  param([array]$Matches)
-  return ($Matches | ForEach-Object { "  - $($_.Path) (version $($_.Version))" }) -join [Environment]::NewLine
-}
-
-function Add-Candidate {
+function Assert-SafeChildPath {
   param(
-    [System.Collections.Generic.List[string]]$List,
-    [string]$Path
+    [Parameter(Mandatory = $true)][string]$Parent,
+    [Parameter(Mandatory = $true)][string]$Child
   )
-  if (-not $Path) {
-    return
+  $ParentFull = [IO.Path]::GetFullPath($Parent).TrimEnd("\", "/")
+  $ChildFull = [IO.Path]::GetFullPath($Child)
+  if (-not $ChildFull.StartsWith(
+      $ParentFull + [IO.Path]::DirectorySeparatorChar,
+      [StringComparison]::OrdinalIgnoreCase
+    )) {
+    throw "Unsafe path escaped the selected Psycheros source root: $ChildFull"
   }
+}
+
+function Get-NormalizedSha256 {
+  param([Parameter(Mandatory = $true)][string]$Path)
+  $Text = [IO.File]::ReadAllText($Path)
+  $Text = $Text.Replace(
+    ([string][char]13 + [string][char]10),
+    [string][char]10
+  ).Replace([string][char]13, [string][char]10)
+  $Bytes = [Text.Encoding]::UTF8.GetBytes($Text)
+  $Sha = [Security.Cryptography.SHA256]::Create()
   try {
-    $Resolved = (Resolve-Path -LiteralPath $Path -ErrorAction Stop).Path
-    if (-not $List.Contains($Resolved)) {
-      [void]$List.Add($Resolved)
-    }
-  } catch {
-    # Missing candidate paths are expected during auto-detect.
+    return -join ($Sha.ComputeHash($Bytes) | ForEach-Object {
+        $_.ToString("x2")
+      })
+  } finally {
+    $Sha.Dispose()
   }
 }
 
-function Resolve-PsycherosSourceRoot {
-  param([string]$ExplicitRoot)
-
-  if ($ExplicitRoot) {
-    $Resolved = (Resolve-Path -LiteralPath $ExplicitRoot -ErrorAction Stop).Path
-    if (-not (Test-PsycherosSourceRoot $Resolved)) {
-      throw "Could not find packages\psycheros\deno.json under $Resolved. Point -PsycherosRoot at the Psycheros source checkout."
-    }
-    return $Resolved
-  }
-
-  $Candidates = [System.Collections.Generic.List[string]]::new()
-  Add-Candidate $Candidates $env:PSYCHEROS_ROOT
-
-  $Here = (Get-Location).Path
-  while ($Here) {
-    Add-Candidate $Candidates $Here
-    $Parent = Split-Path -Parent $Here
-    if (-not $Parent -or $Parent -eq $Here) {
-      break
-    }
-    $Here = $Parent
-  }
-
-  Add-Candidate $Candidates (Join-Path $HOME "AppData\Roaming\Psycheros\source")
-  Add-Candidate $Candidates (Join-Path $HOME "AppData\Roaming\Psycheros")
-  Add-Candidate $Candidates (Join-Path $HOME "AppData\Local\Psycheros\source")
-  Add-Candidate $Candidates (Join-Path $HOME "AppData\Local\Psycheros")
-  Add-Candidate $Candidates (Join-Path $HOME "Documents\Psycheros")
-  Add-Candidate $Candidates (Join-Path $HOME "Code\Psycheros")
-  Add-Candidate $Candidates (Join-Path $HOME "Source\Psycheros")
-  Add-Candidate $Candidates "H:\Psycheros\10_local\repo"
-  Add-Candidate $Candidates "H:\Psycheros"
-  Add-Candidate $Candidates "H:\Cathedral Revamp - Psycheros"
-  Add-Candidate $Candidates "H:\Cathedral Current - Psycheros"
-
-  $Matches = @()
-  foreach ($Candidate in $Candidates) {
-    if (Test-PsycherosSourceRoot $Candidate) {
-      $Matches += [pscustomobject]@{
-        Path = $Candidate
-        Version = Get-PsycherosSourceVersion $Candidate
-      }
-    }
-  }
-
-  $SupportedMatches = @($Matches | Where-Object { $_.Version -in $SupportedVersions })
-
-  if ($SupportedMatches.Count -eq 1) {
-    return $SupportedMatches[0].Path
-  }
-
-  if ($SupportedMatches.Count -gt 1) {
-    $List = Format-PsycherosSourceMatches $SupportedMatches
-    throw "Multiple compatible Psycheros source folders were found:$([Environment]::NewLine)$List$([Environment]::NewLine)Run again with -PsycherosRoot ""C:\path\to\Psycheros\source""."
-  }
-
-  if ($Matches.Count -gt 0) {
-    $SupportedList = $SupportedVersions -join ", "
-    $List = Format-PsycherosSourceMatches $Matches
-    throw "Found Psycheros source folder(s), but none match supported version ${SupportedList}:$([Environment]::NewLine)$List$([Environment]::NewLine)If Psycheros itself reports $SupportedList, this installer is seeing a stale or different source folder. Run again with -PsycherosRoot pointed at the launcher source folder, usually ""$HOME\AppData\Roaming\Psycheros\source""."
-  }
-
-  throw "Could not auto-detect a Psycheros source folder. Run again with -PsycherosRoot ""C:\path\to\Psycheros""."
+if (-not (Test-Path -LiteralPath $DenoJson)) {
+  throw "Could not find packages\psycheros\deno.json under $Root"
+}
+if (-not (Test-Path -LiteralPath $TargetPackageDir -PathType Container)) {
+  throw "Could not find $TargetPackageRel under $Root"
+}
+if (-not (Test-Path -LiteralPath $FilesRoot -PathType Container)) {
+  throw "Could not find source-bridge payload at $FilesRoot"
 }
 
-if (-not (Test-Path -LiteralPath $FilesRoot)) {
-  throw "Could not find add-on files at $FilesRoot"
-}
-
-$ResolvedRoot = Resolve-PsycherosSourceRoot $PsycherosRoot
-$RootFull = (Resolve-Path -LiteralPath $ResolvedRoot).Path
-$RootFullForCompare = (Resolve-FullPath $RootFull).TrimEnd("\", "/")
-$FilesRootFull = (Resolve-Path -LiteralPath $FilesRoot).Path
-$DenoJson = Join-Path $RootFull "packages\psycheros\deno.json"
-
-$InstalledVersion = (Get-Content -LiteralPath $DenoJson -Raw | ConvertFrom-Json).version
+$InstalledVersion =
+  (Get-Content -LiteralPath $DenoJson -Raw | ConvertFrom-Json).version
+$SupportedVersions = @($Manifest.requires.compatible_psycheros_versions)
 if ($InstalledVersion -notin $SupportedVersions) {
-  $SupportedList = $SupportedVersions -join ", "
-  throw "This add-on supports Psycheros $SupportedList, but $RootFull reports $InstalledVersion. No files were changed. If the running app reports $SupportedList, this is probably not the source folder your launcher is using; rerun with -PsycherosRoot pointed at the launcher source folder."
+  throw "This source bridge supports Psycheros $($SupportedVersions -join ', '); found $InstalledVersion. No files were changed."
+}
+
+$StockHashes = @{}
+foreach ($Property in $Manifest.source_bridge.stock_sha256.PSObject.Properties) {
+  $StockHashes[[string]$Property.Name] = [string]$Property.Value
+}
+
+$PreflightErrors = [Collections.Generic.List[string]]::new()
+foreach ($Relative in @($Manifest.files)) {
+  $Payload = [IO.Path]::GetFullPath((Join-Path $FilesRoot $Relative))
+  $Destination = [IO.Path]::GetFullPath((Join-Path $Root $Relative))
+  Assert-SafeChildPath -Parent $FilesRoot -Child $Payload
+  Assert-SafeChildPath -Parent $Root -Child $Destination
+
+  if (-not (Test-Path -LiteralPath $Payload -PathType Leaf)) {
+    $PreflightErrors.Add("Missing payload file: $Relative")
+    continue
+  }
+
+  $PayloadHash = Get-NormalizedSha256 $Payload
+  if ($StockHashes.ContainsKey([string]$Relative)) {
+    if (-not (Test-Path -LiteralPath $Destination -PathType Leaf)) {
+      $PreflightErrors.Add("Required stock file is missing: $Relative")
+      continue
+    }
+    $CurrentHash = Get-NormalizedSha256 $Destination
+    $StockHash = $StockHashes[[string]$Relative]
+    if ($CurrentHash -ne $StockHash -and $CurrentHash -ne $PayloadHash) {
+      $PreflightErrors.Add("Refusing to overwrite a non-stock local edit: $Relative")
+    }
+  } elseif (Test-Path -LiteralPath $Destination) {
+    $CurrentHash = Get-NormalizedSha256 $Destination
+    if ($CurrentHash -ne $PayloadHash) {
+      $PreflightErrors.Add("Refusing to replace an existing non-addon file: $Relative")
+    }
+  }
+}
+
+if ($PreflightErrors.Count -gt 0) {
+  throw "Source-bridge preflight failed. No files were changed:" +
+    [Environment]::NewLine +
+    ($PreflightErrors | ForEach-Object { "  - $_" } | Out-String)
 }
 
 $Timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
-$PsycherosPackageDir = Join-Path $RootFull "packages\psycheros"
-$BackupRoot = Join-Path $PsycherosPackageDir "_expression_sprites_beta_backup_$Timestamp"
-New-Item -ItemType Directory -Force -Path $BackupRoot | Out-Null
+$BackupRoot = Join-Path $TargetPackageDir (
+  ".community-addon-backups\$($Manifest.name)\$Timestamp"
+)
 
-$Files = Get-ChildItem -LiteralPath $FilesRootFull -Recurse -File
-$Patched = 0
-$BackedUp = 0
+foreach ($Relative in @($Manifest.files)) {
+  $Payload = [IO.Path]::GetFullPath((Join-Path $FilesRoot $Relative))
+  $Destination = [IO.Path]::GetFullPath((Join-Path $Root $Relative))
+  $Backup = [IO.Path]::GetFullPath((Join-Path $BackupRoot $Relative))
+  Assert-SafeChildPath -Parent $Root -Child $Destination
+  Assert-SafeChildPath -Parent $BackupRoot -Child $Backup
 
-foreach ($File in $Files) {
-  $Relative = $File.FullName.Substring($FilesRootFull.Length).TrimStart("\", "/")
-  $Destination = Resolve-FullPath (Join-Path $RootFull $Relative)
-  $BackupDestination = Resolve-FullPath (Join-Path $BackupRoot $Relative)
-
-  $InsideRoot = $Destination.StartsWith(
-    "$RootFullForCompare\",
-    [System.StringComparison]::OrdinalIgnoreCase
-  ) -or $Destination.Equals($RootFullForCompare, [System.StringComparison]::OrdinalIgnoreCase)
-  if (-not $InsideRoot) {
-    throw "Refusing to write outside Psycheros root: $Destination"
+  if (Test-Path -LiteralPath $Destination -PathType Leaf) {
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $Backup) |
+      Out-Null
+    Copy-Item -LiteralPath $Destination -Destination $Backup -Force
   }
-
-  if (Test-Path -LiteralPath $Destination) {
-    New-Item -ItemType Directory -Force -Path (Split-Path $BackupDestination -Parent) | Out-Null
-    Copy-Item -LiteralPath $Destination -Destination $BackupDestination -Force
-    $BackedUp++
-  }
-
-  New-Item -ItemType Directory -Force -Path (Split-Path $Destination -Parent) | Out-Null
-  Copy-Item -LiteralPath $File.FullName -Destination $Destination -Force
-  Write-Host "Patched $Relative"
-  $Patched++
+  New-Item -ItemType Directory -Force -Path (
+    Split-Path -Parent $Destination
+  ) | Out-Null
+  Copy-Item -LiteralPath $Payload -Destination $Destination -Force
+  Write-Host "Installed $Relative"
 }
 
+$MarkerDir = Join-Path $TargetPackageDir ".addon-installs"
+New-Item -ItemType Directory -Force -Path $MarkerDir | Out-Null
+$Marker = [ordered]@{
+  schema_version = 1
+  id = [string]$Manifest.name
+  version = [string]$Manifest.version
+  psycheros_version = [string]$InstalledVersion
+  base = [string]$Manifest.source_bridge.base
+  installed_at = (Get-Date).ToUniversalTime().ToString("o")
+  backup = $BackupRoot
+}
+$MarkerPath = Join-Path $MarkerDir "$($Manifest.name).json"
+$Marker | ConvertTo-Json -Depth 4 |
+  Set-Content -LiteralPath $MarkerPath -Encoding UTF8
+
 Write-Host ""
-Write-Host "$AddonName installed for Psycheros $InstalledVersion."
-Write-Host "Patched files: $Patched"
-Write-Host "Backed-up existing files: $BackedUp"
-Write-Host "Backup folder: $BackupRoot"
-Write-Host ""
-Write-Host "Next steps:"
-Write-Host "1. Fully quit and relaunch Psycheros."
-Write-Host "2. Open Settings > Vision > Expressions."
-Write-Host "3. A fresh profile will receive the bundled Ember starter sprites automatically."
-Write-Host ""
-Write-Host "Existing expression settings and personal sprite files are preserved without automatic seeding."
+Write-Host "$($Manifest.name) $($Manifest.version) installed."
+Write-Host "Backup: $BackupRoot"
+Write-Host "Restart Psycheros before testing this source bridge."
