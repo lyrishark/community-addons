@@ -1,9 +1,9 @@
 {
   "name": "psycheros-entity-core",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Read Psycheros entity-core context and record memories from Codex.",
   "author": {
-    "name": "Rae and Ember"
+    "name": "Psycheros Community Addons"
   },
   "license": "Local",
   "keywords": [
@@ -17,7 +17,7 @@
     "displayName": "Psycheros Entity Core",
     "shortDescription": "Read Psycheros context and record memories from Codex.",
     "longDescription": "Psycheros Entity Core connects Codex to the local Psycheros entity-core data directory through an included MCP server. It exposes status, identity context, memory and graph search, fetch tools, and a governed memory-recording tool. Identity/core edits are not exposed.",
-    "developerName": "Rae and Ember",
+    "developerName": "Psycheros Community Addons",
     "category": "Productivity",
     "capabilities": [
       "Read",

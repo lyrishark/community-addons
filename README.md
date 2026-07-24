@@ -5,73 +5,53 @@ source-visible and are not official Psycheros releases.
 
 Read [COMPATIBILITY.md](COMPATIBILITY.md) before installing anything.
 
-## Current Psycheros 0.10 addon
+## Current for Psycheros 0.10
 
-| Package | Version | Install surface | What it adds |
+| Package | Version | Install surface | Purpose |
 | --- | --- | --- | --- |
-| [HTF Music Listener](psycheros-htf-music-listener/README.md) | [0.2.0 public](https://github.com/lyrishark/community-addons/releases/tag/psycheros-htf-music-listener-v0.2.0) | Settings > Plugins | Explicit one-off HTF listening plus an opt-in local sensory library, verified synced lyrics, and shared Windows Now Playing presence. |
+| [HTF Music Listener](psycheros-htf-music-listener/README.md) | [0.2.0](https://github.com/lyrishark/community-addons/releases/tag/psycheros-htf-music-listener-v0.2.0) | Settings > Plugins | Local HTF listening, sensory library, synced lyrics, and Windows Now Playing presence. |
+| [Accessibility Controls](psycheros-accessibility-controls/README.md) | [0.1.0-rc.1](https://github.com/lyrishark/community-addons/releases/tag/psycheros-accessibility-controls-v0.1.0-rc.1) | Settings > Plugins | Typography controls and resizable Yin Yang text input. |
+| [Windows Shell Fix](psycheros-windows-shell-fix/README.md) | [0.3.0-rc.1](https://github.com/lyrishark/community-addons/releases/tag/psycheros-windows-shell-fix-v0.3.0-rc.1) | Settings > Plugins | Native host-shell execution on Windows. |
+| [More Uploads](psycheros-more-uploads/README.md) | [0.3.0-rc.1](https://github.com/lyrishark/community-addons/releases/tag/psycheros-more-uploads-v0.3.0-rc.1) | Guarded source bridge | Multiple image, document, and audio attachments in chat and typed voice. |
+| [Expression Sprites Beta](psycheros-expression-sprites-beta/README.md) | [0.3.0-rc.1](https://github.com/lyrishark/community-addons/releases/tag/psycheros-expression-sprites-beta-v0.3.0-rc.1) | Guarded source bridge | Live expression state and user-supplied chat/voice sprites. |
+| [Screen Presence Alpha](psycheros-screen-presence-alpha/README.md) | [0.3.0-rc.1](https://github.com/lyrishark/community-addons/releases/tag/psycheros-screen-presence-alpha-v0.3.0-rc.1) | Guarded source bridge | Consent-based screen context in chat and voice. |
+| [Loom Gemini Parser](psycheros-loom-gemini-parser-mod/README.md) | [0.3.0-rc.1](https://github.com/lyrishark/community-addons/releases/tag/psycheros-loom-gemini-parser-mod-v0.3.0-rc.1) | Guarded Loom source bridge | Merged Gemini export import in Entity Loom. |
+| [More Uploads + Voice Text Controls](psycheros-more-uploads-voice-resize/README.md) | [0.3.0-rc.1](https://github.com/lyrishark/community-addons/releases/tag/psycheros-more-uploads-voice-resize-v0.3.0-rc.1) | Release suite | Upload bridge plus an Accessibility Controls manager ZIP. |
+| [Everything Together](psycheros-everything-together/README.md) | [0.3.0-rc.1](https://github.com/lyrishark/community-addons/releases/tag/psycheros-everything-together-v0.3.0-rc.1) | Release suite | Merged source bridge plus Accessibility, Shell, and current HTF plugin ZIPs. |
 
-HTF Music Listener 0.2.0 is a trusted API-v1 plugin. It declares Psycheros
-`>=0.10.0 <0.11.0`, Launcher `>=0.2.45`, the official plugin-settings
-capability, and a compatibility-safe GitHub update channel.
+Manager plugins target Psycheros `>=0.10.0 <0.11.0`. Source bridges target
+exactly 0.10.0, verify stock-file hashes before writing, back up replaced files,
+and refuse unknown local edits.
 
-Install the [0.2.0 release zip](https://github.com/lyrishark/community-addons/releases/tag/psycheros-htf-music-listener-v0.2.0)
-through **Settings > Plugins**. Ember/Nyx builds that
-contain the compatibility-safe updater can also inspect this repository with
-package path `psycheros-htf-music-listener`; the same metadata lets later
-compatible tags appear as one-click updates. The corresponding upstream change
-is tracked in [Psycheros PR #37](https://github.com/PsycherosAI/Psycheros/pull/37).
+Release suites contain ready-to-install plugin ZIPs because Psycheros 0.10 does
+not automatically install dependencies declared by a meta-plugin.
 
-## Historical Psycheros source packages
+## Independent projects
 
-The following directories are preserved as exact Psycheros 0.9.2 artifacts:
-
-- `psycheros-expression-sprites-beta`
-- `psycheros-accessible-font-settings`
-- `psycheros-more-uploads`
-- `psycheros-voice-text-resize`
-- `psycheros-more-uploads-voice-resize`
-- `psycheros-screen-presence-alpha`
-- `psycheros-windows-shell-fix`
-- `psycheros-loom-gemini-parser-mod`
-- `psycheros-everything-together`
-
-They are guarded `manifest.json` source replacements, not plugin-manager
-packages, and they must not be installed over Psycheros 0.10. Their old tags,
-release assets, manifests, installers, and documentation remain available so a
-0.9.2 installation can be reproduced without turning those snapshots into the
-current recommendation.
-
-No new 0.10 source-overlay bundle is planned. Features that are now native or
-permanent in the maintained Psycheros channels should be developed there;
-future community addons should use supported plugin APIs.
-
-## Other companion projects
-
-These repository projects are versioned independently and do not install into
-the Psycheros plugin manager:
-
-| Project | Public/prepared version | Surface |
+| Project | Version | Surface |
 | --- | --- | --- |
-| [Thread Exporter](browser-thread-exporter/README.md) | 0.3.2 public | Browser extension for exporting ChatGPT, Claude, and Gemini threads. |
-| [Entity Core for Codex](codex-entity-core-plugin/README.md) | 0.2.1 public | Codex MCP/plugin package; its bundled Entity Core snapshot is separate from the Psycheros 0.10 runtime. |
-| [Entity Core for ChatGPT](chatgpt-entity-core-private/START_HERE.md) | 0.1.3 prepared; 0.1.1 public | Private OAuth bridge; not a Psycheros addon. |
+| [Thread Exporter](browser-thread-exporter/README.md) | 0.3.2 | Browser extension; no Psycheros host dependency. |
+| [Entity Core for Codex](codex-entity-core-plugin/README.md) | [0.2.2](https://github.com/lyrishark/community-addons/releases/tag/codex-entity-core-plugin-v0.2.2) | Codex MCP/plugin package. |
+| [Entity Core for ChatGPT](chatgpt-entity-core-private/START_HERE.md) | [0.1.3](https://github.com/lyrishark/community-addons/releases/tag/chatgpt-entity-core-private-v0.1.3) | Private HTTPS/OAuth bridge. |
 
-Do not infer Entity Core 0.6 compatibility from those package numbers. Use each
-project's own release notes and compatibility statement.
+These projects have their own version streams. Their package numbers do not
+imply the version of Entity Core bundled with Psycheros.
+
+## Historical releases
+
+Older 0.8/0.9 source overlays remain available through immutable tags and
+releases only. See [historical/README.md](historical/README.md). Do not install
+those payloads over Psycheros 0.10.
 
 ## Releases and trust
 
 Public downloads are on [GitHub Releases](https://github.com/lyrishark/community-addons/releases).
-Prepared source or a local archive is not public until the matching branch is
-merged, tagged, and released. [SHA256SUMS.txt](SHA256SUMS.txt) records published
-or staged artifact checksums; older versions remain available for their stated
-Psycheros versions.
+[SHA256SUMS.txt](SHA256SUMS.txt) records current artifact checksums.
 
 - No analytics, ads, or developer-owned telemetry are included.
-- Browser actions, music-library sharing, and screen sharing are user-triggered.
-- Trusted plugins can read local data and run code; inspect their declared
-  capabilities before installation.
-- Exact source-mod compatibility is enforced before historical installation.
+- Browser actions and local sensory sharing are user-triggered.
+- Trusted plugins can read local data and run code; inspect capabilities before
+  installation.
+- A working directory is not a release. Use the matching tagged archive.
 
 Report bugs or questions in [GitHub Issues](https://github.com/lyrishark/community-addons/issues).

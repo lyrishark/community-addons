@@ -46,9 +46,25 @@ Current Psycheros 0.10 manager-addon release:
 
 - `psycheros-htf-music-listener-0.2.0-windows-x64.zip`
 - `psycheros-htf-music-listener-0.2.0-windows-x64.zip.sha256`
+- `psycheros-accessibility-controls-0.1.0-rc.1.zip`
+- `psycheros-accessibility-controls-0.1.0-rc.1.zip.sha256`
+- `psycheros-windows-shell-fix-0.3.0-rc.1.zip`
+- `psycheros-windows-shell-fix-0.3.0-rc.1.zip.sha256`
 
-Do not build a new legacy HTF or source-overlay bundle for 0.10. Older
-Psycheros 0.8/0.9 release assets stay attached to their existing tags. The
+Current manager-native release candidate:
+
+- `psycheros-accessibility-controls-0.1.0-rc.1.zip`
+- `psycheros-accessibility-controls-0.1.0-rc.1.zip.sha256`
+
+Current independent Codex plugin prerelease:
+
+- `psycheros-entity-core-codex-plugin-0.2.2.zip`
+- `psycheros-entity-core-codex-plugin-0.2.2.zip.sha256`
+
+Do not relabel an old HTF or 0.9.2 source-overlay asset as compatible with 0.10.
+Older Psycheros 0.8/0.9 release assets stay attached to their existing tags.
+Any carried-forward source bridge must be rebuilt against stock 0.10, use an
+exact compatibility guard, pass its own tests, and receive a new release. The
 browser extension and Entity Core bridge/plugin projects use their own
 versioned release runs; do not silently relabel their bundled runtime snapshots
 as Psycheros 0.10 or Entity Core 0.6.
@@ -64,6 +80,10 @@ Plugins, install it, restart, verify the official settings page, and exercise an
 update check against its declared repository/package path. Confirm the package
 contains no credentials, local music, generated library state, or personal
 runtime paths.
+
+Use `scripts/Build-PluginRelease.ps1` for source-only plugin packages. It stages
+one directory named after the manifest id, adds the repository license, and
+writes both the zip and lowercase SHA-256 sidecar into `dist`.
 
 ## 4. Publish GitHub Release
 

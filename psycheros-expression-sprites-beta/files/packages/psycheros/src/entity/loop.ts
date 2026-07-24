@@ -59,6 +59,7 @@ import {
   loadSelfContent,
   loadUserContent,
 } from "./context.ts";
+import { loadMemorySettings } from "../memory/memory-settings.ts";
 import { applyContextBudget, type BudgetResult } from "./token-budget.ts";
 import { buildGraphContext, formatChatHistoryForContext } from "../rag/mod.ts";
 import { generateUIUpdates } from "../server/ui-updates.ts";
@@ -352,6 +353,13 @@ export interface EntityConfig {
   persistentReasoningInterTurns?: number;
   /** Trusted local plugins that can contribute prompt-time context */
   pluginManager?: PluginManager;
+  /**
+   * Configured user name from GeneralSettings. Passed through to plugin
+   * prompt-hook context for personalization (e.g. calendar-caldav / google-suite
+   * "{userName}'s calendar" template substitution). Optional — turn sources
+   * that don't have it leave hooks to fall back to a generic label.
+   */
+  userName?: string;
 }
 
 /**
@@ -561,7 +569,13 @@ export class EntityTurn {
         userMessage.substring(0, 50),
       );
       try {
-        const results = await this.config.mcpClient.searchMemories(userMessage);
+        const memSettings = await loadMemorySettings(this.config.dataRoot);
+        const results = await this.config.mcpClient.searchMemories(
+          userMessage,
+          {
+            maxResults: memSettings.ragMaxChunks,
+          },
+        );
         if (results.length > 0) {
           memoriesContent = results.map((r, i) =>
             `[${i + 1}] (${r.granularity}/${r.date}, ${
@@ -914,21 +928,25 @@ Discord interaction:
       discordChannelContent = parts.join("\n");
     }
 
-    const pluginContent = await this.config.pluginManager?.buildPromptContent({
-      conversationId,
-      sourceType: options?.sourceType ?? (options?.pulseId ? "pulse" : "web"),
-      userMessage,
-      sections: {
-        memories: memoriesContent,
-        chatHistory: chatHistoryContent,
-        lorebook: lorebookContent,
-        graph: graphContent,
-        vault: vaultContent,
-        situationalAwareness: saContent,
-        discord: discordChannelContent,
-      },
-      mcpClient: this.config.mcpClient,
-    }, this.computePluginContextBudget());
+    const pluginContentResult = await this.config.pluginManager
+      ?.buildPromptContent({
+        conversationId,
+        sourceType: options?.sourceType ?? (options?.pulseId ? "pulse" : "web"),
+        userMessage,
+        sections: {
+          memories: memoriesContent,
+          chatHistory: chatHistoryContent,
+          lorebook: lorebookContent,
+          graph: graphContent,
+          vault: vaultContent,
+          situationalAwareness: saContent,
+          discord: discordChannelContent,
+        },
+        mcpClient: this.config.mcpClient,
+        userName: this.config.userName,
+      }, this.computePluginContextBudget());
+    const pluginContent = pluginContentResult?.content;
+    const pluginHooks = pluginContentResult?.hooks;
 
     const systemMessage = buildSystemMessage(
       baseInstructions,
@@ -1058,6 +1076,7 @@ Discord interaction:
         vaultContent,
         situationalAwarenessContent: saContent,
         pluginContent,
+        pluginHooks,
         messages: messages.slice(1).map((msg) => ({
           role: msg.role,
           content: renderChatContentForSnapshot(msg.content),
@@ -1125,6 +1144,7 @@ Discord interaction:
         // to "[]" so the column always has a valid JSON string.
         toolDefinitionsJson: JSON.stringify(toolDefinitions ?? []),
         metricsJson: JSON.stringify(contextSnapshot.metrics ?? {}),
+        pluginHooksJson: JSON.stringify(pluginHooks ?? []),
       });
 
       yield { type: "context", context: contextSnapshot };

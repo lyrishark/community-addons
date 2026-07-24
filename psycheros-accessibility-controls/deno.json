@@ -1,0 +1,12 @@
+{
+  "name": "@community/psycheros-accessibility-controls",
+  "version": "0.1.0-rc.1",
+  "exports": "./psycheros.ts",
+  "imports": {
+    "@std/assert": "jsr:@std/assert@^1"
+  },
+  "tasks": {
+    "check": "deno check psycheros.ts tests/*.ts",
+    "test": "deno test -A tests"
+  }
+}

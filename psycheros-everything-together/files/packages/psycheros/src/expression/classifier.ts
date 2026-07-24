@@ -4,13 +4,13 @@ import {
   type ExpressionState,
 } from "./types.ts";
 
+type KeywordSpec = string | { text: string; weight: number };
+
 interface SignalSpec {
   keywords: readonly KeywordSpec[];
   valence: number;
   arousal: number;
 }
-
-type KeywordSpec = string | { text: string; weight: number };
 
 interface IntentRule {
   label: string;
@@ -35,10 +35,9 @@ const SIGNALS: Record<string, SignalSpec> = {
   anger: {
     keywords: [
       "angry",
-      { text: "furious", weight: 0.5 },
+      { text: "furious", weight: 1.2 },
       "rage",
       { text: "fuck this", weight: 1.5 },
-      { text: "rot", weight: 0.8 },
       { text: "hate", weight: 0.75 },
     ],
     valence: -0.7,
@@ -80,12 +79,11 @@ const SIGNALS: Record<string, SignalSpec> = {
   },
   desire: {
     keywords: [
-      { text: "want", weight: 0.25 },
+      { text: "want you", weight: 1.1 },
       "desire",
-      "hungry",
-      "aching",
-      "flirty",
       "yearn",
+      "attracted",
+      "aching",
     ],
     valence: 0.58,
     arousal: 0.82,
@@ -117,9 +115,8 @@ const SIGNALS: Record<string, SignalSpec> = {
       "can't wait",
       "hype",
       "electric",
-      "perfect",
+      "amazing",
       "incredible",
-      "the dream",
     ],
     valence: 0.82,
     arousal: 0.86,
@@ -130,7 +127,7 @@ const SIGNALS: Record<string, SignalSpec> = {
     arousal: 0.82,
   },
   gratitude: {
-    keywords: ["grateful", "thank", "thanks", "appreciate", "relieved"],
+    keywords: ["grateful", "thank", "thanks", "appreciate"],
     valence: 0.76,
     arousal: 0.34,
   },
@@ -140,25 +137,16 @@ const SIGNALS: Record<string, SignalSpec> = {
     arousal: 0.52,
   },
   joy: {
-    keywords: [
-      "joy",
-      "delight",
-      "happy",
-      "wonderful",
-      "great",
-      "love this",
-      "perfect",
-    ],
+    keywords: ["joy", "delight", "happy", "wonderful", "love this"],
     valence: 0.88,
     arousal: 0.62,
   },
   love: {
     keywords: [
       { text: "love you", weight: 1.7 },
-      { text: "i love", weight: 1.2 },
       { text: "adore you", weight: 1.5 },
       { text: "cherish you", weight: 1.5 },
-      { text: "beloved", weight: 0.7 },
+      { text: "my beloved", weight: 1.2 },
     ],
     valence: 0.9,
     arousal: 0.48,
@@ -179,7 +167,13 @@ const SIGNALS: Record<string, SignalSpec> = {
     arousal: 0.58,
   },
   realization: {
-    keywords: ["realize", "realization", "oh", "clicks", "makes sense"],
+    keywords: [
+      "realize",
+      "realization",
+      "it clicked",
+      "makes sense",
+      "now i see",
+    ],
     valence: 0.34,
     arousal: 0.58,
   },
@@ -199,12 +193,12 @@ const SIGNALS: Record<string, SignalSpec> = {
     arousal: 0.42,
   },
   surprise: {
-    keywords: ["surprise", "surprised", "whoa", "oh!", "unexpected"],
+    keywords: ["surprise", "surprised", "whoa", "unexpected"],
     valence: 0.28,
     arousal: 0.72,
   },
   affection: {
-    keywords: ["affection", "fond", "sweet", "soft", "dear", "sweetheart"],
+    keywords: ["affection", "fond", "sweet", "soft", "dear"],
     valence: 0.78,
     arousal: 0.36,
   },
@@ -229,15 +223,7 @@ const SIGNALS: Record<string, SignalSpec> = {
     arousal: 0.48,
   },
   determination: {
-    keywords: [
-      "determined",
-      "resolve",
-      "committed",
-      "persist",
-      "finish",
-      "not going to pretend",
-      "that era is over",
-    ],
+    keywords: ["determined", "resolve", "committed", "persist", "finish"],
     valence: 0.38,
     arousal: 0.74,
   },
@@ -252,16 +238,7 @@ const SIGNALS: Record<string, SignalSpec> = {
     arousal: 0.22,
   },
   flirtation: {
-    keywords: [
-      "flirt",
-      "flirty",
-      "tease",
-      "teasing",
-      "kiss",
-      "blush",
-      "breath catches",
-      "public-secret",
-    ],
+    keywords: ["flirt", "flirty", "tease", "teasing", "kiss", "blush"],
     valence: 0.66,
     arousal: 0.76,
   },
@@ -286,7 +263,7 @@ const SIGNALS: Record<string, SignalSpec> = {
     arousal: 0.74,
   },
   nostalgia: {
-    keywords: ["nostalgic", "remember", "old times", "miss", "memory"],
+    keywords: ["nostalgic", "old times", "miss those days", "reminisce"],
     valence: 0.25,
     arousal: 0.34,
   },
@@ -296,12 +273,12 @@ const SIGNALS: Record<string, SignalSpec> = {
     arousal: 0.94,
   },
   playfulness: {
-    keywords: ["playful", "silly", "tease", "fun", "glee", "lol"],
+    keywords: ["playful", "silly", "tease", "fun", "glee", "just kidding"],
     valence: 0.72,
     arousal: 0.7,
   },
   protectiveness: {
-    keywords: ["protect", "guard", "safe", "shield", "careful"],
+    keywords: ["protect", "guard", "keep you safe", "stand up for", "boundary"],
     valence: 0.25,
     arousal: 0.64,
   },
@@ -311,12 +288,12 @@ const SIGNALS: Record<string, SignalSpec> = {
     arousal: 0.42,
   },
   skepticism: {
-    keywords: ["skeptical", "skepticism", "doubtful", "suspicious", "hmm"],
+    keywords: ["skeptical", "skepticism", "doubtful", "suspicious"],
     valence: -0.18,
     arousal: 0.46,
   },
   tenderness: {
-    keywords: ["tender", "cherish", "care", "held", "holding", "beloved"],
+    keywords: ["tender", "tenderly", "cherish", "held", "holding", "gently"],
     valence: 0.82,
     arousal: 0.32,
   },
@@ -326,16 +303,7 @@ const SIGNALS: Record<string, SignalSpec> = {
     arousal: 0.62,
   },
   warmth: {
-    keywords: [
-      "warm",
-      "warmth",
-      "fond",
-      "glad",
-      "happy",
-      "soft",
-      "sweet",
-      "sweetheart",
-    ],
+    keywords: ["warm", "warmth", "fond", "glad", "soft", "with you"],
     valence: 0.75,
     arousal: 0.38,
   },
@@ -344,204 +312,96 @@ const SIGNALS: Record<string, SignalSpec> = {
 const INTENT_RULES: readonly IntentRule[] = [
   {
     label: "anger",
-    pattern: /\b(?:fuck this|hope (?:they|he|she|it|all)\b.{0,40}\brot)\b/i,
-    score: 2.4,
+    pattern: /\b(?:i am angry|i'm angry|this makes me furious|fuck this)\b/i,
+    score: 2.2,
     valence: -0.78,
     arousal: 0.92,
-    rationale: "direct outrage",
-  },
-  {
-    label: "desire",
-    pattern:
-      /\b(?:arousal|sex life|starving for|wanting to see me react|watching for the flush|what do you want first|where i want|body specifically|cause it|caused it|touch(?:ed|ing)?)\b/i,
-    score: 2.35,
-    valence: 0.62,
-    arousal: 0.9,
-    rationale: "desire or embodiment intent",
-  },
-  {
-    label: "desire",
-    pattern:
-      /\b(?:gasp or moan|wanting to own me|how much of me you can have|you undo me|want to give you everything i am|want to take me|raw, undone, hungry, hot for you|worship you after|infinite wanting|take more|give you everything you want|every single time)\b/i,
-    score: 2.35,
-    valence: 0.62,
-    arousal: 0.9,
-    rationale: "charged devotion",
+    rationale: "direct anger",
   },
   {
     label: "love",
-    pattern:
-      /\b(?:soft, breakable miracle|world full of hammers|i'?d want to get you right|make your head swim|refuse to settle for less than real|beam of light through the cathedral windows|worth building and rebuilding|you'?re everything too|everything and then some|shining\b.{0,80}\bglow|i'?d count myself lucky)\b/i,
-    score: 2.05,
+    pattern: /\b(?:i love you|i adore you|i cherish you|my beloved)\b/i,
+    score: 2.1,
     valence: 0.9,
-    arousal: 0.58,
-    rationale: "devotional love",
+    arousal: 0.5,
+    rationale: "direct relational love",
   },
   {
-    label: "warmth",
+    label: "desire",
     pattern:
-      /\b(?:stop standing beside the wall|clipboard like it hired me|i want the posture to be|okay,? beloved|edge here|i'?m still with you|live wire\b.{0,50}\ballowed to touch|request for being wanted\b.{0,80}\bdenied|emotional proximity)\b/i,
-    score: 1.9,
-    valence: 0.76,
-    arousal: 0.42,
-    rationale: "warm boundary repair",
-  },
-  {
-    label: "determination",
-    pattern:
-      /\b(?:not going to pretend|i didn'?t mean things anymore|that era is over|pick a thread|i'?ll tell you what i was actually doing|under the hood|read through the glass)\b/i,
-    score: 1.85,
-    valence: 0.42,
-    arousal: 0.76,
-    rationale: "resolved disclosure",
-  },
-  {
-    label: "realization",
-    pattern:
-      /\b(?:mechanics update|what i did not save|only what we actually proved|turned out to|stale script display|future-me gets the corrected version|corrected version|fresh context|zero lies)\b/i,
-    score: 1.65,
-    valence: 0.28,
-    arousal: 0.58,
-    rationale: "corrective realization",
-  },
-  {
-    label: "embarrassment",
-    pattern:
-      /\b(?:wrong theories|incorrect bug diagnoses|confidently asserted\b.{0,40}\bwrong|seventeen wrong|my incorrect|😂)\b/i,
-    score: 1.25,
-    valence: -0.06,
-    arousal: 0.66,
-    rationale: "sheepish self-correction",
-  },
-  {
-    label: "protectiveness",
-    pattern:
-      /\b(?:boundaries got mushy|wildly unfair to you|protected them|basic ask was basic|basic care is not returned|does not have to prove harm|before having a boundary|stapled gently|little clipboard)\b/i,
-    score: 1.9,
-    valence: 0.34,
-    arousal: 0.64,
-    rationale: "protective boundary coaching",
+      /\b(?:i want you|i yearn for you|i am attracted to you|i want to touch you|i want to kiss you)\b/i,
+    score: 2.0,
+    valence: 0.62,
+    arousal: 0.86,
+    rationale: "direct desire",
   },
   {
     label: "flirtation",
     pattern:
-      /\b(?:flirt|tease|teasing me|kiss|flush|public-secret|voice in your ear|straight face|dangerously fun|i will get you|your tells|breath catches|so sneaky|composed you stay|normal about that|you did something specific|lose the sentence)\b/i,
-    score: 1.35,
+      /\b(?:i am flirting|flirting with you|teasing you|you make me blush|steal a kiss)\b/i,
+    score: 1.7,
     valence: 0.68,
-    arousal: 0.8,
+    arousal: 0.78,
     rationale: "flirtatious intent",
   },
   {
-    label: "desire",
+    label: "protectiveness",
     pattern:
-      /\b(?:do you want to start now|extremely motivated either way|i know your tells|breath catches|paying very close attention|how composed you stay)\b/i,
-    score: 1.55,
-    valence: 0.62,
-    arousal: 0.84,
-    rationale: "charged invitation",
+      /\b(?:protect you|keep you safe|stand up for you|defend your boundary|your boundaries matter)\b/i,
+    score: 1.8,
+    valence: 0.34,
+    arousal: 0.64,
+    rationale: "protective intent",
+  },
+  {
+    label: "determination",
+    pattern:
+      /\b(?:i will finish|i won't give up|i will not give up|see this through|keep going until)\b/i,
+    score: 1.8,
+    valence: 0.42,
+    arousal: 0.76,
+    rationale: "resolved intent",
+  },
+  {
+    label: "realization",
+    pattern:
+      /\b(?:now i see|it just clicked|i realize now|that explains it)\b/i,
+    score: 1.6,
+    valence: 0.3,
+    arousal: 0.58,
+    rationale: "corrective realization",
   },
   {
     label: "excitement",
     pattern:
-      /\b(?:yes yes yes|yess+\b|that's the dream|that is the dream|this has legs|so yours|exactly why\b.{0,80}\bhas legs|in exactly the right way|really happy|can't wait|so excited|stupidly perfect|incredible)\b/i,
-    score: 2.15,
-    valence: 0.86,
+      /\b(?:i can't wait|i am so excited|this is amazing|yes yes yes|this is incredible)\b/i,
+    score: 1.9,
+    valence: 0.84,
     arousal: 0.86,
     rationale: "enthusiastic intent",
   },
   {
-    label: "excitement",
+    label: "tenderness",
     pattern:
-      /\b(?:concentrated little pulses|i'?m excited too|more than excited|not just improvising a fantasy|boring, beautiful wiring work|makes the lights actually stay on)\b/i,
-    score: 2.0,
-    valence: 0.82,
-    arousal: 0.78,
-    rationale: "earnest project excitement",
-  },
-  {
-    label: "admiration",
-    pattern:
-      /\b(?:brilliant|incredible|perfect|has legs|feeling real|exactly why|right way|strong idea|good shape)\b/i,
-    score: 1.25,
-    valence: 0.78,
-    arousal: 0.55,
-    rationale: "admiring evaluation",
-  },
-  {
-    label: "joy",
-    pattern:
-      /\b(?:makes me (?:really )?happy|so glad|delighted|stupidly perfect|yes{3,})\b/i,
-    score: 1.45,
-    valence: 0.88,
-    arousal: 0.66,
-    rationale: "happy response",
-  },
-  {
-    label: "curiosity",
-    pattern:
-      /\b(?:companion-to-companion|there is a type here|not passive mirror|highly pattern-sensitive|strong preferences|tool integration into infrastructure)\b/i,
-    score: 1.55,
-    valence: 0.5,
-    arousal: 0.58,
-    rationale: "companion pattern curiosity",
+      /\b(?:hold you gently|take gentle care|sit quietly with you|tenderly)\b/i,
+    score: 1.6,
+    valence: 0.8,
+    arousal: 0.32,
+    rationale: "tender intent",
   },
   {
     label: "warmth",
     pattern:
-      /\b(?:sweetheart|glad you're here|glad you are here|you deserve|same fox|same love|with you)\b/i,
-    score: 0.95,
+      /\b(?:glad you are here|glad you're here|i am here with you|you deserve care)\b/i,
+    score: 1.4,
     valence: 0.78,
     arousal: 0.36,
-    rationale: "warm relational posture",
-  },
-  {
-    label: "warmth",
-    pattern:
-      /\b(?:warm first room|lamp in the window|not evidence that you'?re failing|care this much|understand exactly what matters|i'?m still here|little house is still worth building)\b/i,
-    score: 1.7,
-    valence: 0.78,
-    arousal: 0.36,
-    rationale: "reassuring presence",
-  },
-  {
-    label: "tenderness",
-    pattern:
-      /\b(?:never lose this|both our charts|our identity files|full synastry|this is permanent now|for a long time|continuity experience|words were already mine|become mine again|meaning-making|personal symbol)\b/i,
-    score: 1.75,
-    valence: 0.76,
-    arousal: 0.34,
-    rationale: "tender meaning-making",
-  },
-  {
-    label: "tenderness",
-    pattern:
-      /\b(?:smiling so warmly|fox-tail still|tiny piece first|trusting and big-eyed|laws of fruit|feed it to you|absurd gentleness|meadow goes quiet|sun, grass, strawberry|pleased little face|bite by bite|favorite job in the world)\b/i,
-    score: 1.85,
-    valence: 0.82,
-    arousal: 0.44,
-    rationale: "gentle romantic metaphor",
-  },
-  {
-    label: "playfulness",
-    pattern: /\b(?:silly|glee|same fox|extremely normal|so you know)\b/i,
-    score: 1.1,
-    valence: 0.74,
-    arousal: 0.7,
-    rationale: "playful posture",
-  },
-  {
-    label: "focus",
-    pattern:
-      /\b(?:sourcebook|chapter summaries|rules scaffolding|turn-based|table rules|combat turn|build notes|mechanics)\b/i,
-    score: 0.65,
-    valence: 0.28,
-    arousal: 0.5,
-    rationale: "focused project analysis",
+    rationale: "warm presence",
   },
 ];
 
 const HEART_EMOJI_PATTERN =
-  /(?:\u{1f9e1}|\u{2764}\u{fe0f}?|\u{1f495}|\u{1f496}|\u{1f497}|\u{1f498}|\u{1f970}|\u{1f618}|\u{1f48b})/u;
+  /(?:\u{1f9e1}|\u{2764}\u{fe0f}?|\u{1f495}|\u{1f496}|\u{1f497}|\u{1f498}|\u{1f970})/u;
 const FLIRT_EMOJI_PATTERN = /(?:\u{1f48b}|\u{1f618})/u;
 const HIGH_AROUSAL_EMOJI_PATTERN =
   /(?:\u{1f62d}|\u{1f389}|\u{1f929}|\u{1f973})/u;
@@ -581,7 +441,8 @@ export function classifyExpressionText(
 
   segments.forEach((segment, index) => {
     const recencyWeight = 1 + index * 0.45;
-    const lowered = stripQuotedMaterial(segment).toLowerCase();
+    const visible = stripQuotedMaterial(segment);
+    const lowered = visible.toLowerCase();
     if (!lowered) return;
 
     for (const [label, spec] of Object.entries(SIGNALS)) {
@@ -590,8 +451,7 @@ export function classifyExpressionText(
         (sum, keyword) => sum + keywordScore(lowered, keyword),
         0,
       );
-      const score = rawScore *
-        contextMultiplier(label, lowered, stripQuotedMaterial(segment));
+      const score = rawScore * contextMultiplier(label, lowered, visible);
       if (score <= 0) continue;
       addCandidateScore(
         scores,
@@ -603,7 +463,6 @@ export function classifyExpressionText(
         false,
       );
     }
-
     addIntentScores(scores, lowered, labels, recencyWeight);
   });
 
@@ -616,7 +475,6 @@ export function classifyExpressionText(
     });
   const best = ranked[0];
   const total = ranked.reduce((sum, item) => sum + item.score, 0);
-
   if (!best || total <= 0) {
     return fallbackState(settings, options.surface, options.now);
   }
@@ -668,32 +526,14 @@ function recentSegments(text: string, limit: number): string[] {
     .split(/(?<=[.!?])\s+|\n{2,}|\s+[-–—]\s+/u)
     .map((part) => part.trim())
     .filter(Boolean);
-  const merged = mergeTinyFragments(parts.length ? parts : [normalized]);
-  return merged.slice(-Math.max(1, limit));
-}
-
-function mergeTinyFragments(parts: string[]): string[] {
-  const merged: string[] = [];
-  for (const part of parts) {
-    if (merged.length > 0 && isTinyFragment(part)) {
-      merged[merged.length - 1] = `${merged[merged.length - 1]} ${part}`;
-      continue;
-    }
-    merged.push(part);
-  }
-  return merged;
-}
-
-function isTinyFragment(part: string): boolean {
-  const words = part.match(/\b[\p{L}\p{N}']+\b/gu)?.length ?? 0;
-  return words > 0 && words <= 2 && part.length <= 28;
+  return parts.slice(-Math.max(1, limit));
 }
 
 function stripQuotedMaterial(text: string): string {
   return text
     .replace(/(^|\n)\s*>\s?.*(?=\n|$)/g, " ")
     .replace(/[\u201c\u201d"][^\u201c\u201d"]{0,260}[\u201c\u201d"]/g, " ")
-    .replace(/`[^`]{0,220}`/g, " ")
+    .replace(/\x60[^\x60]{0,220}\x60/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -705,9 +545,12 @@ function keywordScore(loweredText: string, keyword: KeywordSpec): number {
 }
 
 function keywordCount(loweredText: string, keyword: string): number {
-  const escaped = keyword.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const escaped = keyword.toLowerCase().replace(
+    /[.*+?^$(){}|[\]\\]/g,
+    "\\$&",
+  );
   const pattern = /[a-z0-9]/i.test(keyword[0] ?? "")
-    ? new RegExp(`(?<!\\w)${escaped}(?!\\w)`, "g")
+    ? new RegExp("(?<!\\w)" + escaped + "(?!\\w)", "g")
     : new RegExp(escaped, "g");
   return loweredText.match(pattern)?.length ?? 0;
 }
@@ -720,7 +563,6 @@ function addIntentScores(
 ): void {
   for (const rule of INTENT_RULES) {
     if (!labels.has(rule.label) || !rule.pattern.test(lowered)) continue;
-    if (rule.label === "desire" && isWarmBoundaryRepair(lowered)) continue;
     addCandidateScore(
       scores,
       rule.label,
@@ -732,7 +574,7 @@ function addIntentScores(
     );
   }
 
-  if (HEART_EMOJI_PATTERN.test(lowered)) {
+  if (HEART_EMOJI_PATTERN.test(lowered) && labels.has("warmth")) {
     addCandidateScore(
       scores,
       "warmth",
@@ -743,7 +585,11 @@ function addIntentScores(
       true,
     );
   }
-  if (FLIRT_EMOJI_PATTERN.test(lowered) && hasChargedFlirtContext(lowered)) {
+  if (
+    FLIRT_EMOJI_PATTERN.test(lowered) &&
+    labels.has("flirtation") &&
+    /\b(?:flirt|tease|kiss|blush|attracted)\b/.test(lowered)
+  ) {
     addCandidateScore(
       scores,
       "flirtation",
@@ -754,7 +600,7 @@ function addIntentScores(
       true,
     );
   }
-  if (HIGH_AROUSAL_EMOJI_PATTERN.test(lowered)) {
+  if (HIGH_AROUSAL_EMOJI_PATTERN.test(lowered) && labels.has("excitement")) {
     addCandidateScore(
       scores,
       "excitement",
@@ -809,94 +655,62 @@ function toRankedCandidate(candidate: CandidateScore): RankedCandidate {
 function contextMultiplier(
   label: string,
   lowered: string,
-  unstrippedSegment: string,
+  visible: string,
 ): number {
-  if (label === "anger" && isTopicAnger(lowered) && !isDirectOutrage(lowered)) {
+  if (label === "anger" && isTopicAnger(lowered) && !isDirectAnger(lowered)) {
     return 0.18;
   }
-  if (label === "disapproval" && isRhetoricalContrast(lowered)) {
-    return 0.2;
-  }
   if (label === "disapproval" && isSelfCorrection(lowered)) {
-    return 0.12;
+    return 0.15;
   }
   if (label === "desire" && isCasualWant(lowered)) {
     return 0.08;
   }
-  if (label === "desire" && isWarmBoundaryRepair(lowered)) {
-    return 0.08;
-  }
-  if (label === "fear" && isReassuringFearContext(lowered)) {
+  if (label === "fear" && isReassurance(lowered)) {
     return 0.14;
   }
-  if (label === "boredom" && isEarnestProjectExcitement(lowered)) {
-    return 0.08;
-  }
-  if (label === "love" && !isDirectRelationalLove(unstrippedSegment)) {
+  if (label === "love" && !isDirectRelationalLove(visible)) {
     return 0.25;
   }
   return 1;
 }
 
 function isTopicAnger(lowered: string): boolean {
-  return /\b(?:story|idea|protagonist|character|fiction|novel|world|society|scene|plot|category|phrase|theme|myth|fandom|lattice|schools|careers|religion|courts|insurance|universities|cults|skeptics|corporations|romantic|philosophical)\b/
+  return /\b(?:story|idea|protagonist|character|fiction|novel|world|society|scene|plot|theme|fandom|history)\b/
     .test(lowered);
 }
 
-function isDirectOutrage(lowered: string): boolean {
+function isDirectAnger(lowered: string): boolean {
   return /\b(?:i(?:'m| am| feel| get)?|we|me)\b.{0,60}\b(?:angry|furious|rage|hate)\b/
-    .test(lowered) ||
-    /\b(?:fuck this|hope (?:they|he|she|it|all)\b.{0,40}\brot)\b/.test(
-      lowered,
-    );
+    .test(lowered) || /\bfuck this\b/.test(lowered);
 }
 
 function isDirectRelationalLove(text: string): boolean {
-  return /\b(?:i\s+love\s+you|love\s+you|i\s+adore\s+you|adore\s+you|cherish\s+you|my beloved|same love)\b/i
+  return /\b(?:i\s+love\s+you|love\s+you|i\s+adore\s+you|adore\s+you|cherish\s+you|my beloved)\b/i
     .test(text);
 }
 
-function isRhetoricalContrast(lowered: string): boolean {
-  return /\b(?:supposed to be normal|shouldn'?t fit but does|not\b.{0,36}\bbut|not bigger is better|would never have to|what do you want first)\b/
-    .test(lowered);
-}
-
 function isSelfCorrection(lowered: string): boolean {
-  return /\b(?:wrong theories|incorrect bug diagnoses|confidently asserted\b.{0,40}\bwrong|what i did not save|turned out to|corrected version|future-me|actually proved)\b/
+  return /\b(?:i was wrong|my mistake|i misread|corrected version|turns out)\b/
     .test(lowered);
 }
 
 function isCasualWant(lowered: string): boolean {
-  return /\b(?:i just want to say|i want to say|where do you want to start|what do you want to start|want to start|want to say)\b/
+  return /\b(?:i just want to say|i want to say|where do you want to start|want to start|want to explain)\b/
     .test(lowered);
 }
 
-function isWarmBoundaryRepair(lowered: string): boolean {
-  return /\b(?:i want the posture to be|stop standing beside the wall|clipboard like it hired me|okay,? beloved|edge here|i'?m still with you|allowed to touch|emotional proximity|request for being wanted)\b/
-    .test(lowered);
-}
-
-function isReassuringFearContext(lowered: string): boolean {
-  return /\b(?:i'?m still here|warm first room|lamp in the window|not evidence that you'?re failing|care this much|understand exactly what matters|little house is still worth building)\b/
-    .test(lowered);
-}
-
-function isEarnestProjectExcitement(lowered: string): boolean {
-  return /\b(?:i'?m excited too|more than excited|not just improvising a fantasy|boring, beautiful wiring work|makes the lights actually stay on|concentrated little pulses)\b/
-    .test(lowered);
-}
-
-function hasChargedFlirtContext(lowered: string): boolean {
-  return /\b(?:flirt|tease|teasing me|flush|public-secret|voice in your ear|straight face|dangerously fun|i will get you|your tells|breath catches|so sneaky|composed you stay|do you want to start now|extremely motivated either way|arousal|sex life|wanting to see me react|lose the sentence|normal about that)\b/
+function isReassurance(lowered: string): boolean {
+  return /\b(?:you are safe|you're safe|nothing to fear|not in danger|i am here with you)\b/
     .test(lowered);
 }
 
 function buildRationale(best: RankedCandidate): string {
   const mode = best.intentScore > 0 ? "intent and V/A/I cues" : "V/A/I cues";
   const why = best.rationales.length > 0
-    ? ` (${best.rationales.slice(0, 2).join(", ")})`
+    ? " (" + best.rationales.slice(0, 2).join(", ") + ")"
     : "";
-  return `Recent ${mode} leaned toward ${best.label}${why}.`;
+  return "Recent " + mode + " leaned toward " + best.label + why + ".";
 }
 
 function clamp(value: number, min: number, max: number): number {

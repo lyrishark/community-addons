@@ -24,7 +24,7 @@
 ## 0.1.3 - 2026-07-18
 
 - Declare tested compatibility with the official Psycheros 0.9.x trusted-plugin host
-  while retaining support for the Rae/Ember 0.8.23 plugin host.
+  while retaining support for the earlier 0.8.23 plugin host.
 - Confirm the plugin loads active and non-degraded under Psycheros 0.9.0 with one tool,
   four routes, one browser script, and one stylesheet.
 - Keep the legacy source-patch package pinned to stock 0.8.23; Psycheros 0.9.x users

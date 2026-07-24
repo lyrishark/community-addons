@@ -1,90 +1,71 @@
 # Psycheros Screen Presence Alpha
 
-This community add-on adds browser screen-share presence to Psycheros text chat
-and voice mode.
-
-It is not an official Psycheros release.
-
-> **Psycheros 0.9.2 status:** Compatible in version `0.2.0`. The 0.2.0 payload
-> was rebuilt from the original screen-presence feature so unrelated historical
-> upload, font, and response-regeneration edits are no longer bundled.
-
-## What changes
-
-- Adds screen-share controls to chat and voice surfaces.
-- Captures compact image captions through the configured vision model.
-- Sends only text summaries into entity context, not raw screen frames.
-- Forces a fresh caption before user text and voice turns when a share is active.
-- Tracks a bounded journal of distinct visual states since the last turn.
-- Includes clearer provider guidance for rate-limit and quota errors.
-
-This is an alpha. The browser asks the user to choose the screen, window, or tab
-to share. Psycheros does not silently browse the whole PC.
+Consent-based browser screen sharing for Psycheros text chat and voice.
 
 ## Compatibility
 
-Version 0.2.0 is tested for **Psycheros 0.9.2**. The installer refuses all
-other versions before changing files.
+Version 0.3.0-rc.1 is rebuilt and tested against stock Psycheros 0.10.0. It is
+a guarded source bridge, not an API-v1 manager plugin: Psycheros 0.10 does not
+yet expose an asynchronous pre-turn freshness barrier, host vision captioning,
+or voice-turn screen-presence hooks to plugins.
 
-This package replaces several shared chat, voice, server, and formatter files.
-Close Psycheros and back up local source edits before installing it.
+The installer checks the exact Psycheros version and normalized SHA-256 of every
+stock file it will replace, creates timestamped backups, and refuses unknown
+local edits before writing anything.
 
-## Install on Windows
+## What it adds
 
-1. Close Psycheros.
-2. Back up any local source changes you want to preserve.
-3. Open PowerShell in this add-on folder.
-4. Run the installer with the path to your Psycheros checkout:
+- Explicit screen-share controls in chat and voice.
+- Browser-mediated selection of a screen, window, or tab.
+- Transient frame captioning through the configured vision provider.
+- A bounded journal of distinct visual states since the previous turn.
+- A forced fresh frame before text or voice turns while sharing is active.
+- Text summaries in entity context; raw frames are not persisted.
 
-```powershell
-Set-ExecutionPolicy -Scope Process Bypass
-.\tools\install-source-files.ps1 -PsycherosRoot "C:\Users\<name>\AppData\Roaming\Psycheros\source"
-```
+The previous unrelated provider-error overlay is no longer bundled because it
+is outside this add-on's scope and overlaps current host behavior.
 
-The selected folder must contain `packages\psycheros\deno.json`. The installer
-checks for Psycheros 0.9.2 and creates a timestamped backup before replacing
-any files.
+## Install
 
-## Configure captioning
+Fully close Psycheros, extract the release ZIP, then run one of the following
+from the extracted directory.
 
-Screen presence works best with a low-latency vision model configured through
-Psycheros provider settings. If captioning is not configured, the share can
-still be active, but the entity receives only status metadata.
+Windows:
 
-The alpha is designed for compact visual summaries, not full video streaming.
-It records distinct visual-state changes and the latest state for each turn.
+    Set-ExecutionPolicy -Scope Process Bypass
+    .\install.ps1 -PsycherosRoot "D:\path\to\Psycheros\source"
 
-## Verify
+macOS or Linux:
 
-Start Psycheros, then open chat or voice mode.
+    chmod +x ./install.sh ./tools/install-source-files.sh
+    ./install.sh "/path/to/Psycheros/source"
 
-- Start screen sharing and choose a screen, window, or browser tab.
-- Switch to a visibly different view.
-- Send a message that asks the entity to look at the current screen.
-- The response should reference the latest screen summary and may include
-  distinct visual changes since the previous turn.
+The selected root must contain `packages/psycheros/deno.json` and report
+version 0.10.0. Restart Psycheros after installation.
+
+## Configure and verify
+
+Configure a low-latency vision model in Psycheros. Start a screen share, select
+the intended source, change to a visibly different view, and ask the entity to
+look at the current screen. Repeat once in voice mode.
 
 Developers can run:
 
-```powershell
-deno check packages/psycheros/src/main.ts
-deno test -A packages/psycheros/tests/screen_presence_test.ts packages/psycheros/tests/llm_errors_test.ts
-deno test -A packages/psycheros/tests/
-```
+    deno fmt --check packages/psycheros/src/server/screen-presence.ts packages/psycheros/tests/screen_presence_test.ts
+    deno check packages/psycheros/src/server/screen-presence.ts packages/psycheros/src/server/server.ts packages/psycheros/src/entity/loop.ts packages/psycheros/src/pulse/engine.ts
+    deno test -A packages/psycheros/tests/screen_presence_test.ts
+    node --check packages/psycheros/web/js/psycheros.js
+    node --check packages/psycheros/web/js/voice.js
 
-## Privacy note
+## Privacy
 
-Raw frames are transient and are used only to request compact captions from the
-configured vision provider. The entity context receives text summaries. Stop the
-share from the browser or Psycheros controls when you do not want the screen to
-be observed.
+Sharing starts only after the browser's source-selection prompt. Raw frames are
+transient and sent only to the configured captioning provider; entity context
+receives compact text summaries. Stop sharing from either browser or Psycheros
+controls whenever observation is no longer wanted.
 
 ## Undo
 
-Close Psycheros and restore the timestamped backup folder created inside
-`packages\psycheros`, or update/reinstall the official source. Do not delete
-Psycheros identity, memory, database, or state folders.
-
-Official source updates replace tracked mod files. Reinstall a compatible
-version of this add-on after an official update, or move to the Nyx channel once
-this alpha is promoted there.
+Close Psycheros and restore the timestamped backup recorded under
+`packages/psycheros/.community-addon-backups`, or reinstall official Psycheros
+source. Do not delete identity, memory, database, or state folders.
