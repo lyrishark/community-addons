@@ -9,13 +9,14 @@ Read [COMPATIBILITY.md](COMPATIBILITY.md) before installing anything.
 
 | Package | Version | Install surface | What it adds |
 | --- | --- | --- | --- |
-| [HTF Music Listener](psycheros-htf-music-listener/README.md) | 0.2.0 prepared | Settings > Plugins | Explicit one-off HTF listening plus an opt-in local sensory library, verified synced lyrics, and shared Windows Now Playing presence. |
+| [HTF Music Listener](psycheros-htf-music-listener/README.md) | [0.2.0 public](https://github.com/lyrishark/community-addons/releases/tag/psycheros-htf-music-listener-v0.2.0) | Settings > Plugins | Explicit one-off HTF listening plus an opt-in local sensory library, verified synced lyrics, and shared Windows Now Playing presence. |
 
 HTF Music Listener 0.2.0 is a trusted API-v1 plugin. It declares Psycheros
 `>=0.10.0 <0.11.0`, Launcher `>=0.2.45`, the official plugin-settings
 capability, and a compatibility-safe GitHub update channel.
 
-Install the release zip through **Settings > Plugins**. Ember/Nyx builds that
+Install the [0.2.0 release zip](https://github.com/lyrishark/community-addons/releases/tag/psycheros-htf-music-listener-v0.2.0)
+through **Settings > Plugins**. Ember/Nyx builds that
 contain the compatibility-safe updater can also inspect this repository with
 package path `psycheros-htf-music-listener`; the same metadata lets later
 compatible tags appear as one-click updates. The corresponding upstream change
