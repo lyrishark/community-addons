@@ -239,7 +239,7 @@ function settingRow() {
   pathText.textContent = "Music-library folder";
   const pathInput = document.createElement("input");
   pathInput.type = "text";
-  pathInput.placeholder = "H:\\Music";
+  pathInput.placeholder = "D:\\Music";
   pathInput.autocomplete = "off";
   pathInput.spellcheck = false;
   pathLabel.append(pathText, pathInput);

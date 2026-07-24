@@ -1,0 +1,129 @@
+.accessibility-settings {
+  display: grid;
+  gap: var(--sp-4, 16px);
+}
+
+.accessibility-settings h2,
+.accessibility-settings p {
+  margin: 0;
+}
+
+.accessibility-settings form {
+  display: grid;
+  gap: var(--sp-4, 16px);
+  max-width: 640px;
+}
+
+.accessibility-settings label:not(.accessibility-toggle) {
+  display: grid;
+  gap: var(--sp-2, 8px);
+}
+
+.accessibility-settings select,
+.accessibility-settings input[type="range"] {
+  width: 100%;
+}
+
+.accessibility-size-control {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) 4rem;
+  gap: var(--sp-3, 12px);
+  align-items: center;
+}
+
+.accessibility-size-control output {
+  font-family: var(--font-mono, monospace);
+  text-align: right;
+}
+
+.accessibility-toggle {
+  display: flex;
+  gap: var(--sp-2, 8px);
+  align-items: center;
+}
+
+.accessibility-actions {
+  display: flex;
+  gap: var(--sp-3, 12px);
+  align-items: center;
+}
+
+.accessibility-status {
+  color: var(--c-fg-muted, #888);
+}
+
+.accessibility-voice-input-frame {
+  position: relative;
+  flex: 1 1 auto;
+  width: min(100%, 620px);
+  min-width: 240px;
+  max-width: min(100%, 620px);
+}
+
+.accessibility-voice-input-frame .voice-text-input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  max-height: min(52dvh, 360px);
+  resize: none;
+}
+
+.accessibility-voice-resize-handle {
+  position: absolute;
+  z-index: 2;
+  display: block;
+  opacity: 0.35;
+  touch-action: none;
+}
+
+.accessibility-voice-input-frame:hover .accessibility-voice-resize-handle,
+.accessibility-voice-input-frame:focus-within .accessibility-voice-resize-handle,
+.accessibility-voice-input-frame.is-resizing .accessibility-voice-resize-handle {
+  opacity: 0.9;
+}
+
+.accessibility-voice-resize-handle--east {
+  top: 8px;
+  right: -4px;
+  bottom: 12px;
+  width: 10px;
+  cursor: ew-resize;
+}
+
+.accessibility-voice-resize-handle--south {
+  right: 12px;
+  bottom: -4px;
+  left: 8px;
+  height: 10px;
+  cursor: ns-resize;
+}
+
+.accessibility-voice-resize-handle--corner {
+  right: -3px;
+  bottom: -3px;
+  width: 18px;
+  height: 18px;
+  cursor: nwse-resize;
+}
+
+.accessibility-voice-resize-handle--corner::after {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  width: 8px;
+  height: 8px;
+  content: "";
+  border-right: 2px solid var(--c-accent, #a855f7);
+  border-bottom: 2px solid var(--c-accent, #a855f7);
+}
+
+@media (max-width: 520px) {
+  .accessibility-voice-input-frame {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .accessibility-voice-resize-handle--east {
+    display: none;
+  }
+}

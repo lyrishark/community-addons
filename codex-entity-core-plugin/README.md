@@ -5,10 +5,10 @@ local Psycheros entity-core.
 
 This is not an official Psycheros release.
 
-> **Psycheros 0.9.2 status:** Compatible. Published connector `0.2.1` reads the
-> canonical `%APPDATA%\Psycheros\data\entity-core` files directly; its type-check
-> and isolated read/write smoke test passed on 2026-07-19. It is independent of
-> the Psycheros plugin and launcher add-on managers.
+> **Psycheros 0.10 status:** Compatible. Connector `0.2.2` reads the canonical
+> `%APPDATA%\Psycheros\data\entity-core` files directly; its type-check and
+> isolated read/write smoke test passed against the current data layout. It is
+> independent of the Psycheros plugin manager.
 
 ## What It Does
 
@@ -49,7 +49,7 @@ If Psycheros uses a different data directory, edit `.mcp.json` and add
 Download the latest release:
 
 ```text
-https://github.com/lyrishark/community-addons/releases/tag/codex-entity-core-plugin-v0.2.1
+https://github.com/lyrishark/community-addons/releases/tag/codex-entity-core-plugin-v0.2.2
 ```
 
 Then:

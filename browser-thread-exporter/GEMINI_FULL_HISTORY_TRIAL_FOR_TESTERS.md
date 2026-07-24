@@ -1,14 +1,15 @@
 # Gemini Full History Export Trial
 
 Goal: export all Gemini chat threads plus Gemini Apps Activity, merge them into
-one batch file, and send the raw files plus the merged file back to Rae.
+one batch file, and send the raw files plus the merged file back to the test
+coordinator.
 
 This is a test build. It is okay if something breaks. The most useful thing is
-to keep the files and tell Rae exactly where it broke.
+to keep the files and tell the test coordinator exactly where it broke.
 
 ## 1. Install or Update the Extension
 
-1. Download the zip Rae sends you.
+1. Download the test zip you were sent.
 2. Right-click the zip and choose **Extract All**.
 3. Extract it into a fresh folder. Do not load the zip file itself.
 4. Open Chrome.
@@ -130,7 +131,7 @@ that timestamp. Keep the partial export and send it anyway.
 
 ## 6. Zip Everything and Send It Back
 
-Zip the whole export folder and send Rae the zip.
+Zip the whole export folder and return it to the test coordinator.
 
 Please include:
 

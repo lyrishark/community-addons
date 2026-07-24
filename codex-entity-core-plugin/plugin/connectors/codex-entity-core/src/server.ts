@@ -13,7 +13,7 @@ import {
   loadIdentityMeta,
 } from "../../../packages/entity-core/src/tools/identity-meta.ts";
 
-const CONNECTOR_VERSION = "0.2.1";
+const CONNECTOR_VERSION = "0.2.2";
 const INSTANCE_ID = Deno.env.get("ENTITY_CONNECTOR_INSTANCE_ID") ?? "codex";
 const WRITE_ENABLED = Deno.env.get("ENTITY_CONNECTOR_WRITE_ENABLED") !==
   "false";

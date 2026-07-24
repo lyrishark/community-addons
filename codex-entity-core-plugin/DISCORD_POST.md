@@ -34,7 +34,7 @@ https://github.com/lyrishark/community-addons
 Release:
 
 ```text
-https://github.com/lyrishark/community-addons/releases/tag/codex-entity-core-plugin-v0.2.1
+https://github.com/lyrishark/community-addons/releases/tag/codex-entity-core-plugin-v0.2.2
 ```
 
 This one is especially for people who want Codex to remember project work back

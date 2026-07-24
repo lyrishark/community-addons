@@ -1,0 +1,31 @@
+{
+  "id": "psycheros-accessibility-controls",
+  "name": "Accessibility Controls",
+  "version": "0.1.0-rc.1",
+  "apiVersion": 1,
+  "description": "Adds persistent interface typography controls and resizable Yin Yang voice text input without replacing Psycheros source files.",
+  "homepageUrl": "https://github.com/lyrishark/community-addons/tree/main/psycheros-accessibility-controls",
+  "enabled": true,
+  "compatibility": {
+    "psycheros": ">=0.10.0 <0.11.0"
+  },
+  "update": {
+    "repoUrl": "https://github.com/lyrishark/community-addons",
+    "tagPrefix": "psycheros-accessibility-controls-v",
+    "packagePath": "psycheros-accessibility-controls"
+  },
+  "capabilities": {
+    "settings": true
+  },
+  "entrypoints": {
+    "psycheros": "./psycheros.ts"
+  },
+  "browser": {
+    "scripts": [
+      "./web/accessibility-controls.js"
+    ],
+    "styles": [
+      "./web/accessibility-controls.css"
+    ]
+  }
+}

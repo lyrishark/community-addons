@@ -7,7 +7,7 @@ This is the compatibility release for Psycheros 0.9.x.
 - Its runtime surface is unchanged: one `listen_to_music` tool, four local API routes,
   one browser script, and one stylesheet.
 - The plugin loaded active and non-degraded beside Saikiros Vision Capture in both an
-  isolated manager test and Rae/Ember's live Psycheros 0.9.0 runtime.
+  isolated manager test and a live Psycheros 0.9.0 runtime.
 - The legacy Windows package remains for stock Psycheros 0.8.23 only. Do not install
   that source-patch package over Psycheros 0.9.x.
 
