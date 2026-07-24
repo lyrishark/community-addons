@@ -1,0 +1,31 @@
+{
+  "name": "psycheros-more-uploads",
+  "version": "0.2.0",
+  "description": "Multiple image, document, and music uploads for Psycheros chat and Yin Yang typed voice.",
+  "kind": "psycheros-file-mod",
+  "official": false,
+  "requires": {
+    "psycheros_version": "0.9.2",
+    "compatible_psycheros_versions": ["0.9.2"]
+  },
+  "installer": {
+    "conflicts": [
+      "psycheros-voice-text-resize",
+      "psycheros-more-uploads-voice-resize",
+      "psycheros-everything-together"
+    ],
+    "supersedes": []
+  },
+  "files": [
+    "packages/psycheros/src/server/chat-attachments.ts",
+    "packages/psycheros/src/server/routes.ts",
+    "packages/psycheros/src/server/templates.ts",
+    "packages/psycheros/src/voice/session-manager.ts",
+    "packages/psycheros/tests/chat_attachments_test.ts",
+    "packages/psycheros/web/css/components.css",
+    "packages/psycheros/web/css/voice.css",
+    "packages/psycheros/web/js/psycheros.js",
+    "packages/psycheros/web/js/voice.js",
+    "packages/psycheros/web/sw.js"
+  ]
+}

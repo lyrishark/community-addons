@@ -22,16 +22,21 @@ warnings before installation. The monorepo update path requires Psycheros PR
 [#37](https://github.com/PsycherosAI/Psycheros/pull/37) or a later release that
 contains it.
 
-## Historical Psycheros source packages
+## Psycheros 0.10 compatibility work
 
-The previous 0.8/0.9 packages replaced Psycheros or Entity Loom source files.
-They are not plugin-manager packages and must not be installed over Psycheros
-0.10. Their source trees have been removed from the current branch so an old
-overlay cannot be mistaken for a current download.
+The previous 0.8/0.9 source-overlay releases must not be installed over
+Psycheros 0.10. Their working directories remain in this repository as porting
+sources while fresh 0.10 builds are developed and tested; the files currently
+inside them are not current downloads until a new version is published.
 
-The [historical index](historical/README.md) records each package's final
-compatibility, preserved release/tag, and 0.10 disposition. No new all-in-one
-source-overlay bundle is planned.
+Accessible Font Settings and Voice Text Resize are superseded by Accessibility
+Controls. More Uploads, Expression Sprites, Screen Presence, Windows Shell Fix,
+the Loom Gemini parser, and the combined packages are retained for 0.10 ports.
+Some can become manager-native plugins; the others need guarded 0.10 source
+bridges until the plugin API exposes their host integration points.
+
+The [historical index](historical/README.md) records the immutable older
+releases separately from current compatibility work.
 
 ## Other companion projects
 
@@ -58,7 +63,7 @@ or staged artifact checksums.
 - Browser actions and local sensory sharing are user-triggered.
 - Trusted plugins can read local data and run code; inspect their declared
   capabilities before installation.
-- Historical source overlays remain available only through versioned Git and
-  release history.
+- Do not treat an addon working directory as released until its README and a
+  matching GitHub release explicitly declare Psycheros 0.10 compatibility.
 
 Report bugs or questions in [GitHub Issues](https://github.com/lyrishark/community-addons/issues).

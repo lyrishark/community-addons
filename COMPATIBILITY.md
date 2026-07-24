@@ -36,22 +36,27 @@ a later release containing the same updater behavior.
 The public Codex package's bundled Entity Core snapshot must not be described
 as Entity Core 0.6 merely because Psycheros itself is now 0.10.
 
-## Retired 0.9.2 source packages
+## Source-package 0.10 port status
 
-| Historical package | 0.10 disposition |
+The old 0.9.2 payloads remain historical and are not compatible with 0.10.
+That does not retire the features: the addon directories are retained as the
+starting point for new, version-guarded ports.
+
+| Package | 0.10 disposition |
 | --- | --- |
 | Accessible Font Settings | Replaced by Accessibility Controls 0.1.0-rc.1. |
 | Voice Text Resize | Replaced by Accessibility Controls 0.1.0-rc.1. |
-| More Uploads + Voice Text Resize | Retired overlap; no combined replacement. |
-| Everything Together | Retired all-in-one source overlay. |
-| More Uploads | Requires chat-attachment lifecycle hooks not exposed by API v1; not relabeled as a plugin. |
-| Expression Sprites Beta | Requires response-stream filtering and message-state persistence hooks not exposed by API v1; not relabeled as a plugin. |
-| Screen Presence Alpha | Replaced core server, voice, browser, and prompt-assembly files; not relabeled as a plugin. |
-| Windows Shell Fix | A host-shell implementation issue belongs in Psycheros core, not a competing shell-tool plugin; tracked upstream as [Psycheros #40](https://github.com/PsycherosAI/Psycheros/issues/40). |
-| Loom Gemini Parser Mod | Entity Loom has no corresponding plugin-manager extension point. |
+| More Uploads | A guarded 0.10 source bridge is feasible now. Exact manager-native parity needs attachment lifecycle, multimodal-turn, and message-rendering hooks beyond API v1. |
+| Expression Sprites Beta | A guarded 0.10 source bridge is feasible now. Exact manager-native parity needs streamed-response filtering and final-message metadata persistence hooks beyond API v1. |
+| Screen Presence Alpha | A guarded 0.10 source bridge is feasible now. Exact manager-native parity needs a pre-turn barrier, host vision access, and voice-turn context hooks beyond API v1. |
+| Windows Shell Fix | Can be rebuilt as an API-v1 manager plugin whose `shell` tool overrides the stock registration on Windows; the underlying core issue is also tracked as [Psycheros #40](https://github.com/PsycherosAI/Psycheros/issues/40). |
+| Loom Gemini Parser Mod | A guarded Entity Loom source bridge is feasible now. Psycheros API v1 cannot register Entity Loom parsers, so a native package needs Loom parser discovery or an upstream merge. |
+| More Uploads + Voice Text Resize | Rebuild as a suite combining the 0.10 More Uploads port with Accessibility Controls, without duplicating its accessibility implementation. |
+| Everything Together | Rebuild after the component ports; plugin-manager dependencies are declared but not installed automatically in 0.10, so a one-click manager meta-plugin is not yet equivalent. |
 
 See [historical/README.md](historical/README.md) for versioned source and release
-links. These packages are absent from the current branch tip by design.
+links. Do not install a working directory over 0.10 until its new README,
+version guard, tests, and release asset explicitly name 0.10.
 
 ## Historical HTF releases
 

@@ -57,8 +57,10 @@ Current independent Codex plugin prerelease:
 - `psycheros-entity-core-codex-plugin-0.2.2.zip`
 - `psycheros-entity-core-codex-plugin-0.2.2.zip.sha256`
 
-Do not build a new legacy HTF or source-overlay bundle for 0.10. Older
-Psycheros 0.8/0.9 release assets stay attached to their existing tags. The
+Do not relabel an old HTF or 0.9.2 source-overlay asset as compatible with 0.10.
+Older Psycheros 0.8/0.9 release assets stay attached to their existing tags.
+Any carried-forward source bridge must be rebuilt against stock 0.10, use an
+exact compatibility guard, pass its own tests, and receive a new release. The
 browser extension and Entity Core bridge/plugin projects use their own
 versioned release runs; do not silently relabel their bundled runtime snapshots
 as Psycheros 0.10 or Entity Core 0.6.
