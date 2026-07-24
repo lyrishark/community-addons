@@ -5,10 +5,9 @@ Psycheros memory context into chat composers.
 
 This is not an official Psycheros release.
 
-> **Psycheros 0.9.2 status:** Compatible. Version `0.3.2` remains a separate
-> browser extension, and its local memory-context endpoint was verified against
-> a running Psycheros 0.9.0 instance on 2026-07-19. It has no source-file
-> dependency on the 0.9.2 application package.
+> **Psycheros 0.10 status:** No compatibility change required. Version `0.3.2`
+> is a separate browser extension with no dependency on Psycheros application
+> source files.
 
 ## What It Does
 

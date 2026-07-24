@@ -1,71 +1,79 @@
 # Compatibility snapshot
 
 Checked 2026-07-24 against stock `psycheros-v0.10.0`, Entity Core 0.6.0, and
-the Psycheros plugin API v1 validator.
+Psycheros plugin API v1.
 
-## Current manager-native plugins
+## Current matrix
 
-| Package | Version | Psycheros status |
+| Package | Version | Compatibility result |
 | --- | --- | --- |
-| HTF Music Listener | [0.2.0 public](https://github.com/lyrishark/community-addons/releases/tag/psycheros-htf-music-listener-v0.2.0) | Compatible with Psycheros `>=0.10.0 <0.11.0` and Launcher `>=0.2.45`. |
-| Accessibility Controls | [0.1.0-rc.1](https://github.com/lyrishark/community-addons/releases/tag/psycheros-accessibility-controls-v0.1.0-rc.1) | Compatible with Psycheros `>=0.10.0 <0.11.0`; no launcher dependency. |
-| Windows Shell Fix | 0.3.0-rc.1 staged | Compatible with Psycheros `>=0.10.0 <0.11.0`; loads one replacement tool through API v1. |
+| HTF Music Listener | 0.2.0 | Manager-native; Psycheros `>=0.10.0 <0.11.0`, Launcher `>=0.2.45`. |
+| Accessibility Controls | 0.1.0-rc.1 | Manager-native; replaces the font and voice-resize source overlays. |
+| Windows Shell Fix | 0.3.0-rc.1 | Manager-native; replaces the stock `shell` tool registration on Windows. |
+| More Uploads | 0.3.0-rc.1 | Exact-0.10 guarded source bridge. |
+| Expression Sprites Beta | 0.3.0-rc.1 | Exact-0.10 guarded source bridge; no bundled character art. |
+| Screen Presence Alpha | 0.3.0-rc.1 | Exact-0.10 guarded source bridge. |
+| Loom Gemini Parser | 0.3.0-rc.1 | Exact-0.10 guarded Entity Loom source bridge. |
+| More Uploads + Voice Text Controls | 0.3.0-rc.1 | Upload source bridge plus exact Accessibility Controls manager artifact. |
+| Everything Together | 0.3.0-rc.1 | Merged source bridge plus exact Accessibility, Shell, and HTF artifacts. |
 
-HTF Music Listener 0.2.0 passed Deno checks, seven plugin tests, the stock 0.10
-validator, Windows helper builds, an exact-ZIP manager install, restart,
-settings-page smoke, and update check.
+## Why four packages remain source bridges
 
-Accessibility Controls 0.1.0-rc.1 passed Deno formatting and type checks, four
-tests, JavaScript syntax validation, the stock 0.10 validator, release ZIP
-inspection, and a live 0.10 manager preview with no compatibility warnings. It
-replaces the historical font and voice-resize overlays with one plugin-owned
-settings route and browser assets.
+API v1 supports tools, routes, browser assets, settings, and prompt text hooks,
+but it does not yet cover every host seam used by these features:
 
-Windows Shell Fix 0.3.0-rc.1 passed Deno formatting and type checks, five tests,
-exact-ZIP manager inspection and installation with no warnings, manager load
-with one active tool and no degradation, and a real command through that loaded
-tool on Windows.
+- More Uploads needs attachment lifecycle, multimodal-turn, persistence, and
+  message-rendering hooks.
+- Expression Sprites needs streamed-response transformation, final-message
+  metadata persistence, settings integration, and voice overlay hooks.
+- Screen Presence needs an asynchronous pre-turn freshness barrier, host vision
+  captioning, and voice-turn hooks.
+- Entity Loom needs parser discovery or an upstream parser registration API.
 
-Both manifests record the community monorepo, a package path, and a dedicated
-tag stream. Compatibility-safe updates for packages below a monorepo root
-require [Psycheros PR #37](https://github.com/PsycherosAI/Psycheros/pull/37) or
-a later release containing the same updater behavior.
+Those are limits on a pure manager-native implementation, not blockers to a
+0.10-compatible release. Each source bridge accepts only pristine 0.10.0 files
+or its own identical payload, and preflights every file before any write.
 
-## Independent projects that still work as-is
+## Verification completed
 
-| Project | Compatibility conclusion |
-| --- | --- |
-| Thread Exporter 0.3.2 | Browser-only; no Psycheros 0.10 dependency or code change required. |
-| Entity Core for Codex 0.2.2 | Status, identity, search, fetch, and memory recording work against the 0.10 data location. It is a Codex MCP/plugin package, not a Psycheros plugin. |
-| Entity Core for ChatGPT 0.1.x | HTTPS/OAuth bridge with separate release and runtime requirements; not a Psycheros plugin-manager package. |
+- More Uploads: six focused tests, Deno checks, JavaScript syntax, clean install,
+  and atomic refusal of a simulated local edit.
+- Expression Sprites: 31 focused tests, Deno checks, JavaScript syntax, clean
+  install, and atomic refusal. Personalized rules and bundled art were removed.
+- Screen Presence: five focused tests, Deno checks, JavaScript syntax, clean
+  install, and atomic refusal. An unrelated provider-error overlay was removed.
+- Everything Together: 42 combined tests, Deno checks, JavaScript syntax, clean
+  install, and atomic refusal.
+- Loom Gemini Parser: parser format/check/test and clean guarded install.
+- Accessibility Controls and Windows Shell Fix: stock validator, exact-ZIP
+  manager inspection/install, focused tests, and active manager load.
+- HTF Music Listener: stock validator, plugin tests, Windows helper builds,
+  exact-ZIP manager install/restart, settings smoke, and update check.
 
-The public Codex package's bundled Entity Core snapshot must not be described
-as Entity Core 0.6 merely because Psycheros itself is now 0.10.
+PowerShell installers were executed on clean Windows worktrees. Unix installer
+scripts are included for the Psycheros source bridges but were not executed on
+this Windows-only validation host.
 
-## Source-package 0.10 port status
+## Removed as redundant or out of scope
 
-The old 0.9.2 payloads remain historical and are not compatible with 0.10.
-That does not retire the features: the addon directories are retained as the
-starting point for new, version-guarded ports.
+- Accessible Font Settings and Voice Text Resize are superseded by
+  Accessibility Controls.
+- The old source-level Windows shell replacement is superseded by the API-v1
+  plugin; the underlying host issue is tracked as
+  [Psycheros #40](https://github.com/PsycherosAI/Psycheros/issues/40).
+- Combined bundles no longer duplicate manager-native accessibility, shell, or
+  HTF implementations.
+- The unrelated provider-balance error overlay is not carried by Screen
+  Presence or Everything Together.
 
-| Package | 0.10 disposition |
-| --- | --- |
-| Accessible Font Settings | Replaced by Accessibility Controls 0.1.0-rc.1. |
-| Voice Text Resize | Replaced by Accessibility Controls 0.1.0-rc.1. |
-| More Uploads | A guarded 0.10 source bridge is feasible now. Exact manager-native parity needs attachment lifecycle, multimodal-turn, and message-rendering hooks beyond API v1. |
-| Expression Sprites Beta | A guarded 0.10 source bridge is feasible now. Exact manager-native parity needs streamed-response filtering and final-message metadata persistence hooks beyond API v1. |
-| Screen Presence Alpha | A guarded 0.10 source bridge is feasible now. Exact manager-native parity needs a pre-turn barrier, host vision access, and voice-turn context hooks beyond API v1. |
-| Windows Shell Fix | Rebuilt as the staged API-v1 plugin above; its `shell` tool overrides the stock registration on Windows. The underlying core issue is also tracked as [Psycheros #40](https://github.com/PsycherosAI/Psycheros/issues/40). |
-| Loom Gemini Parser Mod | A guarded Entity Loom source bridge is feasible now. Psycheros API v1 cannot register Entity Loom parsers, so a native package needs Loom parser discovery or an upstream merge. |
-| More Uploads + Voice Text Resize | Rebuild as a suite combining the 0.10 More Uploads port with Accessibility Controls, without duplicating its accessibility implementation. |
-| Everything Together | Rebuild after the component ports; plugin-manager dependencies are declared but not installed automatically in 0.10, so a one-click manager meta-plugin is not yet equivalent. |
+## Independent projects
 
-See [historical/README.md](historical/README.md) for versioned source and release
-links. Do not install a working directory over 0.10 until its new README,
-version guard, tests, and release asset explicitly name 0.10.
+Thread Exporter 0.3.2 remains browser-only. Entity Core for Codex 0.2.2 and the
+ChatGPT bridge 0.1.3 have independent runtimes and release streams; they are not
+Psycheros plugin-manager packages.
 
-## Historical HTF releases
+## Historical releases
 
-HTF 0.1.x packages remain distinct for the Psycheros 0.8/0.9 installations they
-target. The 0.2.0 build does not emit a new legacy package and does not overwrite
-those release assets.
+The [historical index](historical/README.md) points to immutable 0.8/0.9 tags,
+releases, and checksums. Historical payloads are not current installation
+sources for Psycheros 0.10.
