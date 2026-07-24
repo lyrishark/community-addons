@@ -42,42 +42,28 @@ permissions and browser-store data disclosure forms.
 
 ## 3. Create Release Assets
 
-Release assets to upload:
+Current Psycheros 0.10 manager-addon release:
 
-- `psycheros-thread-exporter-0.3.2.zip`
-- `psycheros-entity-core-codex-plugin-0.2.1.zip`
-- `psycheros-entity-core-chatgpt-private-0.1.3.zip`
-- `psycheros-loom-gemini-parser-mod-0.2.0.zip`
-- `psycheros-accessible-font-settings-0.2.0.zip`
-- `psycheros-windows-shell-fix-0.2.0.zip`
-- `psycheros-screen-presence-alpha-0.2.0.zip`
-- `psycheros-expression-sprites-beta-0.2.0.zip`
-- `psycheros-more-uploads-0.2.0.zip`
-- `psycheros-voice-text-resize-0.2.0.zip`
-- `psycheros-more-uploads-voice-resize-0.2.0.zip`
-- `psycheros-everything-together-0.2.0.zip`
-- `psycheros-htf-music-listener-0.1.3-windows-x64.zip`
-- `psycheros-htf-music-listener-0.1.3-legacy-windows-x64.zip`
-- `SHA256SUMS.txt`
+- `psycheros-htf-music-listener-0.2.0-windows-x64.zip`
+- `psycheros-htf-music-listener-0.2.0-windows-x64.zip.sha256`
+
+Do not build a new legacy HTF or source-overlay bundle for 0.10. Older
+Psycheros 0.8/0.9 release assets stay attached to their existing tags. The
+browser extension and Entity Core bridge/plugin projects use their own
+versioned release runs; do not silently relabel their bundled runtime snapshots
+as Psycheros 0.10 or Entity Core 0.6.
 
 Generate checksums on Windows:
 
 ```powershell
-Get-FileHash .\psycheros-thread-exporter-0.3.2.zip -Algorithm SHA256
-Get-FileHash .\psycheros-entity-core-codex-plugin-0.2.1-share.zip -Algorithm SHA256
-Get-FileHash .\psycheros-entity-core-chatgpt-private-0.1.3.zip -Algorithm SHA256
+Get-FileHash .\psycheros-htf-music-listener-0.2.0-windows-x64.zip -Algorithm SHA256
 ```
 
-For Psycheros source-file add-ons that replace overlapping UI files, smoke-test
-the installer conflict guard before uploading:
-
-- standalone More Uploads blocks Voice Text Resize, the combo package, and
-  Everything Together markers
-- standalone Voice Text Resize blocks More Uploads, the combo package, and
-  Everything Together markers
-- More Uploads + Voice Text Resize warns when superseding either standalone
-  package and blocks Everything Together
-- Everything Together warns when superseding the narrower source packages
+Before uploading, inspect the exact zip through Psycheros 0.10 Settings >
+Plugins, install it, restart, verify the official settings page, and exercise an
+update check against its declared repository/package path. Confirm the package
+contains no credentials, local music, generated library state, or personal
+runtime paths.
 
 ## 4. Publish GitHub Release
 

@@ -140,7 +140,7 @@ $sourceItems = @(
     "PRIVACY.md",
     "SECURITY.md",
     "CHANGELOG.md",
-    "RELEASE_NOTES_v0.2.0-rc.1.md",
+    "RELEASE_NOTES_v0.2.0.md",
     "THIRD_PARTY_NOTICES.md",
     "lib",
     "tests",
@@ -213,37 +213,6 @@ $buildInfo = [ordered]@{
 }
 $buildInfo | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $stagePlugin "build-info.json") -Encoding utf8
 
-$legacyName = "$($manifest.id)-legacy-$($manifest.version)"
-$legacyStage = Join-Path $stageRoot $legacyName
-New-Item -ItemType Directory -Path $legacyStage -Force | Out-Null
-foreach ($item in @(
-    "README.md",
-    "Install Legacy HTF Music Listener.bat",
-    "Uninstall Legacy HTF Music Listener.bat",
-    "tools",
-    "browser"
-)) {
-    Copy-Item -LiteralPath (Join-Path $pluginRoot "legacy\$item") -Destination $legacyStage -Recurse -Force
-}
-Copy-Item -LiteralPath (Join-Path $communityRoot "LICENSE") -Destination (Join-Path $legacyStage "LICENSE") -Force
-Copy-Item -LiteralPath (Join-Path $pluginRoot "PRIVACY.md") -Destination $legacyStage -Force
-Copy-Item -LiteralPath (Join-Path $pluginRoot "SECURITY.md") -Destination $legacyStage -Force
-Copy-Item -LiteralPath (Join-Path $pluginRoot "THIRD_PARTY_NOTICES.md") -Destination $legacyStage -Force
-Copy-Item -LiteralPath $thirdParty -Destination (Join-Path $legacyStage "third-party") -Recurse -Force
-
-$legacyCustomTools = Join-Path $legacyStage "custom-tool"
-New-Item -ItemType Directory -Path $legacyCustomTools -Force | Out-Null
-Copy-Item -LiteralPath (Join-Path $pluginRoot "legacy\custom-tool\htf-music-listener.js") -Destination $legacyCustomTools -Force
-$legacyBundle = Join-Path $legacyCustomTools "htf-music-listener"
-New-Item -ItemType Directory -Path $legacyBundle -Force | Out-Null
-Copy-Item -LiteralPath (Join-Path $pluginRoot "psycheros.ts") -Destination $legacyBundle -Force
-Copy-Item -LiteralPath (Join-Path $pluginRoot "lib") -Destination $legacyBundle -Recurse -Force
-$legacyVendor = Join-Path $legacyBundle "vendor\windows-x86_64"
-New-Item -ItemType Directory -Path $legacyVendor -Force | Out-Null
-Copy-Item -LiteralPath $WorkerExecutable -Destination (Join-Path $legacyVendor "htf-worker.exe") -Force
-Copy-Item -LiteralPath $NowPlayingExecutable -Destination (Join-Path $legacyVendor "now-playing-watcher.exe") -Force
-$buildInfo | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $legacyBundle "build-info.json") -Encoding utf8
-
 $safeVersion = $manifest.version -replace '[^A-Za-z0-9._-]', '-'
 $zipName = "psycheros-htf-music-listener-$safeVersion-windows-x64.zip"
 $zipPath = Join-Path $OutputDirectory $zipName
@@ -255,17 +224,6 @@ $hashLine = "$($hash.Hash.ToLowerInvariant())  $zipName"
 $hashPath = "$zipPath.sha256"
 Set-Content -LiteralPath $hashPath -Value $hashLine -Encoding ascii
 
-$legacyZipName = "psycheros-htf-music-listener-$safeVersion-legacy-windows-x64.zip"
-$legacyZipPath = Join-Path $OutputDirectory $legacyZipName
-if (Test-Path -LiteralPath $legacyZipPath) { Remove-Item -LiteralPath $legacyZipPath -Force }
-Compress-Archive -LiteralPath $legacyStage -DestinationPath $legacyZipPath -CompressionLevel Optimal
-$legacyHash = Get-FileHash -LiteralPath $legacyZipPath -Algorithm SHA256
-$legacyHashLine = "$($legacyHash.Hash.ToLowerInvariant())  $legacyZipName"
-$legacyHashPath = "$legacyZipPath.sha256"
-Set-Content -LiteralPath $legacyHashPath -Value $legacyHashLine -Encoding ascii
-
 Write-Output "Release: $zipPath"
 Write-Output "SHA-256: $($hash.Hash.ToLowerInvariant())"
-Write-Output "Legacy release: $legacyZipPath"
-Write-Output "Legacy SHA-256: $($legacyHash.Hash.ToLowerInvariant())"
 Write-Output "Worker: $WorkerExecutable"

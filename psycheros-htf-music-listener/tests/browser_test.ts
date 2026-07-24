@@ -2,12 +2,12 @@ import assert from "node:assert/strict";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 interface SettingsMount {
-  kind: "plugin" | "tools";
+  kind: "manager" | "plugin" | "tools";
   container: unknown;
   reference: unknown;
 }
 
-Deno.test("browser settings choose plugin card, tools fallback, then no mount", async () => {
+Deno.test("browser settings choose manager, plugin card, tools fallback, then no mount", async () => {
   const originalDocument = Reflect.get(globalThis, "document");
   const originalMutationObserver = Reflect.get(globalThis, "MutationObserver");
 
@@ -35,7 +35,7 @@ Deno.test("browser settings choose plugin card, tools fallback, then no mount", 
     const scriptPath = fileURLToPath(
       new URL("../web/music-listener.js", import.meta.url),
     );
-    await import(`${pathToFileURL(scriptPath).href}?browser-test=0.1.2`);
+    await import(`${pathToFileURL(scriptPath).href}?browser-test=0.2.0`);
     const hook = (globalThis as typeof globalThis & {
       __HTF_MUSIC_LISTENER_TEST__?: {
         findSettingsMount(root: unknown): SettingsMount | null;
@@ -45,10 +45,24 @@ Deno.test("browser settings choose plugin card, tools fallback, then no mount", 
     }).__HTF_MUSIC_LISTENER_TEST__;
     if (!hook) throw new Error("Browser test hook was not installed.");
 
+    const managerContainer = { id: "official-manager-mount" };
+    const managerRoot = {
+      querySelector(selector: string) {
+        return selector === "#htf-music-listener-settings-mount"
+          ? managerContainer
+          : null;
+      },
+    };
+    const managerMount = hook.findSettingsMount(managerRoot);
+    assert.equal(managerMount?.kind, "manager");
+    assert.equal(managerMount?.container, managerContainer);
+    assert.equal(managerMount?.reference, null);
+
     const pluginCard = { id: "plugin-card" };
     const removeButton = { closest: () => pluginCard };
     const pluginRoot = {
       querySelector(selector: string) {
+        if (selector === "#htf-music-listener-settings-mount") return null;
         return selector.includes("data-plugin-id") ? removeButton : null;
       },
     };
@@ -65,6 +79,7 @@ Deno.test("browser settings choose plugin card, tools fallback, then no mount", 
     };
     const toolsRoot = {
       querySelector(selector: string) {
+        if (selector === "#htf-music-listener-settings-mount") return null;
         if (selector.includes("data-plugin-id")) return null;
         return selector === "#tools-tab-custom #cat-custom" ? customTools : null;
       },

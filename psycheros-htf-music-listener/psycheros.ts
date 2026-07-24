@@ -983,7 +983,7 @@ async function settingsRoute(
   return Response.json({ success: true, settings: next });
 }
 
-async function libraryScanRoute(): Promise<Response> {
+function libraryScanRoute(): Response {
   if (!musicLibrary) {
     return Response.json({ error: "The music library is not running." }, {
       status: 503,
@@ -993,7 +993,7 @@ async function libraryScanRoute(): Promise<Response> {
   return Response.json({ success: true, status: musicLibrary.status() });
 }
 
-async function libraryStatusRoute(): Promise<Response> {
+function libraryStatusRoute(): Response {
   return Response.json({
     library: musicLibrary?.status() ?? {
       enabled: false,
@@ -1008,7 +1008,7 @@ async function libraryStatusRoute(): Promise<Response> {
   });
 }
 
-async function lyricReviewsRoute(): Promise<Response> {
+function lyricReviewsRoute(): Response {
   return Response.json({ reviews: musicLibrary?.reviews() ?? [] });
 }
 
@@ -1120,6 +1120,9 @@ export default {
     { method: "GET", path: "/library/reviews", handler: lyricReviewsRoute },
     { method: "POST", path: "/library/review", handler: lyricReviewRoute },
   ],
+  settingsFragment() {
+    return '<div id="htf-music-listener-settings-mount"></div>';
+  },
   async start(services: PluginServices) {
     statePath = services.statePath;
     await Deno.mkdir(artifactsPath(services.statePath), { recursive: true });

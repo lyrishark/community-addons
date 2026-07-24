@@ -35,9 +35,9 @@ PyInstaller is used only as a build tool and is not required on end-user machine
 ## Windows Now Playing helper
 
 The release includes `now-playing-watcher.exe`, built from this repository's Rust
-source. It uses the open-source `windows`/`windows-core` family of crates generated
-from Microsoft Windows metadata, plus Serde and serde_json. These dependencies are
-available under MIT or Apache-2.0 terms; their exact resolved versions are recorded in
+source. It uses the open-source `windows`/`windows-core` family of crates generated from
+Microsoft Windows metadata, plus Serde and serde_json. These dependencies are available
+under MIT or Apache-2.0 terms; their exact resolved versions are recorded in
 `watcher/Cargo.lock`.
 
 - windows-rs: <https://github.com/microsoft/windows-rs>
@@ -48,9 +48,9 @@ Spotify SDK and no network client.
 
 ## LRCLIB and LRCGET interoperability
 
-The plugin optionally calls LRCLIB's public HTTP API for synchronized lyrics. No
-LRCLIB or LRCGET source code is copied into this addon. LRCGET is the official LRCLIB
-client and informed the compatible same-stem LRC workflow.
+The plugin optionally calls LRCLIB's public HTTP API for synchronized lyrics. No LRCLIB
+or LRCGET source code is copied into this addon. LRCGET is the official LRCLIB client
+and informed the compatible same-stem LRC workflow.
 
 - LRCLIB: <https://lrclib.net/>
 - LRCGET: <https://github.com/tranxuanthang/lrcget>

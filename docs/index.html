@@ -182,18 +182,16 @@
 <body>
   <header>
     <div class="wrap">
-      <div class="eyebrow">Community alpha addons</div>
-      <h1>Local-first tools and companion upgrades for Psycheros.</h1>
+      <div class="eyebrow">Psycheros 0.10 community addons</div>
+      <h1>Manager-native where current; reproducible where historical.</h1>
       <p class="lede">
-        Memory continuity connectors, thread export, music listening, accessible
-        settings, richer attachments, expression sprites, and screen presence.
+        Local music presence, continuity connectors, and thread export without
+        pretending old source replacements are current Psycheros addons.
       </p>
       <div class="notice">
-        These are community addons, not official Psycheros releases. They are
-        local-first and source-visible. All current source-mod packages are
-        prepared as version 0.2.0 for exactly Psycheros 0.9.2. They use guarded
-        manual installers; the add-on manager handles trusted plugins, not these
-        core-file replacements.
+        These are community projects, not official Psycheros releases. HTF Music
+        Listener 0.2.0 is the current Psycheros 0.10 plugin-manager addon. The
+        source-mod packages remain available only as exact 0.9.2 history.
       </div>
     </div>
   </header>
@@ -201,212 +199,64 @@
   <main class="wrap">
     <div class="grid">
       <article class="card">
-        <h2>Psycheros Thread Exporter</h2>
+        <h2>HTF Music Listener 0.2.0</h2>
         <p>
-          Browser extension for exporting ChatGPT, Claude, and Gemini threads
-          and injecting local Psycheros memory context into active chat pages.
+          A trusted Psycheros 0.10 plugin for explicit one-off listening and
+          opt-in shared Windows Now Playing presence.
         </p>
         <ul>
-          <li>ChatGPT and Claude timestamped exports</li>
-          <li>Gemini Activity timestamp merge workflow</li>
-          <li>Repair reports for Gemini history exports</li>
-          <li>Local Psycheros memory injection</li>
-          <li>Receiver-aware filtering for synced memories</li>
+          <li>Official Settings &gt; Plugins configuration page</li>
+          <li>Durable local HTF sensory library</li>
+          <li>Conservative synchronized-lyrics preparation and review</li>
+          <li>Bounded per-turn playback intervals</li>
+          <li>Compatibility-safe GitHub update metadata</li>
         </ul>
         <div class="actions">
-          <a class="button primary" href="https://github.com/lyrishark/community-addons/releases/tag/browser-thread-exporter-v0.3.2">Download alpha</a>
-          <a class="button" href="https://github.com/lyrishark/community-addons/releases">Chrome listing</a>
-          <a class="button" href="https://github.com/lyrishark/community-addons">Source</a>
-        </div>
-      </article>
-
-      <article class="card">
-        <h2>Psycheros Entity Core for Codex</h2>
-        <p>
-          Local Codex plugin that connects Codex to Psycheros entity-core
-          through an included MCP server.
-        </p>
-        <ul>
-          <li>Read identity context</li>
-          <li>Search memories and graph nodes</li>
-          <li>Fetch selected core records</li>
-          <li>Record daily and significant memories</li>
-          <li>No direct identity/core mutation</li>
-        </ul>
-        <div class="actions">
-          <a class="button primary" href="https://github.com/lyrishark/community-addons/releases/tag/codex-entity-core-plugin-v0.2.1">Download plugin</a>
-          <a class="button" href="https://github.com/lyrishark/community-addons">Source</a>
-        </div>
-      </article>
-
-      <article class="card">
-        <h2>Psycheros Entity Core for ChatGPT</h2>
-        <p>
-          Private ChatGPT Developer Mode bridge for companion users who do not
-          use Codex but want ChatGPT to reach their local Psycheros entity-core.
-        </p>
-        <ul>
-          <li>OAuth login through Auth0</li>
-          <li>Tailscale Funnel HTTPS setup</li>
-          <li>Read identity context, memories, and graph nodes</li>
-          <li>Recent-across-surfaces defaults to the memory date</li>
-          <li>Record daily and significant memories when enabled</li>
-          <li>Numbered double-click helper scripts</li>
-          <li>Automatic startup and crash recovery</li>
-        </ul>
-        <div class="actions">
-          <a class="button primary" href="https://github.com/lyrishark/community-addons/tree/main/chatgpt-entity-core-private">0.1.3 prepared bridge</a>
-          <a class="button" href="https://github.com/lyrishark/community-addons/tree/main/chatgpt-entity-core-private/START_HERE.md">Start here</a>
-          <a class="button" href="https://github.com/lyrishark/community-addons">Source</a>
-        </div>
-      </article>
-
-      <article class="card">
-        <h2>Loom Gemini Parser Mod</h2>
-        <p>
-          Current Psycheros 0.9.2 Entity Loom file mod for consuming merged
-          Gemini batch exports from the thread exporter.
-        </p>
-        <ul>
-          <li>Adds Gemini as a Loom source platform</li>
-          <li>Accepts merged Gemini batch JSON</li>
-          <li>Raw Gemini drafts still need extension merging first</li>
-          <li>Version 0.2.0 accepts Psycheros 0.9.2 exactly</li>
-          <li>Upstream resume/reimport behavior is preserved without a patch</li>
-        </ul>
-        <div class="actions">
-          <a class="button primary" href="https://github.com/lyrishark/community-addons/tree/main/psycheros-loom-gemini-parser-mod">0.2.0 package</a>
-          <a class="button" href="https://github.com/lyrishark/community-addons">Source</a>
-        </div>
-      </article>
-
-      <article class="card">
-        <h2>Expression Sprites Beta</h2>
-        <p>
-          Psycheros 0.9.2 file mod for live expression labels and
-          SillyTavern-style sprite display in chat.
-        </p>
-        <ul>
-          <li>Settings > Vision > Expressions</li>
-          <li>SillyTavern-style ZIP imports</li>
-          <li>Desktop and mobile side settings</li>
-          <li>Hybrid streamed expressions with one hidden final selection</li>
-          <li>Expression state persists when a conversation is reopened</li>
-          <li>Existing settings and personal sprite files are preserved</li>
-          <li>Embedded desktop webview cache refresh</li>
-          <li>Download ZIP, unzip, then run the platform installer</li>
-          <li>Windows install.ps1 and macOS/Linux install.sh with launcher source-folder detection</li>
-          <li>Does not include screen sharing</li>
-        </ul>
-        <div class="actions">
-          <a class="button primary" href="https://github.com/lyrishark/community-addons/tree/main/psycheros-expression-sprites-beta">Psycheros 0.9.2 package</a>
-          <a class="button" href="https://github.com/lyrishark/community-addons/tree/main/psycheros-expression-sprites-beta">Install notes</a>
-          <a class="button" href="https://github.com/lyrishark/community-addons">Source</a>
-        </div>
-      </article>
-
-      <article class="card">
-        <h2>More Uploads</h2>
-        <p>
-          Psycheros 0.9.2 file mod for image, document, and music uploads in
-          text chat and Yin Yang typed voice.
-        </p>
-        <ul>
-          <li>Multiple images in one chat message</li>
-          <li>TXT, MD, CSV, JSON, PDF, DOCX, and XLSX attachments</li>
-          <li>MP3, WAV, FLAC, M4A, AAC, AIFF, OGG, Opus, and WebM music</li>
-          <li>Streamed uploads up to 512 MB</li>
-          <li>Yin Yang typed voice attachments</li>
-          <li>Image, audio-player, and file rendering in chat history</li>
-          <li>Embedded desktop webview cache refresh</li>
-          <li>Download ZIP, unzip, then run the platform installer</li>
-        </ul>
-        <div class="actions">
-          <a class="button primary" href="https://github.com/lyrishark/community-addons/tree/main/psycheros-more-uploads">0.2.0 package</a>
-          <a class="button" href="https://github.com/lyrishark/community-addons/tree/main/psycheros-more-uploads">Install notes</a>
-          <a class="button" href="https://github.com/lyrishark/community-addons">Source</a>
-        </div>
-      </article>
-
-      <article class="card">
-        <h2>Uploads + Voice Resize</h2>
-        <p>
-          Psycheros 0.9.2 combo file mod for multiple uploads plus the
-          resizable Yin Yang typed voice input in one merged package.
-        </p>
-        <ul>
-          <li>All More Uploads chat and voice attachment features</li>
-          <li>Music formats and streamed uploads up to 512 MB</li>
-          <li>Horizontal, vertical, and corner resize handles</li>
-          <li>Auto-grow until a width or height is manually dragged</li>
-          <li>Shared UI files merged to avoid standalone overwrite conflicts</li>
-          <li>Download ZIP, unzip, then run the platform installer</li>
-        </ul>
-        <div class="actions">
-          <a class="button primary" href="https://github.com/lyrishark/community-addons/tree/main/psycheros-more-uploads-voice-resize">0.2.0 package</a>
-          <a class="button" href="https://github.com/lyrishark/community-addons/tree/main/psycheros-more-uploads-voice-resize">Install notes</a>
-          <a class="button" href="https://github.com/lyrishark/community-addons">Source</a>
-        </div>
-      </article>
-
-      <article class="card">
-        <h2>Focused Psycheros 0.9.2 Mods</h2>
-        <p>
-          Smaller guarded packages for people who want one source feature
-          without installing the combined bundle.
-        </p>
-        <ul>
-          <li>Accessible Font Settings 0.2.0</li>
-          <li>Windows Shell Fix 0.2.0</li>
-          <li>Screen Presence Alpha 0.2.0</li>
-          <li>Voice Text Resize 0.2.0</li>
-          <li>Each accepts Psycheros 0.9.2 exactly and creates backups</li>
-        </ul>
-        <div class="actions">
-          <a class="button primary" href="https://github.com/lyrishark/community-addons">Choose a package</a>
-          <a class="button" href="https://github.com/lyrishark/community-addons/blob/main/COMPATIBILITY.md">Compatibility</a>
-        </div>
-      </article>
-
-      <article class="card">
-        <h2>HTF Music Listener</h2>
-        <p>
-          A trusted local Psycheros plugin that lets an entity listen to an
-          attached song through an HTF v2 sensory object and answer naturally.
-        </p>
-        <ul>
-          <li>Runs only when the human explicitly asks the entity to listen to music</li>
-          <li>Accepts FFmpeg-decodable audio and video containers</li>
-          <li>Optional Entity view with HTF JSON and four listening graphs</li>
-          <li>Lyrics stay human-supplied; timestamped LRC is ideal</li>
-          <li>Bundled HTF worker and verified one-time FFmpeg setup</li>
-          <li>Normal trusted-plugin package plus a labeled legacy package for upstream Custom Tools</li>
-          <li>Settings fallback under Tools &gt; Custom when no plugin card exists</li>
-        </ul>
-        <div class="actions">
-          <a class="button primary" href="https://github.com/lyrishark/community-addons/tree/main/psycheros-htf-music-listener">0.1.3 package</a>
+          <a class="button primary" href="https://github.com/lyrishark/community-addons/releases">Releases</a>
           <a class="button" href="https://github.com/lyrishark/community-addons/tree/main/psycheros-htf-music-listener">Install notes</a>
-          <a class="button" href="https://github.com/lyrishark/community-addons">Source</a>
         </div>
       </article>
 
       <article class="card">
-        <h2>Everything Together</h2>
+        <h2>Historical 0.9.2 packages</h2>
         <p>
-          Stable Psycheros 0.9.2 bundle for the overlapping source upgrades,
-          with comprehensive local music listening on Windows x64.
+          Expression sprites, uploads, fonts, screen presence, voice resize,
+          shell, Gemini parser, and combined source snapshots remain preserved.
         </p>
         <ul>
-          <li>Music-capable uploads plus all More Uploads features</li>
-          <li>HTF Music Listener 0.1.3 legacy bundled on Windows x64</li>
-          <li>Voice resize, fonts, screen presence, and expression sprites</li>
-          <li>No response-regeneration, auto-title, or queued-turn experiments</li>
-          <li>Use this bundle by itself instead of layering standalone copies</li>
+          <li>Exact 0.9.2 guards remain intact</li>
+          <li>Old tags and release assets stay distinct</li>
+          <li>Do not install these packages over Psycheros 0.10</li>
+          <li>No new 0.10 source-overlay bundle is planned</li>
         </ul>
         <div class="actions">
-          <a class="button primary" href="https://github.com/lyrishark/community-addons/tree/main/psycheros-everything-together">0.2.0 package</a>
-          <a class="button" href="https://github.com/lyrishark/community-addons/tree/main/psycheros-everything-together">Install notes</a>
-          <a class="button" href="https://github.com/lyrishark/community-addons">Source</a>
+          <a class="button primary" href="https://github.com/lyrishark/community-addons/blob/main/COMPATIBILITY.md">Compatibility</a>
+          <a class="button" href="https://github.com/lyrishark/community-addons/releases">Historical releases</a>
+        </div>
+      </article>
+
+      <article class="card">
+        <h2>Thread Exporter</h2>
+        <p>
+          A separately versioned browser extension for exporting ChatGPT,
+          Claude, and Gemini threads. It is not a Psycheros manager addon.
+        </p>
+        <div class="actions">
+          <a class="button primary" href="https://github.com/lyrishark/community-addons/releases/tag/browser-thread-exporter-v0.3.2">Version 0.3.2</a>
+          <a class="button" href="https://github.com/lyrishark/community-addons/tree/main/browser-thread-exporter">Source</a>
+        </div>
+      </article>
+
+      <article class="card">
+        <h2>Entity Core bridges</h2>
+        <p>
+          Codex MCP and private ChatGPT OAuth packages are versioned separately
+          from Psycheros and Entity Core. Their bundled snapshots are not
+          relabeled as Entity Core 0.6 without their own release audit.
+        </p>
+        <div class="actions">
+          <a class="button primary" href="https://github.com/lyrishark/community-addons/tree/main/codex-entity-core-plugin">Codex</a>
+          <a class="button" href="https://github.com/lyrishark/community-addons/tree/main/chatgpt-entity-core-private">ChatGPT</a>
         </div>
       </article>
     </div>
@@ -414,36 +264,10 @@
     <section>
       <h3>Trust checklist</h3>
       <div class="checks">
-        <div class="check">
-          <strong>Local-first</strong>
-          No developer-owned server or analytics service is used by either
-          addon.
-        </div>
-        <div class="check">
-          <strong>User-triggered</strong>
-          Exports and memory injection happen only when the user asks.
-        </div>
-        <div class="check">
-          <strong>Review before send</strong>
-          The browser extension inserts context but never presses Send.
-        </div>
-        <div class="check">
-          <strong>Source-visible</strong>
-          Source, release notes, privacy notes, and checksums should be public.
-        </div>
-        <div class="check">
-          <strong>Scoped permissions</strong>
-          Browser permissions are limited to supported chat sites and localhost.
-        </div>
-        <div class="check">
-          <strong>Governed core</strong>
-          Codex and ChatGPT memory writes are allowed; direct identity edits are
-          not exposed.
-        </div>
-        <div class="check">
-          <strong>Private bridge</strong>
-          ChatGPT access requires the user's own OAuth setup and local tunnel.
-        </div>
+        <div class="check"><strong>Local-first</strong>No analytics, ads, or developer-owned telemetry.</div>
+        <div class="check"><strong>Chosen sharing</strong>Music, browser, and screen context remain opt-in.</div>
+        <div class="check"><strong>Source-visible</strong>Code, release notes, privacy notes, and checksums are reviewable.</div>
+        <div class="check"><strong>Version-honest</strong>Historical packages keep their actual compatibility labels.</div>
       </div>
     </section>
   </main>
@@ -451,8 +275,8 @@
   <footer>
     <div class="wrap">
       <p>
-        Community alpha. Not an official Psycheros release. Report issues at
-        <a href="https://github.com/lyrishark/community-addons/issues">https://github.com/lyrishark/community-addons/issues</a>.
+        Community project. Not an official Psycheros release. Report issues at
+        <a href="https://github.com/lyrishark/community-addons/issues">github.com/lyrishark/community-addons/issues</a>.
       </p>
     </div>
   </footer>

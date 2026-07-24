@@ -502,6 +502,17 @@ function settingRow() {
 }
 
 function findSettingsMount(root = document) {
+  const managerMount = root.querySelector(
+    "#htf-music-listener-settings-mount",
+  );
+  if (managerMount) {
+    return {
+      kind: "manager",
+      container: managerMount,
+      reference: null,
+    };
+  }
+
   const removeButton = root.querySelector(
     `[data-plugin-id="${PLUGIN_ID}"]`,
   );

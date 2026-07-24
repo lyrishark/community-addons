@@ -2,8 +2,7 @@ use serde::Serialize;
 use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use windows::Media::Control::{
-    GlobalSystemMediaTransportControlsSession,
-    GlobalSystemMediaTransportControlsSessionManager,
+    GlobalSystemMediaTransportControlsSession, GlobalSystemMediaTransportControlsSessionManager,
     GlobalSystemMediaTransportControlsSessionPlaybackStatus,
 };
 
@@ -24,9 +23,7 @@ fn millis(ticks_100ns: i64) -> i64 {
     ticks_100ns / 10_000
 }
 
-fn status_name(
-    status: GlobalSystemMediaTransportControlsSessionPlaybackStatus,
-) -> &'static str {
+fn status_name(status: GlobalSystemMediaTransportControlsSessionPlaybackStatus) -> &'static str {
     use GlobalSystemMediaTransportControlsSessionPlaybackStatus as Status;
     if status == Status::Playing {
         "playing"

@@ -2,10 +2,10 @@
 
 Use this package only when **Settings > Plugins does not exist**.
 
-This compatibility package keeps the one-song-at-a-time listening tool and audio
-upload support. The shared Windows Now Playing library, background HTF cache, and
-pre-song lyric review queue require Psycheros's native plugin surface and are not
-available through the legacy bridge.
+This compatibility package keeps the one-song-at-a-time listening tool and audio upload
+support. The shared Windows Now Playing library, background HTF cache, and pre-song
+lyric review queue require Psycheros's native plugin surface and are not available
+through the legacy bridge.
 
 1. Extract this zip fully.
 2. Double-click `Install Legacy HTF Music Listener.bat`.
@@ -25,8 +25,7 @@ update can replace that block; rerun the installer if the panel disappears.
 
 If More Uploads or another source-file addon is also installed, install that package
 first and this legacy listener second. Source-file addons replace the browser file that
-contains this bridge. More Uploads 0.1.0 rejects audio; use 0.2.0 with
-Psycheros 0.9.2.
+contains this bridge. More Uploads 0.1.0 rejects audio; use 0.2.0 with Psycheros 0.9.2.
 
 Before moving to the normal trusted-plugin package, run
 `Uninstall Legacy HTF Music Listener.bat`, restart, and then install the normal plugin

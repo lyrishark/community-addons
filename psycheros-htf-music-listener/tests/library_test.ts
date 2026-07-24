@@ -28,19 +28,21 @@ Deno.test({
     await Deno.writeFile(audio, new TextEncoder().encode("synthetic audio bytes"));
     let fetches = 0;
     const library = new MusicLibrary({
-      getSettings: async () => ({
-        libraryPath: root,
-        libraryEnabled: true,
-        autoLyrics: true,
-        precomputeHtf: true,
-      }),
-      probe: async () => ({
-        durationSeconds: 123,
-        formatName: "mp3",
-        title: "Fixture Song",
-        artist: "Fixture Artist",
-        album: "Fixture Album",
-      }),
+      getSettings: () =>
+        Promise.resolve({
+          libraryPath: root,
+          libraryEnabled: true,
+          autoLyrics: true,
+          precomputeHtf: true,
+        }),
+      probe: () =>
+        Promise.resolve({
+          durationSeconds: 123,
+          formatName: "mp3",
+          title: "Fixture Song",
+          artist: "Fixture Artist",
+          album: "Fixture Album",
+        }),
       generateHtf: async (_path, output) => {
         const json = join(output, "flux_song_sensory_object_track.json");
         await Deno.writeTextFile(
@@ -49,9 +51,9 @@ Deno.test({
         );
         return json;
       },
-      fetchImpl: async () => {
+      fetchImpl: () => {
         fetches++;
-        return Response.json({
+        return Promise.resolve(Response.json({
           id: 42,
           trackName: "Fixture Song",
           artistName: "Fixture Artist",
@@ -59,7 +61,7 @@ Deno.test({
           duration: 123.2,
           instrumental: false,
           syncedLyrics: "[00:01.00]First line\n[00:05.00]Second line",
-        });
+        }));
       },
     });
     try {
