@@ -41,6 +41,11 @@ Deno.test("browser settings choose manager, plugin card, tools fallback, then no
         findSettingsMount(root: unknown): SettingsMount | null;
         mergeAttachmentAccept(existing: string): string;
         isMusicAttachment(value: string): boolean;
+        sharedListeningCapability(settings: unknown): {
+          supported: boolean;
+          platform: string;
+          description: string;
+        };
       };
     }).__HTF_MUSIC_LISTENER_TEST__;
     if (!hook) throw new Error("Browser test hook was not installed.");
@@ -99,6 +104,23 @@ Deno.test("browser settings choose manager, plugin card, tools fallback, then no
     assert.equal((accept.match(/audio\/\*/g) ?? []).length, 1);
     assert.equal(hook.isMusicAttachment("/chat-attachments/example.FLAC?x=1"), true);
     assert.equal(hook.isMusicAttachment("/chat-attachments/example.png"), false);
+    assert.deepEqual(
+      hook.sharedListeningCapability({
+        capabilities: { sharedListening: true, platform: "windows" },
+      }),
+      {
+        supported: true,
+        platform: "windows",
+        description:
+          "Use local playback metadata as a clock; no Spotify audio is captured.",
+      },
+    );
+    const macCapability = hook.sharedListeningCapability({
+      capabilities: { sharedListening: false, platform: "darwin" },
+    });
+    assert.equal(macCapability.supported, false);
+    assert.equal(macCapability.platform, "darwin");
+    assert.match(macCapability.description, /Windows only/i);
   } finally {
     if (originalDocument === undefined) {
       Reflect.deleteProperty(globalThis, "document");
