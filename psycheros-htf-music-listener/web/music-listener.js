@@ -42,6 +42,17 @@ function isMusicAttachment(value) {
   return MUSIC_ATTACHMENT_EXTENSIONS.has(attachmentExtension(value));
 }
 
+function sharedListeningCapability(settings) {
+  const supported = settings?.capabilities?.sharedListening === true;
+  return {
+    supported,
+    platform: settings?.capabilities?.platform ?? "unknown",
+    description: supported
+      ? "Use local playback metadata as a clock; no Spotify audio is captured."
+      : "Windows only for now — automatic OS Now Playing detection is unavailable on this device.",
+  };
+}
+
 function attachmentLabel(value) {
   let filename = String(value).split(/[?#]/, 1)[0].split("/").pop() || "Music";
   try {
@@ -248,6 +259,8 @@ function settingRow() {
   const toggles = document.createElement("div");
   toggles.className = "htf-listener-settings__toggles";
   const controls = {};
+  const optionRows = {};
+  const optionDetails = {};
   const addToggle = (key, labelText, description) => {
     const row = document.createElement("div");
     row.className = "htf-listener-settings__option";
@@ -271,6 +284,8 @@ function settingRow() {
     row.append(copy, label);
     toggles.append(row);
     controls[key] = input;
+    optionRows[key] = row;
+    optionDetails[key] = detail;
   };
   addToggle(
     "libraryEnabled",
@@ -329,6 +344,9 @@ function settingRow() {
     pathInput.disabled = value;
     save.disabled = value;
     for (const input of Object.values(controls)) input.disabled = value;
+    if (optionRows.sharedListening.classList.contains("is-unavailable")) {
+      controls.sharedListening.disabled = true;
+    }
   };
 
   const updateStatus = async () => {
@@ -439,9 +457,17 @@ function settingRow() {
     fetch(`${API_ROOT}/settings`).then((response) => response.json()),
     fetch(`${API_ROOT}/status`).then((response) => response.json()),
   ]).then(([settings, runtime]) => {
+    const sharedListening = sharedListeningCapability(settings);
     pathInput.value = settings.libraryPath ?? "";
     for (const [key, input] of Object.entries(controls)) {
       input.checked = settings[key] === true;
+    }
+    if (!sharedListening.supported) {
+      controls.sharedListening.checked = false;
+      controls.sharedListening.title = sharedListening.description;
+      optionRows.sharedListening.classList.add("is-unavailable");
+      optionRows.sharedListening.dataset.platform = sharedListening.platform;
+      optionDetails.sharedListening.textContent = sharedListening.description;
     }
     setDisabled(false);
     status.textContent = runtime.ready
@@ -569,4 +595,5 @@ globalThis.__HTF_MUSIC_LISTENER_TEST__ = {
   findSettingsMount,
   mergeAttachmentAccept,
   isMusicAttachment,
+  sharedListeningCapability,
 };

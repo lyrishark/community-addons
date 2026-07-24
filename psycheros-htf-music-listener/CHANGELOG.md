@@ -3,6 +3,10 @@
 ## 0.2.0 - 2026-07-24
 
 - Declare tested Psycheros 0.10.x and Launcher 0.2.45+ compatibility.
+- Grey out Share Now Playing on macOS and Linux with a clear Windows-only
+  explanation, while leaving manual music listening and library features
+  available; advertise the host capability from the plugin backend and reject
+  unsupported attempts server-side.
 - Add a manager-native settings page plus a monorepo-aware, compatibility-safe GitHub
   update channel.
 - Publish only the trusted plugin package for 0.10; retain older legacy packages under

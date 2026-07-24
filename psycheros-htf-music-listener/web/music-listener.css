@@ -154,6 +154,15 @@
   font-weight: 600;
 }
 
+.htf-listener-settings__option.is-unavailable {
+  opacity: 0.58;
+}
+
+.htf-listener-settings__option.is-unavailable
+  .htf-listener-settings__option-name {
+  color: var(--c-fg-muted);
+}
+
 .htf-listener-settings__toggle {
   flex: 0 0 auto;
 }

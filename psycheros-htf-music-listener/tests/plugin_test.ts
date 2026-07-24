@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { join } from "node:path";
-import plugin, { resolveAttachmentPath } from "../psycheros.ts";
+import plugin, {
+  resolveAttachmentPath,
+  supportsSharedListening,
+} from "../psycheros.ts";
 import { formatHtfSensoryObjectForAttachment } from "../lib/htf.ts";
 
 Deno.test("manifest and tool expose the explicit music boundary", async () => {
@@ -24,6 +27,12 @@ Deno.test("manifest and tool expose the explicit music boundary", async () => {
   assert.match(tool.description, /explicitly asks me to listen/i);
   assert.match(tool.description, /do not use this for voice notes/i);
   assert.deepEqual(tool.parameters.required, ["audio_path"]);
+});
+
+Deno.test("shared Now Playing capability is Windows-only", () => {
+  assert.equal(supportsSharedListening("windows"), true);
+  assert.equal(supportsSharedListening("darwin"), false);
+  assert.equal(supportsSharedListening("linux"), false);
 });
 
 Deno.test("attachment paths stay inside Psycheros chat attachments", async () => {
@@ -154,6 +163,10 @@ Deno.test("entity-view setting defaults off and persists through plugin routes",
       autoLyrics: true,
       precomputeHtf: true,
       sharedListening: false,
+      capabilities: {
+        sharedListening: Deno.build.os === "windows",
+        platform: Deno.build.os,
+      },
     });
 
     const saved = await postRoute.handler(

@@ -46,6 +46,10 @@ interface ListenerSettings {
   sharedListening: boolean;
 }
 
+export function supportsSharedListening(os = Deno.build.os): boolean {
+  return os === "windows";
+}
+
 interface CommandResult {
   success: boolean;
   code: number;
@@ -910,7 +914,13 @@ async function settingsRoute(
   services: PluginServices,
 ): Promise<Response> {
   if (request.method === "GET") {
-    return Response.json(await readSettings(services.statePath));
+    return Response.json({
+      ...await readSettings(services.statePath),
+      capabilities: {
+        sharedListening: supportsSharedListening(),
+        platform: Deno.build.os,
+      },
+    });
   }
   let body: unknown;
   try {
@@ -946,6 +956,12 @@ async function settingsRoute(
       );
     }
     next[key] = input[key] as boolean;
+  }
+  if (next.sharedListening && !supportsSharedListening()) {
+    return Response.json(
+      { error: "Share Now Playing currently requires Windows." },
+      { status: 400 },
+    );
   }
   if ("libraryPath" in input) {
     if (typeof input.libraryPath !== "string" || input.libraryPath.length > 4096) {
