@@ -46,17 +46,23 @@
       {
         "id": "psycheros-accessibility-controls",
         "version": "0.1.0-rc.1",
-        "package_path": "psycheros-accessibility-controls"
+        "package_path": "psycheros-accessibility-controls",
+        "artifact": "psycheros-accessibility-controls-0.1.0-rc.1.zip",
+        "sha256": "280fbb242ced8e974496d43124040163ac88113979871a7a73edd5c54fa59236"
       },
       {
         "id": "psycheros-windows-shell-fix",
         "version": "0.3.0-rc.1",
-        "package_path": "psycheros-windows-shell-fix"
+        "package_path": "psycheros-windows-shell-fix",
+        "artifact": "psycheros-windows-shell-fix-0.3.0-rc.1.zip",
+        "sha256": "98ae2afe8ca499dab80d87d3832e9bc9156b2430a8edc505a9b3077642d2d654"
       },
       {
         "id": "psycheros-htf-music-listener",
         "version": "0.2.0",
-        "package_path": "psycheros-htf-music-listener"
+        "package_path": "psycheros-htf-music-listener",
+        "artifact": "psycheros-htf-music-listener-0.2.0-windows-x64.zip",
+        "sha256": "088382c5cedb660b342573ba9c24bc0676b8ae9dfd3b79fb34a61d12ad1e78db"
       }
     ]
   },

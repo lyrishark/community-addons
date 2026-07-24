@@ -1,5 +1,11 @@
 088382c5cedb660b342573ba9c24bc0676b8ae9dfd3b79fb34a61d12ad1e78db  psycheros-htf-music-listener-0.2.0-windows-x64.zip
 280fbb242ced8e974496d43124040163ac88113979871a7a73edd5c54fa59236  psycheros-accessibility-controls-0.1.0-rc.1.zip
 98ae2afe8ca499dab80d87d3832e9bc9156b2430a8edc505a9b3077642d2d654  psycheros-windows-shell-fix-0.3.0-rc.1.zip
+a903950e3ebf3914a2b8798db056ea928a09127b81d220187c78cf5009fa5c6c  psycheros-more-uploads-0.3.0-rc.1.zip
+5eb9c920780f0aca9c96539dc0185bdfac1c166829a9d351f538fe7a72aef9d6  psycheros-expression-sprites-beta-0.3.0-rc.1.zip
+dd1ec682f13844e49135ee49ab391ede011da1405b5ab49b3ae63a719fd4f935  psycheros-screen-presence-alpha-0.3.0-rc.1.zip
+ebd1887d14ea2a2647251905fce0843d474143c9be95450a3c3e9f56da627813  psycheros-loom-gemini-parser-mod-0.3.0-rc.1.zip
+004c732805dfa3c8723bc80c6b61d3310d6ad54fbdfc67452dd0ea23974d0719  psycheros-more-uploads-voice-resize-0.3.0-rc.1.zip
+aa01816c54195050f7d4f1bbbc8f91cc2f3dce78a412fc24b0aa8b6665718747  psycheros-everything-together-0.3.0-rc.1.zip
 a6cfb75f3f7b31ff04c44e594ef1ad70d735713ba4e964c0af586a1d8349443b  psycheros-entity-core-codex-plugin-0.2.2.zip
 146b87ed6b97d2c0ba087f30b31191c3ae60586fe11dd28858ee7f98f2205ec0  psycheros-entity-core-chatgpt-private-0.1.3.zip

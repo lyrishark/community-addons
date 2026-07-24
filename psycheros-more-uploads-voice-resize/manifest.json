@@ -29,7 +29,9 @@
       {
         "id": "psycheros-accessibility-controls",
         "version": "0.1.0-rc.1",
-        "package_path": "psycheros-accessibility-controls"
+        "package_path": "psycheros-accessibility-controls",
+        "artifact": "psycheros-accessibility-controls-0.1.0-rc.1.zip",
+        "sha256": "280fbb242ced8e974496d43124040163ac88113979871a7a73edd5c54fa59236"
       }
     ]
   },

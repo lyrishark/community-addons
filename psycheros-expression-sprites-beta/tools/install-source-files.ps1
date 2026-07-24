@@ -14,7 +14,7 @@ $Manifest = Get-Content -LiteralPath $ManifestPath -Raw | ConvertFrom-Json
 $Root = (Resolve-Path -LiteralPath $PsycherosRoot).Path
 $DenoJson = Join-Path $Root "packages\psycheros\deno.json"
 $TargetPackageRel = [string]$Manifest.source_bridge.backup_package
-$TargetPackageDir = Join-Path $Root $TargetPackageRel
+$TargetPackageDir = [IO.Path]::GetFullPath((Join-Path $Root $TargetPackageRel))
 
 function Assert-SafeChildPath {
   param(
