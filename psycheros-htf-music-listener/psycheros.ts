@@ -4,6 +4,8 @@ import {
   formatHtfSensoryObjectForAttachment,
   type HtfPreviewImage,
 } from "./lib/htf.ts";
+import { type LibrarySettings, MusicLibrary } from "./lib/library.ts";
+import { PlaybackPresence } from "./lib/playback.ts";
 
 const PLUGIN_ID = "psycheros-htf-music-listener";
 const PLUGIN_ROOT = dirname(fileURLToPath(import.meta.url));
@@ -37,6 +39,11 @@ interface ToolContext {
 interface ListenerSettings {
   displayEntityView: boolean;
   retentionDays: number;
+  libraryPath: string;
+  libraryEnabled: boolean;
+  autoLyrics: boolean;
+  precomputeHtf: boolean;
+  sharedListening: boolean;
 }
 
 interface CommandResult {
@@ -70,6 +77,7 @@ interface AudioProbe {
   formatName: string;
   title?: string;
   artist?: string;
+  album?: string;
 }
 
 interface ArtifactFile {
@@ -93,6 +101,8 @@ interface ArtifactManifest {
 let statePath: string | undefined;
 let runtimePromise: Promise<MusicRuntime> | undefined;
 let ffmpegBootstrapPromise: Promise<FfmpegPair> | undefined;
+let musicLibrary: MusicLibrary | undefined;
+let playbackPresence: PlaybackPresence | undefined;
 let analysisActive = false;
 const analysisWaiters: Array<() => void> = [];
 
@@ -122,6 +132,13 @@ async function readSettings(root: string): Promise<ListenerSettings> {
   const defaults: ListenerSettings = {
     displayEntityView: false,
     retentionDays: DEFAULT_RETENTION_DAYS,
+    libraryPath: Deno.env.get(
+      "PSYCHEROS_PLUGIN_HTF_MUSIC_LISTENER_LIBRARY",
+    )?.trim() ?? "",
+    libraryEnabled: false,
+    autoLyrics: true,
+    precomputeHtf: true,
+    sharedListening: false,
   };
   try {
     const raw = JSON.parse(await Deno.readTextFile(settingsPath(root)));
@@ -132,6 +149,13 @@ async function readSettings(root: string): Promise<ListenerSettings> {
           raw.retentionDays <= 90
         ? Math.round(raw.retentionDays)
         : defaults.retentionDays,
+      libraryPath: typeof raw?.libraryPath === "string"
+        ? raw.libraryPath.trim()
+        : defaults.libraryPath,
+      libraryEnabled: raw?.libraryEnabled === true,
+      autoLyrics: raw?.autoLyrics !== false,
+      precomputeHtf: raw?.precomputeHtf !== false,
+      sharedListening: raw?.sharedListening === true,
     };
   } catch (error) {
     if (error instanceof Deno.errors.NotFound || error instanceof SyntaxError) {
@@ -520,7 +544,7 @@ async function probeAudio(
     "-v",
     "error",
     "-show_entries",
-    "format=duration,format_name:format_tags=title,artist",
+    "format=duration,format_name:format_tags=title,artist,album",
     "-of",
     "json",
     audioPath,
@@ -546,6 +570,7 @@ async function probeAudio(
     formatName: String(parsed?.format?.format_name ?? "unknown"),
     title: typeof tags.title === "string" ? tags.title.trim() : undefined,
     artist: typeof tags.artist === "string" ? tags.artist.trim() : undefined,
+    album: typeof tags.album === "string" ? tags.album.trim() : undefined,
   };
 }
 
@@ -616,55 +641,51 @@ function mimeType(filename: string): string {
   }
 }
 
-async function analyzeMusic(
-  args: Record<string, unknown>,
-  ctx: ToolContext,
-): Promise<{ content: string; isError?: boolean; toolCallId: string }> {
-  const rawPath = typeof args.audio_path === "string" ? args.audio_path.trim() : "";
-  if (!rawPath) {
-    return {
-      toolCallId: ctx.toolCallId,
-      content:
-        "I need the /chat-attachments/... path for the music file the human attached.",
-      isError: true,
-    };
-  }
+function htfArtifactFiles(): ArtifactFile[] {
+  return [
+    {
+      kind: "json",
+      filename: "flux_song_sensory_object_track.json",
+      label: "HTF v2 sensory object",
+      mimeType: "application/json; charset=utf-8",
+    },
+    {
+      kind: "waveform",
+      filename: "track_waveform.png",
+      label: "Waveform",
+      mimeType: "image/png",
+    },
+    {
+      kind: "mel_spectrogram",
+      filename: "track_mel_spectrogram.png",
+      label: "Mel spectrogram",
+      mimeType: "image/png",
+    },
+    {
+      kind: "rms_energy",
+      filename: "track_rms_energy.png",
+      label: "RMS energy",
+      mimeType: "image/png",
+    },
+    {
+      kind: "spectral_centroid",
+      filename: "track_spectral_centroid.png",
+      label: "Spectral centroid",
+      mimeType: "image/png",
+    },
+  ];
+}
 
-  const localState = statePath ?? join(
-    ctx.config.dataRoot,
-    ".psycheros",
-    "plugins",
-    PLUGIN_ID,
-    "state",
-  );
-  let runRoot: string | undefined;
+async function generateHtfBundle(
+  audioPath: string,
+  outputDirectory: string,
+  metadata: { title: string; artist?: string },
+): Promise<string> {
   await acquireAnalysisSlot();
+  const wavPath = join(outputDirectory, `.normalized-${crypto.randomUUID()}.wav`);
   try {
-    const audioPath = resolveAttachmentPath(rawPath, ctx.config.dataRoot);
-    const stat = await Deno.stat(audioPath);
-    if (!stat.isFile) throw new Error("The attached music path is not a file.");
-    if (stat.size > MAX_AUDIO_BYTES) {
-      throw new Error("This listening organ currently accepts files up to 1 GB.");
-    }
-
     const runtime = await getRuntime();
-    const probe = await probeAudio(runtime.ffprobe, audioPath);
-    const originalName = basename(audioPath);
-    const requestedTitle = typeof args.title === "string" ? args.title.trim() : "";
-    const requestedArtist = typeof args.artist === "string" ? args.artist.trim() : "";
-    const title = requestedTitle || probe.title || titleFromFilename(originalName);
-    const artist = requestedArtist || probe.artist || undefined;
-    const settings = await readSettings(localState);
-    const showEntityView = typeof args.show_entity_view === "boolean"
-      ? args.show_entity_view
-      : settings.displayEntityView;
-
-    await cleanupOldArtifacts(localState, settings.retentionDays);
-    const runId = crypto.randomUUID();
-    runRoot = join(artifactsPath(localState), runId);
-    await Deno.mkdir(runRoot, { recursive: true });
-    const wavPath = join(runRoot, "normalized.wav");
-
+    await Deno.mkdir(outputDirectory, { recursive: true });
     const convert = await runCommand(runtime.ffmpeg, [
       "-nostdin",
       "-hide_banner",
@@ -691,17 +712,16 @@ async function analyzeMusic(
         }`,
       );
     }
-
     const worker = await runCommand(runtime.worker.command, [
       ...runtime.worker.prefixArgs,
       "--audio",
       wavPath,
       "--out_dir",
-      runRoot,
+      outputDirectory,
       "--title",
-      title,
+      metadata.title,
       "--artist",
-      artist ?? "",
+      metadata.artist ?? "",
       "--slug",
       "track",
     ], 10 * 60_000);
@@ -712,45 +732,66 @@ async function analyzeMusic(
         }`,
       );
     }
-
-    await Deno.remove(wavPath).catch(() => undefined);
-    const files: ArtifactFile[] = [
-      {
-        kind: "json",
-        filename: "flux_song_sensory_object_track.json",
-        label: "HTF v2 sensory object",
-        mimeType: "application/json; charset=utf-8",
-      },
-      {
-        kind: "waveform",
-        filename: "track_waveform.png",
-        label: "Waveform",
-        mimeType: "image/png",
-      },
-      {
-        kind: "mel_spectrogram",
-        filename: "track_mel_spectrogram.png",
-        label: "Mel spectrogram",
-        mimeType: "image/png",
-      },
-      {
-        kind: "rms_energy",
-        filename: "track_rms_energy.png",
-        label: "RMS energy",
-        mimeType: "image/png",
-      },
-      {
-        kind: "spectral_centroid",
-        filename: "track_spectral_centroid.png",
-        label: "Spectral centroid",
-        mimeType: "image/png",
-      },
-    ];
-    for (const file of files) {
-      if (!(await exists(join(runRoot, file.filename)))) {
+    for (const file of htfArtifactFiles()) {
+      if (!(await exists(join(outputDirectory, file.filename)))) {
         throw new Error(`The HTF worker did not create ${file.filename}.`);
       }
     }
+    return join(outputDirectory, "flux_song_sensory_object_track.json");
+  } finally {
+    await Deno.remove(wavPath).catch(() => undefined);
+    releaseAnalysisSlot();
+  }
+}
+
+async function analyzeMusic(
+  args: Record<string, unknown>,
+  ctx: ToolContext,
+): Promise<{ content: string; isError?: boolean; toolCallId: string }> {
+  const rawPath = typeof args.audio_path === "string" ? args.audio_path.trim() : "";
+  if (!rawPath) {
+    return {
+      toolCallId: ctx.toolCallId,
+      content:
+        "I need the /chat-attachments/... path for the music file the human attached.",
+      isError: true,
+    };
+  }
+
+  const localState = statePath ?? join(
+    ctx.config.dataRoot,
+    ".psycheros",
+    "plugins",
+    PLUGIN_ID,
+    "state",
+  );
+  let runRoot: string | undefined;
+  try {
+    const audioPath = resolveAttachmentPath(rawPath, ctx.config.dataRoot);
+    const stat = await Deno.stat(audioPath);
+    if (!stat.isFile) throw new Error("The attached music path is not a file.");
+    if (stat.size > MAX_AUDIO_BYTES) {
+      throw new Error("This listening organ currently accepts files up to 1 GB.");
+    }
+
+    const runtime = await getRuntime();
+    const probe = await probeAudio(runtime.ffprobe, audioPath);
+    const originalName = basename(audioPath);
+    const requestedTitle = typeof args.title === "string" ? args.title.trim() : "";
+    const requestedArtist = typeof args.artist === "string" ? args.artist.trim() : "";
+    const title = requestedTitle || probe.title || titleFromFilename(originalName);
+    const artist = requestedArtist || probe.artist || undefined;
+    const settings = await readSettings(localState);
+    const showEntityView = typeof args.show_entity_view === "boolean"
+      ? args.show_entity_view
+      : settings.displayEntityView;
+
+    await cleanupOldArtifacts(localState, settings.retentionDays);
+    const runId = crypto.randomUUID();
+    runRoot = join(artifactsPath(localState), runId);
+    await Deno.mkdir(runRoot, { recursive: true });
+    await generateHtfBundle(audioPath, runRoot, { title, artist });
+    const files = htfArtifactFiles();
 
     const manifest: ArtifactManifest = {
       schemaVersion: 1,
@@ -822,8 +863,6 @@ async function analyzeMusic(
       isError: true,
       content: `I could not listen to that music file yet: ${safeError(error)}`,
     };
-  } finally {
-    releaseAnalysisSlot();
   }
 }
 
@@ -881,15 +920,134 @@ async function settingsRoute(
   }
   const current = await readSettings(services.statePath);
   const input = body as Record<string, unknown>;
-  if (typeof input?.displayEntityView !== "boolean") {
+  const next = { ...current };
+  const booleanKeys: Array<
+    keyof Pick<
+      ListenerSettings,
+      | "displayEntityView"
+      | "libraryEnabled"
+      | "autoLyrics"
+      | "precomputeHtf"
+      | "sharedListening"
+    >
+  > = [
+    "displayEntityView",
+    "libraryEnabled",
+    "autoLyrics",
+    "precomputeHtf",
+    "sharedListening",
+  ];
+  for (const key of booleanKeys) {
+    if (!(key in input)) continue;
+    if (typeof input[key] !== "boolean") {
+      return Response.json(
+        { error: `${key} must be true or false.` },
+        { status: 400 },
+      );
+    }
+    next[key] = input[key] as boolean;
+  }
+  if ("libraryPath" in input) {
+    if (typeof input.libraryPath !== "string" || input.libraryPath.length > 4096) {
+      return Response.json(
+        { error: "libraryPath must be a local folder path." },
+        { status: 400 },
+      );
+    }
+    next.libraryPath = input.libraryPath.trim();
+  }
+  if (next.libraryEnabled && !next.libraryPath) {
     return Response.json(
-      { error: "displayEntityView must be true or false." },
+      { error: "Choose a music-library folder before enabling the library." },
       { status: 400 },
     );
   }
-  const next = { ...current, displayEntityView: input.displayEntityView };
+  if (next.libraryEnabled) {
+    const stat = await Deno.stat(next.libraryPath).catch(() => undefined);
+    if (!stat?.isDirectory) {
+      return Response.json(
+        { error: "That music-library folder does not exist." },
+        { status: 400 },
+      );
+    }
+  }
   await writeSettings(services.statePath, next);
+  const libraryChanged = current.libraryPath !== next.libraryPath ||
+    current.libraryEnabled !== next.libraryEnabled ||
+    current.autoLyrics !== next.autoLyrics ||
+    current.precomputeHtf !== next.precomputeHtf;
+  if (libraryChanged) await musicLibrary?.reconfigure();
+  if (libraryChanged || current.sharedListening !== next.sharedListening) {
+    await playbackPresence?.restart();
+  }
   return Response.json({ success: true, settings: next });
+}
+
+function libraryScanRoute(): Response {
+  if (!musicLibrary) {
+    return Response.json({ error: "The music library is not running." }, {
+      status: 503,
+    });
+  }
+  musicLibrary.requestScan("manual");
+  return Response.json({ success: true, status: musicLibrary.status() });
+}
+
+function libraryStatusRoute(): Response {
+  return Response.json({
+    library: musicLibrary?.status() ?? {
+      enabled: false,
+      running: false,
+      stage: "stopped",
+      detail: "The plugin is not running.",
+    },
+    playback: playbackPresence?.status() ?? {
+      available: false,
+      running: false,
+    },
+  });
+}
+
+function lyricReviewsRoute(): Response {
+  return Response.json({ reviews: musicLibrary?.reviews() ?? [] });
+}
+
+async function lyricReviewRoute(request: Request): Promise<Response> {
+  if (!musicLibrary) {
+    return Response.json({ error: "The music library is not running." }, {
+      status: 503,
+    });
+  }
+  let body: Record<string, unknown>;
+  try {
+    body = await request.json();
+  } catch {
+    return Response.json({ error: "Review decision must be JSON." }, { status: 400 });
+  }
+  if (typeof body.key !== "string") {
+    return Response.json({ error: "A library track key is required." }, {
+      status: 400,
+    });
+  }
+  const candidateId = typeof body.candidateId === "number"
+    ? body.candidateId
+    : undefined;
+  const noLyrics = body.noLyrics === true;
+  if (!candidateId && !noLyrics) {
+    return Response.json(
+      { error: "Choose a lyric candidate or mark this track as having no match." },
+      { status: 400 },
+    );
+  }
+  try {
+    const track = await musicLibrary.resolveLyricsReview(body.key, {
+      candidateId,
+      noLyrics,
+    });
+    return Response.json({ success: true, track });
+  } catch (error) {
+    return Response.json({ error: safeError(error) }, { status: 400 });
+  }
 }
 
 async function artifactRoute(
@@ -933,6 +1091,8 @@ async function statusRoute(): Promise<Response> {
       worker: runtime.worker.label,
       ffmpeg: runtime.ffmpeg,
       ffmpegSource: runtime.ffmpegSource,
+      library: musicLibrary?.status(),
+      playback: playbackPresence?.status(),
     });
   } catch (error) {
     return Response.json({ ready: false, error: safeError(error) });
@@ -941,22 +1101,70 @@ async function statusRoute(): Promise<Response> {
 
 export default {
   tools: [listenToMusicTool],
+  promptHooks: [{
+    name: "shared-music-presence",
+    priority: 20,
+    timeoutMs: 2_000,
+    maxChars: 8_000,
+    async run(context: { conversationId: string }) {
+      return await playbackPresence?.promptContext(context.conversationId);
+    },
+  }],
   routes: [
     { method: "GET", path: "/settings", handler: settingsRoute },
     { method: "POST", path: "/settings", handler: settingsRoute },
     { method: "GET", path: "/status", handler: statusRoute },
     { method: "GET", path: "/artifact", handler: artifactRoute },
+    { method: "GET", path: "/library/status", handler: libraryStatusRoute },
+    { method: "POST", path: "/library/scan", handler: libraryScanRoute },
+    { method: "GET", path: "/library/reviews", handler: lyricReviewsRoute },
+    { method: "POST", path: "/library/review", handler: lyricReviewRoute },
   ],
+  settingsFragment() {
+    return '<div id="htf-music-listener-settings-mount"></div>';
+  },
   async start(services: PluginServices) {
     statePath = services.statePath;
     await Deno.mkdir(artifactsPath(services.statePath), { recursive: true });
     const settings = await readSettings(services.statePath);
     await cleanupOldArtifacts(services.statePath, settings.retentionDays);
+    const getSettings = async (): Promise<LibrarySettings> => {
+      const current = await readSettings(services.statePath);
+      return {
+        libraryPath: current.libraryPath,
+        libraryEnabled: current.libraryEnabled,
+        autoLyrics: current.autoLyrics,
+        precomputeHtf: current.precomputeHtf,
+      };
+    };
+    musicLibrary = new MusicLibrary({
+      getSettings,
+      probe: async (path) => {
+        const runtime = await getRuntime();
+        return await probeAudio(runtime.ffprobe, path);
+      },
+      generateHtf: generateHtfBundle,
+      log: (message) => console.warn(`[${PLUGIN_ID}] ${message}`),
+    });
+    await musicLibrary.start();
+    playbackPresence = new PlaybackPresence({
+      library: musicLibrary,
+      enabled: async () => (await readSettings(services.statePath)).sharedListening,
+      watcherPath: services.env.get(
+        "PSYCHEROS_PLUGIN_HTF_MUSIC_LISTENER_NOW_PLAYING",
+      ),
+      log: (message) => console.warn(`[${PLUGIN_ID}] ${message}`),
+    });
+    await playbackPresence.start();
     getRuntime().catch((error) =>
       console.warn(`[${PLUGIN_ID}] Runtime is not ready yet:`, safeError(error))
     );
   },
-  stop() {
+  async stop() {
+    playbackPresence?.stop();
+    await musicLibrary?.stop();
+    playbackPresence = undefined;
+    musicLibrary = undefined;
     statePath = undefined;
     runtimePromise = undefined;
     ffmpegBootstrapPromise = undefined;

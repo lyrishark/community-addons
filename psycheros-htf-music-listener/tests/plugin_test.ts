@@ -9,7 +9,16 @@ Deno.test("manifest and tool expose the explicit music boundary", async () => {
   );
   assert.equal(manifest.id, "psycheros-htf-music-listener");
   assert.equal(manifest.apiVersion, 1);
+  assert.equal(manifest.version, "0.2.0");
+  assert.equal(manifest.compatibility.psycheros, ">=0.10.0 <0.11.0");
+  assert.equal(manifest.capabilities.settings, true);
+  assert.equal(
+    manifest.update.packagePath,
+    "psycheros-htf-music-listener",
+  );
   assert.equal(plugin.tools.length, 1);
+  assert.equal(plugin.promptHooks.length, 1);
+  assert.match(plugin.settingsFragment(), /htf-music-listener-settings-mount/);
   const tool = plugin.tools[0].definition.function;
   assert.equal(tool.name, "listen_to_music");
   assert.match(tool.description, /explicitly asks me to listen/i);
@@ -140,6 +149,11 @@ Deno.test("entity-view setting defaults off and persists through plugin routes",
     assert.deepEqual(await initial.json(), {
       displayEntityView: false,
       retentionDays: 7,
+      libraryPath: "",
+      libraryEnabled: false,
+      autoLyrics: true,
+      precomputeHtf: true,
+      sharedListening: false,
     });
 
     const saved = await postRoute.handler(

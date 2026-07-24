@@ -1,82 +1,76 @@
 # Psycheros Community Addons
 
-Community-built, local-first addons for Psycheros. They are source-visible and
-are not official Psycheros releases.
+Community-built, local-first companion projects for Psycheros. They are
+source-visible and are not official Psycheros releases.
 
-Read [COMPATIBILITY.md](COMPATIBILITY.md) before installing. The current source
-packages target **Psycheros 0.9.2 exactly** unless their own manifest says
-otherwise.
+Read [COMPATIBILITY.md](COMPATIBILITY.md) before installing anything.
 
-## Current packages
+## Current Psycheros 0.10 addon
 
-| Package | Current source | What it adds |
+| Package | Version | Install surface | What it adds |
+| --- | --- | --- | --- |
+| [HTF Music Listener](psycheros-htf-music-listener/README.md) | 0.2.0 prepared | Settings > Plugins | Explicit one-off HTF listening plus an opt-in local sensory library, verified synced lyrics, and shared Windows Now Playing presence. |
+
+HTF Music Listener 0.2.0 is a trusted API-v1 plugin. It declares Psycheros
+`>=0.10.0 <0.11.0`, Launcher `>=0.2.45`, the official plugin-settings
+capability, and a compatibility-safe GitHub update channel.
+
+Install the release zip through **Settings > Plugins**. Ember/Nyx builds that
+contain the compatibility-safe updater can also inspect this repository with
+package path `psycheros-htf-music-listener`; the same metadata lets later
+compatible tags appear as one-click updates. The corresponding upstream change
+is tracked in [Psycheros PR #37](https://github.com/PsycherosAI/Psycheros/pull/37).
+
+## Historical Psycheros source packages
+
+The following directories are preserved as exact Psycheros 0.9.2 artifacts:
+
+- `psycheros-expression-sprites-beta`
+- `psycheros-accessible-font-settings`
+- `psycheros-more-uploads`
+- `psycheros-voice-text-resize`
+- `psycheros-more-uploads-voice-resize`
+- `psycheros-screen-presence-alpha`
+- `psycheros-windows-shell-fix`
+- `psycheros-loom-gemini-parser-mod`
+- `psycheros-everything-together`
+
+They are guarded `manifest.json` source replacements, not plugin-manager
+packages, and they must not be installed over Psycheros 0.10. Their old tags,
+release assets, manifests, installers, and documentation remain available so a
+0.9.2 installation can be reproduced without turning those snapshots into the
+current recommendation.
+
+No new 0.10 source-overlay bundle is planned. Features that are now native or
+permanent in the maintained Psycheros channels should be developed there;
+future community addons should use supported plugin APIs.
+
+## Other companion projects
+
+These repository projects are versioned independently and do not install into
+the Psycheros plugin manager:
+
+| Project | Public/prepared version | Surface |
 | --- | --- | --- |
-| [Thread Exporter](browser-thread-exporter/README.md) | 0.3.2 | Exports ChatGPT, Claude, and Gemini threads; merges Gemini timestamps; injects selected local memory context. |
-| [Entity Core for Codex](codex-entity-core-plugin/README.md) | 0.2.1 public | Connects Codex to local Entity Core through MCP. |
-| [Entity Core for ChatGPT](chatgpt-entity-core-private/START_HERE.md) | 0.1.3 prepared | Private OAuth bridge from ChatGPT Developer Mode to local Entity Core. |
-| [Loom Gemini Parser Mod](psycheros-loom-gemini-parser-mod/README.md) | 0.2.0 prepared | Imports merged Gemini batch exports into Entity Loom. |
-| [Accessible Font Settings](psycheros-accessible-font-settings/README.md) | 0.2.0 prepared | Text sizing and reading-oriented font presets. |
-| [Windows Shell Fix](psycheros-windows-shell-fix/README.md) | 0.2.0 prepared | Uses the host Windows shell with a safe PowerShell-to-cmd spawn fallback. |
-| [Screen Presence Alpha](psycheros-screen-presence-alpha/README.md) | 0.2.0 prepared | User-controlled screen context for chat and voice. |
-| [Expression Sprites Beta](psycheros-expression-sprites-beta/README.md) | 0.2.0 prepared | Streaming expressions, sprite packs, chat/voice display, and persistence. |
-| [More Uploads](psycheros-more-uploads/README.md) | 0.2.0 prepared | Multiple images, documents, and music files in chat and typed voice. |
-| [Voice Text Resize](psycheros-voice-text-resize/README.md) | 0.2.0 prepared | Adaptive and manually resizable Yin Yang typed input. |
-| [Uploads + Voice Resize](psycheros-more-uploads-voice-resize/README.md) | 0.2.0 prepared | The two overlapping UI features composed safely. |
-| [Everything Together](psycheros-everything-together/README.md) | 0.2.0 prepared | The current 0.9.2 source features composed in one package; Windows x64 release also bundles HTF legacy. |
-| [HTF Music Listener](psycheros-htf-music-listener/README.md) | 0.1.3 prepared | A trusted local plugin that produces an HTF v2 sensory handoff for explicitly requested music. |
+| [Thread Exporter](browser-thread-exporter/README.md) | 0.3.2 public | Browser extension for exporting ChatGPT, Claude, and Gemini threads. |
+| [Entity Core for Codex](codex-entity-core-plugin/README.md) | 0.2.1 public | Codex MCP/plugin package; its bundled Entity Core snapshot is separate from the Psycheros 0.10 runtime. |
+| [Entity Core for ChatGPT](chatgpt-entity-core-private/START_HERE.md) | 0.1.3 prepared; 0.1.1 public | Private OAuth bridge; not a Psycheros addon. |
 
-“Prepared” means the source, release notes, and archive are ready on the current
-branch. It does not mean a matching public tag or GitHub release exists yet.
+Do not infer Entity Core 0.6 compatibility from those package numbers. Use each
+project's own release notes and compatibility statement.
 
-## Choosing a source package
-
-Use one package for any files it owns:
-
-- Choose **Everything Together** for uploads, voice resize, fonts, Windows
-  shell handling, screen presence, and expression sprites in one installation.
-- Choose **Uploads + Voice Resize** when those are the only two overlapping UI
-  changes needed.
-- Otherwise use the narrow standalone package.
-- The Gemini parser changes Entity Loom and can be installed independently.
-- HTF's normal package is a trusted plugin. Its separately labeled legacy
-  Windows package is for source-based Custom Tools installations.
-
-Everything Together 0.2.0 deliberately excludes three unrelated experiments
-that appeared in older integration snapshots: missing-response regeneration,
-voice-started auto-titling, and queued typed-turn draining.
-
-## Add-on manager boundary
-
-The Psycheros add-on manager can install the API-v1 HTF plugin. It cannot safely
-install or update the `manifest.json` source-file mods because those replace
-core Psycheros or Entity Loom files. Download and extract those packages, then
-run their guarded `install.ps1` or `install.sh`. Each current source installer:
-
-- accepts Psycheros 0.9.2 only;
-- makes timestamped backups before replacement;
-- refuses unsupported versions before changing files;
-- preserves Psycheros data, identity, memory, and state directories.
-
-Official Psycheros source updates can replace modded files. Reinstall the
-matching source package after updating Psycheros.
-
-## Releases and checksums
+## Releases and trust
 
 Public downloads are on [GitHub Releases](https://github.com/lyrishark/community-addons/releases).
-Prepared 0.2.0 archives are listed in [SHA256SUMS.txt](SHA256SUMS.txt); their
-release links should be added only after the branch is merged, tagged, and
-published.
-
-Older public versions remain available for their documented Psycheros versions.
-Do not infer current compatibility from an older release number.
-
-## Trust notes
+Prepared source or a local archive is not public until the matching branch is
+merged, tagged, and released. [SHA256SUMS.txt](SHA256SUMS.txt) records published
+or staged artifact checksums; older versions remain available for their stated
+Psycheros versions.
 
 - No analytics, ads, or developer-owned telemetry are included.
-- Browser actions and screen sharing are user-triggered.
-- The browser extension inserts reviewed context but never presses Send.
-- Entity Core connectors do not expose direct identity/core mutation.
-- Screen frames are transient; entity context receives compact text summaries.
-- Exact file-mod compatibility is enforced before installation.
+- Browser actions, music-library sharing, and screen sharing are user-triggered.
+- Trusted plugins can read local data and run code; inspect their declared
+  capabilities before installation.
+- Exact source-mod compatibility is enforced before historical installation.
 
 Report bugs or questions in [GitHub Issues](https://github.com/lyrishark/community-addons/issues).

@@ -1,175 +1,138 @@
 # HTF Music Listener
 
-> **Psycheros 0.9.2 status:** Compatible with plugin version `0.1.3`, whose
-> manifest declares `>=0.8.23 <0.10.0`. Its manifest, tests, isolated 0.9 plugin
-> load, and live 0.9 runtime load were verified. The latest public GitHub
-> release is still `0.1.2`; use `0.1.3` as the 0.9 compatibility package once
-> that prepared release is published.
+HTF Music Listener gives a Psycheros entity two related local music senses:
 
-HTF Music Listener is a trusted local Psycheros plugin that gives an entity a single,
-natural music-listening action:
+1. **One-off listening:** attach a song, ask the entity to listen, and the
+   `listen_to_music` tool converts it to an HTF v2 sensory object.
+2. **Shared Now Playing:** point the plugin at an offline music library and it follows
+   the Windows media clock, aligning the current song, playback position, HTF timeline,
+   and verified synchronized lyrics on each conversation turn.
 
-1. A human attaches a music file.
-2. The human asks the entity to listen to it.
-3. The entity calls `listen_to_music` and receives an HTF v2 sensory handoff.
-4. The entity answers naturally, without asking the human to convert or analyze anything
-   first.
+The second path is not audio streaming. Spotify, a browser, or another media app
+supplies only local Now Playing metadata and timing. Musical evidence always comes from
+the human-owned audio file and its locally generated HTF bundle.
 
-The listening runtime accepts every audio or video container that FFmpeg can decode. The
-browser picker explicitly exposes common music formats: MP3, MP4/MPEG audio, WAV, FLAC,
-M4A, AAC, AIFF, OGG, Opus, and WebM. It extracts the first audio stream, converts it to a
-private mono WAV, runs the local HTF converter, and removes the temporary WAV after the
-analysis finishes.
+## One-off listening boundary
 
-## Important boundary
+The entity uses `listen_to_music` only when the human explicitly asks it to **listen to
+music** or identifies an attachment as music. It must not automatically analyze voice
+notes, voice chat, speech recordings, or every audio attachment.
 
-The tool description deliberately says to use this only when the human asks the entity
-to **listen to music**, or clearly identifies an attachment as music. It must not
-automatically analyze voice notes, voice chat, speech recordings, or every audio
-attachment.
+Common MP3, MP4/MPEG audio, WAV, FLAC, M4A, AAC, AIFF, OGG, Opus, and WebM files appear
+in the Psycheros picker. FFmpeg extracts the first audio stream, a private temporary
+mono WAV feeds the HTF worker, and that WAV is deleted afterward.
 
-## Entity view
+The saved **Display entity view** toggle affects only what the human sees. The entity
+always receives the same HTF evidence; the visible view additionally shows the JSON and
+waveform, mel-spectrogram, RMS-energy, and spectral-centroid graphs.
 
-The entity always receives the same musical sensory handoff. The saved **Display entity
-view** toggle controls only what the human sees:
+## Shared Now Playing
 
-- **Off (default):** the chat contains the entity's natural listening response.
-- **On:** the chat also shows the HTF JSON and the waveform, mel spectrogram,
-  RMS-energy, and spectral-centroid graphs.
+Open **Settings > Plugins > HTF Music Listener** (or the **Tools > Custom** fallback
+panel on transitional trusted-plugin builds), then:
 
-After installation and restart, open **Settings > Plugins > HTF Music Listener** to
-change the toggle. If a transitional build loads trusted plugins but does not expose
-their settings cards, the same panel falls back to **Settings > Tools > Custom**. A
-human can also explicitly ask to show or hide the entity view for one listening turn.
+1. Enter the folder containing the offline music collection.
+2. Enable **Maintain sensory library**.
+3. Leave synchronized lyrics and HTF precomputation on if desired.
+4. Enable **Share Now Playing**.
+5. Save.
+
+The library may be arranged however the human prefers. Artist folders without album
+folders are fine. Embedded title, artist, album, and duration tags are used first;
+`Artist - Title.ext` filenames and the parent folder provide safe fallbacks.
+
+The initial run is resumable and intentionally staged:
+
+- inventory files and read tags;
+- check existing same-stem `.lrc` files;
+- query LRCLIB's cached database with respectful pacing;
+- auto-save only high-confidence synchronized matches;
+- list ambiguous matches in **Lyrics needing review**;
+- build one HTF sensory object at a time after lyric review data is available.
+
+Completed work is indexed under `<music library>/.psycheros/`. Generated HTF bundles
+live in `.psycheros/derived/<audio-content-hash>/`; confident LRCLIB matches are written
+beside the song as same-stem `.lrc` files. New audio is noticed automatically; a later
+hand-supplied LRC is picked up at startup or with **Scan now**. Nothing requires a
+static manifest as the collection grows.
+
+On an actual conversation turn, the plugin contributes only a bounded interval: the
+playback segment since the prior turn in that conversation, the current HTF phase and
+salient events, compact signal evidence, and a few locally verified LRC lines. There is
+no low-latency model stream and no wakeup per media frame.
+
+If Windows reports a song that is not safely matched to the offline collection, the
+entity receives the title and clock but is explicitly told it has not heard that music.
+A currently playing song is prioritized if its HTF bundle is still waiting in the
+background queue.
 
 ## Lyrics and words
 
-HTF describes time-varying energy, brightness, spectral change, rhythmic structure,
-chroma, phases, and salient events. It does **not** reliably recover spoken or sung
-words.
+HTF does not recover reliable spoken or sung words. Shared listening uses only an
+existing local LRC or a reviewed/high-confidence LRCLIB match. Live versions, remasters,
+rerecordings, and radio edits often need review because their timing can differ even
+when the title is identical.
 
-If lyrics matter, paste them in the same message as the audio or attach an `.lrc` file.
-Timestamped LRC text is ideal:
+LRCLIB integration is optional. It uses the service's public API without an API key and
+sends only title, artist, album, and duration—not audio. Disable **Fetch synchronized
+lyrics** to keep lyric work entirely offline.
+
+For one-off attachments, include timestamped LRC text when words matter:
 
 ```text
 [00:14.20] First lyric line
 [00:18.75] Next lyric line
 ```
 
-Synced lyrics from a source such as [LRCLIB](https://lrclib.net/) work well, but verify
-that they match the exact recording. Live versions, remasters, and radio edits often
-drift from another release's timestamps. The plugin does not download, transcribe, or
-guess lyrics.
+## Requirements and compatibility
 
-## Requirements
+The trusted-plugin package requires:
 
-This release requires:
+- Windows x64 for shared Now Playing;
+- Psycheros 0.10.x;
+- Launcher 0.2.45 or newer.
 
-- Windows x64;
-- Psycheros 0.9.x, or Psycheros 0.8.23 with the trusted local plugin host used
-  by the Rae/Ember build;
-- Launcher 0.2.42 or newer.
+Version 0.2.0 is not a source overlay. Do not install the old More Uploads, Everything
+Together, or legacy HTF packages over Psycheros 0.10.
 
-Plain upstream Psycheros 0.8.23 does not yet contain that plugin host. Do not advertise
-version number alone as sufficient compatibility.
+## Runtime and installation
 
-Psycheros 0.9.x includes the official trusted-plugin manager. Install the normal
-`0.1.3` plugin package through **Settings > Plugins**; the plugin has been validated and
-loaded non-degraded against Psycheros 0.9.0.
+The Windows release includes the HTF worker and the small local Now Playing watcher. If
+FFmpeg is unavailable, the plugin downloads Gyan's pinned FFmpeg 8.1.1 Essentials
+archive once, verifies its SHA-256 digest, and stores the extracted runtime locally. End
+users do not need Python or PATH edits.
 
-Release `0.1.3` also provides a separately named **legacy** Windows package for those
-plain-upstream builds. It uses Psycheros's existing Custom Tools loader and appends one
-marked, removable browser enhancement so the Display entity view toggle appears under
-**Settings > Tools > Custom**. The legacy installer is intentionally not presented as a
-native plugin: source updates can replace its browser enhancement, in which case the
-installer can be run again. Remove the legacy package before moving to the trusted
-plugin version.
+Install the release zip through **Settings > Plugins**, inspect the declared tool,
+prompt hook, routes, settings page, and browser assets, then restart Psycheros. Open
+**Settings > Plugins > HTF Music Listener** to configure the library and confirm
+`listen_to_music` is enabled under **Settings > Tools > Custom**.
 
-### Compatibility with the upload bundles
+Builds containing the compatibility-safe updater can instead inspect the community
+repository with package path `psycheros-htf-music-listener`. Once 0.2.0 is installed,
+its manifest records that same repository, package path, and
+`psycheros-htf-music-listener-v*` tag stream so later compatible releases appear as
+one-click updates.
 
-- **Psycheros 0.9.x:** use the normal plugin package through Settings > Plugins.
-- **Stock Psycheros 0.8.23:** use the `legacy-windows-x64` package. Version 0.1.3 keeps
-  its own music picker support; More Uploads is not required.
-- **Rae/Ember trusted-plugin fork:** use the normal plugin package only. Do not install
-  the upstream source-file upload bundles over that fork; its music upload path is
-  already merged and the replacement bundles could erase newer fork work.
-- **Older More Uploads 0.1.0 packages:** update them first. Their closed browser filter
-  rejects audio even when another addon widens the visible picker.
-- **Legacy listener plus a source-file upload bundle:** install the upload bundle first,
-  then the legacy listener. Reinstall the legacy listener after any source addon or
-  Launcher update that replaces `web/js/psycheros.js`.
-- **Everything Together 0.2.0:** already includes this legacy listening organ and
-  the expanded music-upload path. Do not install a second copy of HTF Music Listener.
+## Historical packages
 
-The release zip includes the HTF worker. If FFmpeg is not already available, the plugin
-performs a one-time download of Gyan's pinned FFmpeg 8.1.1 Essentials archive directly
-from its official GitHub release, verifies its SHA-256 digest, and keeps the extracted
-runtime in local plugin state. End users do not need to install Python, scientific
-packages, FFmpeg, or edit their PATH. The download is about 109 MB.
+The 0.1.x trusted and legacy packages remain on their original GitHub tags for Psycheros
+0.8/0.9 users. They are intentionally distinct from this 0.10 release and are no longer
+built from current source.
 
-Source-tree developers may run without packaged binaries when the machine has:
-
-- Python with `numpy`, `scipy`, `matplotlib`, and `soundfile`;
-- `ffmpeg` and `ffprobe` on PATH, configured by plugin environment variables, or
-  installed through WinGet's FFmpeg package.
-
-## Install
-
-### Trusted plugin host
-
-1. Open **Settings > Plugins**.
-2. Under **Install Plugin**, choose the release zip.
-3. Inspect the declared tool, routes, and browser assets.
-4. Install it and restart Psycheros when prompted.
-5. In **Settings > Tools > Custom**, confirm `listen_to_music` is enabled.
-
-Then attach a song and say something explicit such as:
-
-> Please listen to this music and tell me what catches you.
-
-### Plain upstream without the plugin host
-
-1. Download the release asset whose name contains `legacy-windows-x64`.
-2. Extract it fully.
-3. Double-click `Install Legacy HTF Music Listener.bat`.
-4. Restart Psycheros.
-5. Open **Settings > Tools > Custom**, confirm `listen_to_music` is enabled, and choose
-   whether to display Entity view.
-
-The legacy installer targets the normal Launcher layout automatically. Advanced users
-can pass explicit `-PsycherosRoot` and `-DataRoot` paths to `tools/Install-Legacy.ps1`.
-Its matching uninstaller removes only the marked browser block and the custom-tool code
-it installed.
-
-## Local files and retention
-
-Generated HTF bundles live under the plugin's local `state/artifacts/` directory. The
-plugin removes expired bundles on startup and before new listening runs; the default
-retention period is seven days. The normalized WAV is deleted immediately after a
-successful analysis. Music and HTF artifacts are not uploaded by the plugin; only the
-optional one-time FFmpeg runtime download leaves the machine.
-
-See [PRIVACY.md](PRIVACY.md) and [SECURITY.md](SECURITY.md) before sharing a release.
-
-## Development
+Source-tree developers can use Python with NumPy, SciPy, Matplotlib, and SoundFile plus
+FFmpeg/FFprobe on PATH. The Windows watcher is built with Rust:
 
 ```powershell
 deno task check
 deno task test
-python worker/generate-htf.py --version
+cargo build --manifest-path watcher/Cargo.toml --release
 ```
 
-Validate the package against the matching Psycheros checkout:
-
-```powershell
-deno task --cwd ..\..\10_local\repo\packages\plugin-api validate .
-```
-
-Create the zero-configuration Windows release:
+Build the manager-native Windows package with:
 
 ```powershell
 .\scripts\Build-Release.ps1
 ```
 
-The build writes a zip and SHA-256 file to the community repository's ignored `dist/`
-directory.
+See [PRIVACY.md](PRIVACY.md), [SECURITY.md](SECURITY.md), and
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) before distribution.

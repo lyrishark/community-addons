@@ -1,14 +1,22 @@
 {
   "id": "psycheros-htf-music-listener",
   "name": "HTF Music Listener",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "apiVersion": 1,
-  "description": "Gives me a local, provider-independent music-listening organ backed by HTF v2 sensory objects.",
+  "description": "Gives me local HTF music listening, a durable sensory library, verified synced lyrics, and shared Windows Now Playing presence.",
   "homepageUrl": "https://github.com/lyrishark/community-addons/tree/main/psycheros-htf-music-listener",
   "enabled": true,
   "compatibility": {
-    "psycheros": ">=0.8.23 <0.10.0",
-    "launcher": ">=0.2.42"
+    "psycheros": ">=0.10.0 <0.11.0",
+    "launcher": ">=0.2.45"
+  },
+  "update": {
+    "repoUrl": "https://github.com/lyrishark/community-addons",
+    "tagPrefix": "psycheros-htf-music-listener-v",
+    "packagePath": "psycheros-htf-music-listener"
+  },
+  "capabilities": {
+    "settings": true
   },
   "entrypoints": {
     "psycheros": "./psycheros.ts"

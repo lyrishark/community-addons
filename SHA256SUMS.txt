@@ -43,3 +43,4 @@ dae87c29a9b0a399cd47046211d915001074689cdd85ef969b4161d8404cf5b9  psycheros-loom
 2bcdd1054c799077effc2625e323e81a918d00bb9a8908c61163a74ebf6b7282  psycheros-screen-presence-alpha-0.2.0.zip
 faaa82bb6a7780530c114d6c8951da162ba754145b02d925668ab1cf7df767a9  psycheros-voice-text-resize-0.2.0.zip
 4d5d159e9531118e60718667540c7ae3f11647c4f058f272b9e47c9db4bb4c11  psycheros-windows-shell-fix-0.2.0.zip
+088382c5cedb660b342573ba9c24bc0676b8ae9dfd3b79fb34a61d12ad1e78db  psycheros-htf-music-listener-0.2.0-windows-x64.zip
