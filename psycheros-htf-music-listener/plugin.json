@@ -1,7 +1,7 @@
 {
   "id": "psycheros-htf-music-listener",
   "name": "HTF Music Listener",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "apiVersion": 1,
   "description": "Gives me local HTF music listening, a durable sensory library, verified synced lyrics, and shared Windows Now Playing presence.",
   "homepageUrl": "https://github.com/lyrishark/community-addons/tree/main/psycheros-htf-music-listener",

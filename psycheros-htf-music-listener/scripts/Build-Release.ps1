@@ -140,7 +140,7 @@ $sourceItems = @(
     "PRIVACY.md",
     "SECURITY.md",
     "CHANGELOG.md",
-    "RELEASE_NOTES_v0.2.0.md",
+    "RELEASE_NOTES_v$($manifest.version).md",
     "THIRD_PARTY_NOTICES.md",
     "lib",
     "tests",

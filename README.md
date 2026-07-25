@@ -9,7 +9,7 @@ Read [COMPATIBILITY.md](COMPATIBILITY.md) before installing anything.
 
 | Package | Version | Install surface | Purpose |
 | --- | --- | --- | --- |
-| [HTF Music Listener](psycheros-htf-music-listener/README.md) | [0.2.0](https://github.com/lyrishark/community-addons/releases/tag/psycheros-htf-music-listener-v0.2.0) | Settings > Plugins | Local HTF listening, sensory library, synced lyrics, and Windows Now Playing presence. |
+| [HTF Music Listener](psycheros-htf-music-listener/README.md) | [0.2.1](https://github.com/lyrishark/community-addons/releases/tag/psycheros-htf-music-listener-v0.2.1) | Settings > Plugins | Local HTF listening, sensory library, synced lyrics, and Windows Now Playing presence. |
 | [Accessibility Controls](psycheros-accessibility-controls/README.md) | [0.1.0-rc.1](https://github.com/lyrishark/community-addons/releases/tag/psycheros-accessibility-controls-v0.1.0-rc.1) | Settings > Plugins | Typography controls and resizable Yin Yang text input. |
 | [Windows Shell Fix](psycheros-windows-shell-fix/README.md) | [0.3.0-rc.1](https://github.com/lyrishark/community-addons/releases/tag/psycheros-windows-shell-fix-v0.3.0-rc.1) | Settings > Plugins | Native host-shell execution on Windows. |
 | [More Uploads](psycheros-more-uploads/README.md) | [0.3.0-rc.1](https://github.com/lyrishark/community-addons/releases/tag/psycheros-more-uploads-v0.3.0-rc.1) | Guarded source bridge | Multiple image, document, and audio attachments in chat and typed voice. |

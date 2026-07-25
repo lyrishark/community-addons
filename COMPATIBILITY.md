@@ -7,7 +7,7 @@ Psycheros plugin API v1.
 
 | Package | Version | Compatibility result |
 | --- | --- | --- |
-| HTF Music Listener | 0.2.0 | Manager-native; Psycheros `>=0.10.0 <0.11.0`, Launcher `>=0.2.45`. |
+| HTF Music Listener | 0.2.1 | Manager-native; Psycheros `>=0.10.0 <0.11.0`, Launcher `>=0.2.45`. |
 | Accessibility Controls | 0.1.0-rc.1 | Manager-native; replaces the font and voice-resize source overlays. |
 | Windows Shell Fix | 0.3.0-rc.1 | Manager-native; replaces the stock `shell` tool registration on Windows. |
 | More Uploads | 0.3.0-rc.1 | Exact-0.10 guarded source bridge. |
