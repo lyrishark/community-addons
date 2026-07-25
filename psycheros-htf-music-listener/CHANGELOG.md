@@ -2,6 +2,8 @@
 
 ## 0.2.1 - 2026-07-25
 
+- Preserve existing listener settings during one-click addon-manager updates by
+  restoring them from the manager's newest valid plugin backup on first start.
 - Treat Windows' successful null `GetCurrentSession` result as an ordinary
   no-media-session state instead of logging an error every polling interval.
 - Rate-limit repeated genuine watcher errors to prevent a persistent Windows

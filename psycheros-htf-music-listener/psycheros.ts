@@ -128,6 +128,61 @@ function settingsPath(root: string): string {
   return join(root, "settings.json");
 }
 
+/**
+ * The plugin manager keeps the replaced plugin directory in
+ * `.psycheros/plugin-backups`. Restore only the user's settings on the first
+ * start after a manager update; a settings file in the new install always wins.
+ */
+export async function restoreSettingsFromLatestManagerBackup(
+  root: string,
+): Promise<string | undefined> {
+  const currentSettings = settingsPath(root);
+  if (await exists(currentSettings)) return undefined;
+
+  const pluginRoot = dirname(root);
+  const pluginsRoot = dirname(pluginRoot);
+  const psycherosRoot = dirname(pluginsRoot);
+  const backupsRoot = join(psycherosRoot, "plugin-backups");
+  const backupNames: string[] = [];
+
+  try {
+    for await (const entry of Deno.readDir(backupsRoot)) {
+      if (!entry.isDirectory) continue;
+      if (
+        entry.name.endsWith(`-${PLUGIN_ID}`) ||
+        new RegExp(`-${PLUGIN_ID}-\\d+$`).test(entry.name)
+      ) {
+        backupNames.push(entry.name);
+      }
+    }
+  } catch (error) {
+    if (error instanceof Deno.errors.NotFound) return undefined;
+    throw error;
+  }
+
+  backupNames.sort((left, right) => right.localeCompare(left));
+  for (const backupName of backupNames) {
+    const candidate = join(backupsRoot, backupName, "state", "settings.json");
+    try {
+      const raw = await Deno.readTextFile(candidate);
+      const parsed = JSON.parse(raw);
+      if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+        continue;
+      }
+      await Deno.mkdir(root, { recursive: true });
+      await Deno.writeTextFile(currentSettings, raw);
+      return candidate;
+    } catch (error) {
+      if (error instanceof Deno.errors.NotFound || error instanceof SyntaxError) {
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  return undefined;
+}
+
 function artifactsPath(root: string): string {
   return join(root, "artifacts");
 }
@@ -1141,6 +1196,14 @@ export default {
   },
   async start(services: PluginServices) {
     statePath = services.statePath;
+    const restoredSettings = await restoreSettingsFromLatestManagerBackup(
+      services.statePath,
+    );
+    if (restoredSettings) {
+      console.warn(
+        `[${PLUGIN_ID}] Restored settings from plugin-manager backup: ${restoredSettings}`,
+      );
+    }
     await Deno.mkdir(artifactsPath(services.statePath), { recursive: true });
     const settings = await readSettings(services.statePath);
     await cleanupOldArtifacts(services.statePath, settings.retentionDays);

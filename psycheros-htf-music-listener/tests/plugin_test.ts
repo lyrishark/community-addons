@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { join } from "node:path";
 import plugin, {
   resolveAttachmentPath,
+  restoreSettingsFromLatestManagerBackup,
   supportsSharedListening,
 } from "../psycheros.ts";
 import { formatHtfSensoryObjectForAttachment } from "../lib/htf.ts";
@@ -33,6 +34,63 @@ Deno.test("shared Now Playing capability is Windows-only", () => {
   assert.equal(supportsSharedListening("windows"), true);
   assert.equal(supportsSharedListening("darwin"), false);
   assert.equal(supportsSharedListening("linux"), false);
+});
+
+Deno.test("manager updates restore the newest valid settings backup once", async () => {
+  const dataRoot = await Deno.makeTempDir({ prefix: "htf-listener-update-" });
+  const psycherosRoot = join(dataRoot, ".psycheros");
+  const stateRoot = join(
+    psycherosRoot,
+    "plugins",
+    "psycheros-htf-music-listener",
+    "state",
+  );
+  const olderBackup = join(
+    psycherosRoot,
+    "plugin-backups",
+    "2026-07-24T12-00-00-000Z-psycheros-htf-music-listener",
+    "state",
+  );
+  const newerBackup = join(
+    psycherosRoot,
+    "plugin-backups",
+    "2026-07-25T12-00-00-000Z-psycheros-htf-music-listener",
+    "state",
+  );
+  try {
+    await Deno.mkdir(olderBackup, { recursive: true });
+    await Deno.mkdir(newerBackup, { recursive: true });
+    await Deno.writeTextFile(
+      join(olderBackup, "settings.json"),
+      JSON.stringify({ libraryPath: "C:/Music/old", sharedListening: false }),
+    );
+    await Deno.writeTextFile(
+      join(newerBackup, "settings.json"),
+      JSON.stringify({ libraryPath: "H:/Music", sharedListening: true }),
+    );
+
+    const restored = await restoreSettingsFromLatestManagerBackup(stateRoot);
+    assert.equal(restored, join(newerBackup, "settings.json"));
+    assert.deepEqual(
+      JSON.parse(await Deno.readTextFile(join(stateRoot, "settings.json"))),
+      { libraryPath: "H:/Music", sharedListening: true },
+    );
+
+    await Deno.writeTextFile(
+      join(stateRoot, "settings.json"),
+      JSON.stringify({ libraryPath: "F:/Current", sharedListening: false }),
+    );
+    assert.equal(
+      await restoreSettingsFromLatestManagerBackup(stateRoot),
+      undefined,
+    );
+    assert.deepEqual(
+      JSON.parse(await Deno.readTextFile(join(stateRoot, "settings.json"))),
+      { libraryPath: "F:/Current", sharedListening: false },
+    );
+  } finally {
+    await Deno.remove(dataRoot, { recursive: true });
+  }
 });
 
 Deno.test("attachment paths stay inside Psycheros chat attachments", async () => {
