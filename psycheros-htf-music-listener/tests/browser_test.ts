@@ -35,7 +35,7 @@ Deno.test("browser settings choose manager, plugin card, tools fallback, then no
     const scriptPath = fileURLToPath(
       new URL("../web/music-listener.js", import.meta.url),
     );
-    await import(`${pathToFileURL(scriptPath).href}?browser-test=0.2.0`);
+    await import(`${pathToFileURL(scriptPath).href}?browser-test=0.2.1`);
     const hook = (globalThis as typeof globalThis & {
       __HTF_MUSIC_LISTENER_TEST__?: {
         findSettingsMount(root: unknown): SettingsMount | null;

@@ -92,7 +92,7 @@ The trusted-plugin package requires:
 - Psycheros 0.10.x;
 - Launcher 0.2.45 or newer.
 
-Version 0.2.0 is not a source overlay. Do not install the old More Uploads, Everything
+Version 0.2.1 is not a source overlay. Do not install the old More Uploads, Everything
 Together, or legacy HTF packages over Psycheros 0.10.
 
 ## Runtime and installation
@@ -108,7 +108,7 @@ prompt hook, routes, settings page, and browser assets, then restart Psycheros. 
 `listen_to_music` is enabled under **Settings > Tools > Custom**.
 
 Builds containing the compatibility-safe updater can instead inspect the community
-repository with package path `psycheros-htf-music-listener`. Once 0.2.0 is installed,
+repository with package path `psycheros-htf-music-listener`. Once 0.2.1 is installed,
 its manifest records that same repository, package path, and
 `psycheros-htf-music-listener-v*` tag stream so later compatible releases appear as
 one-click updates.

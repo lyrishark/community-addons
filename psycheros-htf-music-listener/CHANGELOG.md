@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.1 - 2026-07-25
+
+- Treat Windows' successful null `GetCurrentSession` result as an ordinary
+  no-media-session state instead of logging an error every polling interval.
+- Rate-limit repeated genuine watcher errors to prevent a persistent Windows
+  media-session failure from flooding the daemon log.
+
 ## 0.2.0 - 2026-07-24
 
 - Declare tested Psycheros 0.10.x and Launcher 0.2.45+ compatibility.
