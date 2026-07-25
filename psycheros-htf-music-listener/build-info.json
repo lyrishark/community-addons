@@ -1,0 +1,16 @@
+{
+  "plugin": "psycheros-htf-music-listener",
+  "version": "0.2.1",
+  "builtAtUtc": "2026-07-25T22:33:29.5650666Z",
+  "platform": "windows-x86_64",
+  "pyInstaller": "6.21.0",
+  "python": "3.14.4 (tags/v3.14.4:23116f9, Apr  7 2026, 14:10:54) [MSC v.1944 64 bit (AMD64)]",
+  "ffmpegBootstrap": {
+    "version": "8.1.1",
+    "archive": "ffmpeg-8.1.1-essentials_build.zip",
+    "url": "https://github.com/GyanD/codexffmpeg/releases/download/8.1.1/ffmpeg-8.1.1-essentials_build.zip",
+    "sha256": "6f58ce889f59c311410f7d2b18895b33c03456463486f3b1ebc93d97a0f54541"
+  },
+  "workerSha256": "046B2444151E2AF22E97673211D2B4D3CB773B0DAAD0FCC72BE1A280DBB87429",
+  "nowPlayingWatcherSha256": "A8867C15AE08A6B3B97B055E84EFE5B4B4DC588A2B8F7925B98D6E0326CA484F"
+}
