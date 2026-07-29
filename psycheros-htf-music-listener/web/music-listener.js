@@ -236,7 +236,7 @@ function settingRow() {
   const intro = document.createElement("div");
   intro.className = "htf-listener-settings__description";
   intro.textContent =
-    "Build a private sensory library, fetch synchronized lyrics before playback, and share the local Windows Now Playing clock with the entity.";
+    "Build a private sensory library, fetch synchronized lyrics before playback, and share the local Now Playing clock with the entity.";
   heading.append(title, intro);
   panel.append(heading);
 

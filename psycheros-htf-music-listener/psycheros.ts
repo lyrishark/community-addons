@@ -402,8 +402,13 @@ function bytesToHex(bytes: Uint8Array): string {
 
 async function downloadFfmpeg(): Promise<FfmpegPair> {
   if (Deno.build.os !== "windows" || Deno.build.arch !== "x86_64") {
+    const installHint = Deno.build.os === "darwin"
+      ? "Install FFmpeg once (for example, `brew install ffmpeg`)"
+      : Deno.build.os === "linux"
+      ? "Install the ffmpeg package with the system package manager"
+      : "Install FFmpeg and FFprobe";
     throw new Error(
-      "Automatic FFmpeg setup is currently available only on Windows x64. Configure FFmpeg and FFprobe explicitly on this platform.",
+      `${installHint}, or configure FFmpeg and FFprobe explicitly. The addon runtime itself is installed automatically.`,
     );
   }
   if (
@@ -609,7 +614,7 @@ async function sharedListeningCapability(): Promise<SharedListeningCapability> {
         sharedListening: true,
         platform: Deno.build.os,
         description:
-          "Use local playback metadata as a clock; the signed runtime helper is downloaded when this is enabled, and no media audio is captured.",
+          "Use local playback metadata as a clock; the verified runtime helper is downloaded when this is enabled, and no media audio is captured.",
       };
     }
   } catch (error) {

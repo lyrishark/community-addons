@@ -21,16 +21,21 @@ as Psycheros.
 - Artifact routes validate run IDs and a manifest allowlist.
 - FFmpeg bootstrap is pinned to an official Gyan release URL, capped at 160 MB, and
   accepted only after its hard-coded SHA-256 check.
+- Platform runtime downloads are accepted only from this repository's GitHub release
+  namespace, capped at 256 MB, pinned by exact size and SHA-256, and checked again
+  against per-executable hashes after extraction. Installation uses a private staging
+  directory and an atomic rename into addon state.
 
-The Windows helper uses the documented Global System Media Transport Controls API and
-emits only newline-delimited playback snapshots over a private child process pipe. It
-has no network client and no media-capture permission.
+The watchers emit only normalized newline-delimited playback snapshots over a private
+child-process pipe. The Windows and Linux helpers have no network client or
+media-capture permission. The macOS JXA source is shipped readably and queries only
+Apple Music or Spotify after confirming that the app is already running.
 
 The separately labeled legacy package is a source bridge, not a native trusted plugin.
 It provides only one-off listening. Uninstall it before installing the trusted-plugin
 package to avoid two tools with the same name.
 
-Before publication: run all Deno tests, build the Rust helper and packaged HTF worker
-from reviewed sources, inspect bundled licenses, verify release SHA-256, and install the
-exact zip through Psycheros's inspect-before-install flow. Report exploitable security
-problems privately.
+Before publication: run Deno tests on Windows, Linux, and macOS; build and test native
+watchers on their target systems; execute the JXA self-test with `osascript`; inspect
+collected licenses; verify release SHA-256 values; and install the exact zip through
+Psycheros's inspect-before-install flow. Report exploitable security problems privately.

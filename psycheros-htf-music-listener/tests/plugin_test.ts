@@ -5,7 +5,6 @@ import plugin, {
   restoreSettingsFromLatestManagerBackup,
 } from "../psycheros.ts";
 import { formatHtfSensoryObjectForAttachment } from "../lib/htf.ts";
-import { inspectSharedListeningCapability } from "../lib/playback.ts";
 
 Deno.test("manifest and tool expose the explicit music boundary", async () => {
   const manifest = JSON.parse(
@@ -13,7 +12,7 @@ Deno.test("manifest and tool expose the explicit music boundary", async () => {
   );
   assert.equal(manifest.id, "psycheros-htf-music-listener");
   assert.equal(manifest.apiVersion, 1);
-  assert.equal(manifest.version, "0.2.1");
+  assert.equal(manifest.version, "0.3.0-rc.1");
   assert.equal(manifest.compatibility.psycheros, ">=0.10.0 <0.11.0");
   assert.equal(manifest.capabilities.settings, true);
   assert.equal(
@@ -207,8 +206,9 @@ Deno.test("entity-view setting defaults off and persists through plugin routes",
       new Request("http://localhost/settings"),
       services,
     );
-    const capability = await inspectSharedListeningCapability();
-    assert.deepEqual(await initial.json(), {
+    const initialSettings = await initial.json();
+    const { capabilities, ...plainSettings } = initialSettings;
+    assert.deepEqual(plainSettings, {
       displayEntityView: false,
       retentionDays: 7,
       libraryPath: "",
@@ -216,8 +216,9 @@ Deno.test("entity-view setting defaults off and persists through plugin routes",
       autoLyrics: true,
       precomputeHtf: true,
       sharedListening: false,
-      capabilities: capability,
     });
+    assert.equal(capabilities.sharedListening, true);
+    assert.match(capabilities.description, /no media audio is captured/i);
 
     const saved = await postRoute.handler(
       new Request("http://localhost/settings", {
