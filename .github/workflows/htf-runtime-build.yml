@@ -1,6 +1,16 @@
 name: Build HTF Runtime Assets
 
 on:
+  push:
+    branches:
+      - "agent/htf-cross-platform-*"
+    paths:
+      - ".github/workflows/htf-runtime-build.yml"
+      - "psycheros-htf-music-listener/requirements-build.txt"
+      - "psycheros-htf-music-listener/scripts/build-runtime.py"
+      - "psycheros-htf-music-listener/scripts/generate-runtime-manifest.py"
+      - "psycheros-htf-music-listener/watcher/**"
+      - "psycheros-htf-music-listener/worker/**"
   workflow_dispatch:
     inputs:
       release_tag:
@@ -72,7 +82,7 @@ jobs:
           python psycheros-htf-music-listener/scripts/generate-runtime-manifest.py
           --assets runtime-assets
           --repository ${{ github.repository }}
-          --tag ${{ inputs.release_tag }}
+          --tag ${{ inputs.release_tag || 'psycheros-htf-music-listener-v0.3.0-rc.1' }}
           --output runtime-assets/runtime-manifest.json
       - uses: actions/upload-artifact@v4
         with:
