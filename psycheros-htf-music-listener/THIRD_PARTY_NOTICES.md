@@ -1,8 +1,8 @@
 # Third-party notices
 
-The source package does not commit third-party executables. The Windows release includes
-the packaged HTF worker and its collected license notices, but it does not redistribute
-FFmpeg or FFprobe.
+The source package does not commit third-party executables. Platform runtime archives on
+the matching release include the packaged HTF worker, the Windows/Linux watcher where
+applicable, and collected license notices. They do not redistribute FFmpeg or FFprobe.
 
 ## FFmpeg
 
@@ -32,19 +32,27 @@ and reviewed before publication.
 
 PyInstaller is used only as a build tool and is not required on end-user machines.
 
-## Windows Now Playing helper
+## Windows and Linux Now Playing helpers
 
-The release includes `now-playing-watcher.exe`, built from this repository's Rust
-source. It uses the open-source `windows`/`windows-core` family of crates generated from
-Microsoft Windows metadata, plus Serde and serde_json. These dependencies are available
-under MIT or Apache-2.0 terms; their exact resolved versions are recorded in
-`watcher/Cargo.lock`.
+The Windows and Linux runtime releases include `now-playing-watcher`, built from this
+repository's Rust source. The Windows target uses the open-source
+`windows`/`windows-core` family generated from Microsoft metadata. The Linux target uses
+zbus and zvariant to query MPRIS over D-Bus. Both use Serde and serde_json. Exact
+resolved versions are recorded in `watcher/Cargo.lock`; collected license files ship
+inside each runtime archive.
 
 - windows-rs: <https://github.com/microsoft/windows-rs>
+- zbus: <https://github.com/dbus2/zbus>
 - Serde: <https://github.com/serde-rs/serde>
 
-The helper calls the Windows Global System Media Transport Controls API. It includes no
-Spotify SDK and no network client.
+The helpers call Windows Global System Media Transport Controls or Linux MPRIS. They
+include no Spotify SDK and no network client.
+
+## macOS Now Playing adapter
+
+The macOS adapter is readable JavaScript for Automation source included in the addon. It
+uses Apple's system-provided `osascript`, Foundation APIs, and application scripting
+interfaces for Apple Music and Spotify. It includes no copied Apple or Spotify SDK.
 
 ## LRCLIB and LRCGET interoperability
 

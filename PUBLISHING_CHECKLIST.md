@@ -44,8 +44,13 @@ permissions and browser-store data disclosure forms.
 
 Current Psycheros 0.10 manager-addon release:
 
-- `psycheros-htf-music-listener-0.2.1-windows-x64.zip`
-- `psycheros-htf-music-listener-0.2.1-windows-x64.zip.sha256`
+- `psycheros-htf-music-listener-0.3.0-rc.1.zip`
+- `psycheros-htf-music-listener-0.3.0-rc.1.zip.sha256`
+- `psycheros-htf-runtime-windows-x86_64.tar.gz`
+- `psycheros-htf-runtime-linux-x86_64.tar.gz`
+- `psycheros-htf-runtime-linux-aarch64.tar.gz`
+- `psycheros-htf-runtime-darwin-x86_64.tar.gz`
+- `psycheros-htf-runtime-darwin-aarch64.tar.gz`
 - `psycheros-accessibility-controls-0.1.0-rc.1.zip`
 - `psycheros-accessibility-controls-0.1.0-rc.1.zip.sha256`
 - `psycheros-windows-shell-fix-0.3.0-rc.1.zip`
@@ -72,7 +77,7 @@ as Psycheros 0.10 or Entity Core 0.6.
 Generate checksums on Windows:
 
 ```powershell
-Get-FileHash .\psycheros-htf-music-listener-0.2.1-windows-x64.zip -Algorithm SHA256
+Get-FileHash .\psycheros-htf-music-listener-0.3.0-rc.1.zip -Algorithm SHA256
 ```
 
 Before uploading, inspect the exact zip through Psycheros 0.10 Settings >
@@ -81,11 +86,12 @@ update check against its declared repository/package path. Confirm the package
 contains no credentials, local music, generated library state, or personal
 runtime paths.
 
-For plugins with compiled runtime files, the release tag's declared
-`update.packagePath` must contain the exact staged manager package, including
-those binaries. Psycheros applies one-click updates from the tagged repository
-tree rather than from a GitHub release asset; tagging source-only files would
-silently remove the packaged worker on update.
+Psycheros applies one-click updates from the release tag's declared
+`update.packagePath`, not from the manual-install zip. A plugin may either keep
+compiled files inside that tagged path or ship a reviewed bootstrap manifest
+that pins same-tag release assets by exact size and SHA-256. Verify every pinned
+asset exists before publishing the tag; never point a current package at mutable
+or unversioned runtime downloads.
 
 Use `scripts/Build-PluginRelease.ps1` for source-only plugin packages. It stages
 one directory named after the manifest id, adds the repository license, and

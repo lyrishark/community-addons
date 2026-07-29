@@ -5,7 +5,18 @@ import {
   type HtfPreviewImage,
 } from "./lib/htf.ts";
 import { type LibrarySettings, MusicLibrary } from "./lib/library.ts";
-import { PlaybackPresence } from "./lib/playback.ts";
+import {
+  inspectSharedListeningCapability,
+  PlaybackPresence,
+  resolveWatcherCommand,
+  type SharedListeningCapability,
+  type WatcherCommand,
+} from "./lib/playback.ts";
+import {
+  bundledRuntimeAsset,
+  ensureBundledRuntime,
+  type InstalledRuntime,
+} from "./lib/runtime.ts";
 
 const PLUGIN_ID = "psycheros-htf-music-listener";
 const PLUGIN_ROOT = dirname(fileURLToPath(import.meta.url));
@@ -44,10 +55,6 @@ interface ListenerSettings {
   autoLyrics: boolean;
   precomputeHtf: boolean;
   sharedListening: boolean;
-}
-
-export function supportsSharedListening(os = Deno.build.os): boolean {
-  return os === "windows";
 }
 
 interface CommandResult {
@@ -104,6 +111,7 @@ interface ArtifactManifest {
 
 let statePath: string | undefined;
 let runtimePromise: Promise<MusicRuntime> | undefined;
+let platformRuntimePromise: Promise<InstalledRuntime> | undefined;
 let ffmpegBootstrapPromise: Promise<FfmpegPair> | undefined;
 let musicLibrary: MusicLibrary | undefined;
 let playbackPresence: PlaybackPresence | undefined;
@@ -394,8 +402,13 @@ function bytesToHex(bytes: Uint8Array): string {
 
 async function downloadFfmpeg(): Promise<FfmpegPair> {
   if (Deno.build.os !== "windows" || Deno.build.arch !== "x86_64") {
+    const installHint = Deno.build.os === "darwin"
+      ? "Install FFmpeg once (for example, `brew install ffmpeg`)"
+      : Deno.build.os === "linux"
+      ? "Install the ffmpeg package with the system package manager"
+      : "Install FFmpeg and FFprobe";
     throw new Error(
-      "Automatic FFmpeg setup is currently available only on Windows x64. Configure FFmpeg and FFprobe explicitly on this platform.",
+      `${installHint}, or configure FFmpeg and FFprobe explicitly. The addon runtime itself is installed automatically.`,
     );
   }
   if (
@@ -508,6 +521,20 @@ async function resolveWorker(): Promise<WorkerCommand> {
     return { command: packaged, prefixArgs: [], label: "packaged HTF worker" };
   }
 
+  let runtimeSetupError: string | undefined;
+  if (await bundledRuntimeAsset(PLUGIN_ROOT)) {
+    try {
+      const runtime = await getPlatformRuntime();
+      return {
+        command: runtime.worker,
+        prefixArgs: [],
+        label: `${runtime.source} HTF worker`,
+      };
+    } catch (error) {
+      runtimeSetupError = safeError(error);
+    }
+  }
+
   const script = join(PLUGIN_ROOT, "worker", "generate-htf.py");
   if (!(await exists(script))) {
     throw new Error("The HTF worker source is missing from the plugin.");
@@ -540,8 +567,65 @@ async function resolveWorker(): Promise<WorkerCommand> {
   }
 
   throw new Error(
-    "The packaged HTF worker is absent and no Python installation with numpy, scipy, matplotlib, and soundfile is available.",
+    `${
+      runtimeSetupError
+        ? `Automatic HTF runtime setup failed: ${runtimeSetupError} `
+        : ""
+    }The packaged HTF worker is absent and no Python installation with numpy, scipy, matplotlib, and soundfile is available.`,
   );
+}
+
+async function getPlatformRuntime(): Promise<InstalledRuntime> {
+  if (!statePath) {
+    throw new Error("The plugin state directory is not ready for runtime setup.");
+  }
+  platformRuntimePromise ??= ensureBundledRuntime({
+    pluginRoot: PLUGIN_ROOT,
+    statePath,
+  }).catch((error) => {
+    platformRuntimePromise = undefined;
+    throw error;
+  });
+  return platformRuntimePromise;
+}
+
+async function resolvePlaybackWatcher(
+  configuredPath?: string,
+): Promise<WatcherCommand> {
+  try {
+    return await resolveWatcherCommand({ configuredPath });
+  } catch (originalError) {
+    if (!(await bundledRuntimeAsset(PLUGIN_ROOT)) || Deno.build.os === "darwin") {
+      throw originalError;
+    }
+    const runtime = await getPlatformRuntime();
+    if (!runtime.watcher) throw originalError;
+    return await resolveWatcherCommand({ configuredPath: runtime.watcher });
+  }
+}
+
+async function sharedListeningCapability(): Promise<SharedListeningCapability> {
+  const direct = await inspectSharedListeningCapability();
+  if (direct.sharedListening) return direct;
+  try {
+    const asset = await bundledRuntimeAsset(PLUGIN_ROOT);
+    if (asset?.watcher) {
+      return {
+        sharedListening: true,
+        platform: Deno.build.os,
+        description:
+          "Use local playback metadata as a clock; the verified runtime helper is downloaded when this is enabled, and no media audio is captured.",
+      };
+    }
+  } catch (error) {
+    return {
+      ...direct,
+      description: `The downloadable Now Playing runtime is invalid: ${
+        safeError(error)
+      }`,
+    };
+  }
+  return direct;
 }
 
 async function resolveRuntime(): Promise<MusicRuntime> {
@@ -969,12 +1053,10 @@ async function settingsRoute(
   services: PluginServices,
 ): Promise<Response> {
   if (request.method === "GET") {
+    const capability = await sharedListeningCapability();
     return Response.json({
       ...await readSettings(services.statePath),
-      capabilities: {
-        sharedListening: supportsSharedListening(),
-        platform: Deno.build.os,
-      },
+      capabilities: capability,
     });
   }
   let body: unknown;
@@ -1012,11 +1094,14 @@ async function settingsRoute(
     }
     next[key] = input[key] as boolean;
   }
-  if (next.sharedListening && !supportsSharedListening()) {
-    return Response.json(
-      { error: "Share Now Playing currently requires Windows." },
-      { status: 400 },
-    );
+  if (next.sharedListening) {
+    try {
+      await resolvePlaybackWatcher(
+        services.env.get("PSYCHEROS_PLUGIN_HTF_MUSIC_LISTENER_NOW_PLAYING"),
+      );
+    } catch (error) {
+      return Response.json({ error: safeError(error) }, { status: 400 });
+    }
   }
   if ("libraryPath" in input) {
     if (typeof input.libraryPath !== "string" || input.libraryPath.length > 4096) {
@@ -1232,6 +1317,12 @@ export default {
       watcherPath: services.env.get(
         "PSYCHEROS_PLUGIN_HTF_MUSIC_LISTENER_NOW_PLAYING",
       ),
+      resolveWatcher: async () =>
+        await resolvePlaybackWatcher(
+          services.env.get(
+            "PSYCHEROS_PLUGIN_HTF_MUSIC_LISTENER_NOW_PLAYING",
+          ),
+        ),
       log: (message) => console.warn(`[${PLUGIN_ID}] ${message}`),
     });
     await playbackPresence.start();
@@ -1246,6 +1337,7 @@ export default {
     musicLibrary = undefined;
     statePath = undefined;
     runtimePromise = undefined;
+    platformRuntimePromise = undefined;
     ffmpegBootstrapPromise = undefined;
   },
 };

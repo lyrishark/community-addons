@@ -35,7 +35,7 @@ Deno.test("browser settings choose manager, plugin card, tools fallback, then no
     const scriptPath = fileURLToPath(
       new URL("../web/music-listener.js", import.meta.url),
     );
-    await import(`${pathToFileURL(scriptPath).href}?browser-test=0.2.1`);
+    await import(`${pathToFileURL(scriptPath).href}?browser-test=0.3.0-rc.1`);
     const hook = (globalThis as typeof globalThis & {
       __HTF_MUSIC_LISTENER_TEST__?: {
         findSettingsMount(root: unknown): SettingsMount | null;
@@ -106,21 +106,31 @@ Deno.test("browser settings choose manager, plugin card, tools fallback, then no
     assert.equal(hook.isMusicAttachment("/chat-attachments/example.png"), false);
     assert.deepEqual(
       hook.sharedListeningCapability({
-        capabilities: { sharedListening: true, platform: "windows" },
+        capabilities: {
+          sharedListening: true,
+          platform: "windows",
+          description:
+            "Use local playback metadata as a clock; no media audio is captured.",
+        },
       }),
       {
         supported: true,
         platform: "windows",
         description:
-          "Use local playback metadata as a clock; no Spotify audio is captured.",
+          "Use local playback metadata as a clock; no media audio is captured.",
       },
     );
     const macCapability = hook.sharedListeningCapability({
-      capabilities: { sharedListening: false, platform: "darwin" },
+      capabilities: {
+        sharedListening: false,
+        platform: "darwin",
+        description:
+          "Automatic Now Playing detection is unavailable because no compatible darwin watcher is installed.",
+      },
     });
     assert.equal(macCapability.supported, false);
     assert.equal(macCapability.platform, "darwin");
-    assert.match(macCapability.description, /Windows only/i);
+    assert.match(macCapability.description, /no compatible darwin watcher/i);
   } finally {
     if (originalDocument === undefined) {
       Reflect.deleteProperty(globalThis, "document");

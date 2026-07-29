@@ -1,0 +1,92 @@
+name: Build HTF Runtime Assets
+
+on:
+  push:
+    branches:
+      - "agent/htf-cross-platform-*"
+    paths:
+      - ".github/workflows/htf-runtime-build.yml"
+      - "psycheros-htf-music-listener/requirements-build.txt"
+      - "psycheros-htf-music-listener/scripts/build-runtime.py"
+      - "psycheros-htf-music-listener/scripts/generate-runtime-manifest.py"
+      - "psycheros-htf-music-listener/watcher/**"
+      - "psycheros-htf-music-listener/worker/**"
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Release tag that will own the runtime assets
+        required: true
+        default: psycheros-htf-music-listener-v0.3.0-rc.1
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.platform }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-x86_64
+            runner: windows-latest
+          - platform: linux-x86_64
+            runner: ubuntu-22.04
+          - platform: linux-aarch64
+            runner: ubuntu-22.04-arm
+          - platform: darwin-aarch64
+            runner: macos-15
+          - platform: darwin-x86_64
+            runner: macos-15-intel
+    runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        working-directory: psycheros-htf-music-listener
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: psycheros-htf-music-listener/requirements-build.txt
+      - name: Install pinned runtime builder
+        run: python -m pip install --disable-pip-version-check -r requirements-build.txt
+      - name: Test native watcher
+        if: runner.os == 'Windows' || runner.os == 'Linux'
+        run: cargo test --manifest-path watcher/Cargo.toml
+      - name: Validate macOS watcher
+        if: runner.os == 'macOS'
+        shell: bash
+        run: /usr/bin/osascript -l JavaScript watcher/macos/now-playing-watcher.jxa --self-test
+      - name: Build runtime archive
+        run: python scripts/build-runtime.py --platform ${{ matrix.platform }} --output runtime-dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: htf-runtime-${{ matrix.platform }}
+          path: psycheros-htf-music-listener/runtime-dist/*
+          if-no-files-found: error
+          compression-level: 0
+
+  manifest:
+    name: Runtime manifest
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: htf-runtime-*
+          path: runtime-assets
+      - name: Generate manifest
+        run: >-
+          python psycheros-htf-music-listener/scripts/generate-runtime-manifest.py
+          --assets runtime-assets
+          --repository ${{ github.repository }}
+          --tag ${{ inputs.release_tag || 'psycheros-htf-music-listener-v0.3.0-rc.1' }}
+          --output runtime-assets/runtime-manifest.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: htf-runtime-release-assets
+          path: runtime-assets/**
+          if-no-files-found: error
+          compression-level: 0

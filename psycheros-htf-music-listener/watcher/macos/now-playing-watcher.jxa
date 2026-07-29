@@ -1,0 +1,217 @@
+/*
+ * HTF Music Listener macOS Now Playing watcher.
+ * Run with: /usr/bin/osascript -l JavaScript now-playing-watcher.jxa
+ *
+ * Apple does not expose a public system-wide media-session observer equivalent
+ * to Windows GSMTC or Linux MPRIS. This watcher therefore uses explicit,
+ * scriptable application adapters and never launches a stopped application.
+ */
+
+var POLL_SECONDS = 0.75;
+var ERROR_REPEAT_MS = 60 * 1000;
+
+function nonempty(value) {
+  if (value === undefined || value === null) return undefined;
+  var text = String(value).trim();
+  return text || undefined;
+}
+
+function finiteNonnegative(value) {
+  var number = Number(value);
+  return isFinite(number) && number >= 0 ? number : undefined;
+}
+
+function normalizeStatus(value) {
+  var status = nonempty(value);
+  if (!status) return "unknown";
+  status = status.toLowerCase();
+  if (status.indexOf("playing") !== -1) return "playing";
+  if (status.indexOf("paused") !== -1) return "paused";
+  if (status.indexOf("stopped") !== -1) return "stopped";
+  return "unknown";
+}
+
+function statusRank(status) {
+  if (status === "playing") return 3;
+  if (status === "paused") return 2;
+  if (status === "stopped") return 1;
+  return 0;
+}
+
+function chooseCandidate(candidates, previousSource) {
+  if (!candidates.length) return undefined;
+  return candidates.slice().sort(function (left, right) {
+    var rankDifference = statusRank(right.playbackStatus) -
+      statusRank(left.playbackStatus);
+    if (rankDifference) return rankDifference;
+    var leftPrevious = left.sourceAppId === previousSource ? 1 : 0;
+    var rightPrevious = right.sourceAppId === previousSource ? 1 : 0;
+    if (leftPrevious !== rightPrevious) return rightPrevious - leftPrevious;
+    return String(left.sourceAppId).localeCompare(String(right.sourceAppId));
+  })[0];
+}
+
+function buildSnapshot(options) {
+  var snapshot = {
+    capturedAtMs: options.capturedAtMs,
+    sourceAppId: options.sourceAppId,
+    playbackStatus: normalizeStatus(options.playbackStatus),
+  };
+  var title = nonempty(options.title);
+  var artist = nonempty(options.artist);
+  var album = nonempty(options.album);
+  var positionMs = finiteNonnegative(options.positionMs);
+  var durationMs = finiteNonnegative(options.durationMs);
+  if (title) snapshot.title = title;
+  if (artist) snapshot.artist = artist;
+  if (album) snapshot.album = album;
+  if (positionMs !== undefined) snapshot.positionMs = Math.round(positionMs);
+  if (durationMs !== undefined) snapshot.durationMs = Math.round(durationMs);
+  return snapshot;
+}
+
+function callSafely(read) {
+  try {
+    return read();
+  } catch (_error) {
+    return undefined;
+  }
+}
+
+function readMusic(capturedAtMs) {
+  var music = Application("com.apple.Music");
+  var playbackStatus = music.playerState();
+  var track = callSafely(function () {
+    return music.currentTrack();
+  });
+  return buildSnapshot({
+    capturedAtMs: capturedAtMs,
+    sourceAppId: "com.apple.Music",
+    playbackStatus: playbackStatus,
+    title: track && callSafely(function () {
+      return track.name();
+    }),
+    artist: track && callSafely(function () {
+      return track.artist();
+    }),
+    album: track && callSafely(function () {
+      return track.album();
+    }),
+    positionMs: finiteNonnegative(callSafely(function () {
+      return music.playerPosition();
+    })) * 1000,
+    durationMs: track && finiteNonnegative(callSafely(function () {
+      return track.duration();
+    })) * 1000,
+  });
+}
+
+function readSpotify(capturedAtMs) {
+  var spotify = Application("com.spotify.client");
+  var playbackStatus = spotify.playerState();
+  var track = callSafely(function () {
+    return spotify.currentTrack();
+  });
+  return buildSnapshot({
+    capturedAtMs: capturedAtMs,
+    sourceAppId: "com.spotify.client",
+    playbackStatus: playbackStatus,
+    title: track && callSafely(function () {
+      return track.name();
+    }),
+    artist: track && callSafely(function () {
+      return track.artist();
+    }),
+    album: track && callSafely(function () {
+      return track.album();
+    }),
+    positionMs: finiteNonnegative(callSafely(function () {
+      return spotify.playerPosition();
+    })) * 1000,
+    // Spotify's scripting dictionary reports track duration in milliseconds.
+    durationMs: track && finiteNonnegative(callSafely(function () {
+      return track.duration();
+    })),
+  });
+}
+
+function run(arguments) {
+  ObjC.import("AppKit");
+  ObjC.import("Foundation");
+
+  if (arguments && arguments[0] === "--self-test") {
+    return JSON.stringify({
+      schemaVersion: 1,
+      platform: "darwin",
+      adapters: ["com.apple.Music", "com.spotify.client"],
+    });
+  }
+
+  function write(handle, value) {
+    var data = $(String(value) + "\n").dataUsingEncoding($.NSUTF8StringEncoding);
+    handle.writeData(data);
+  }
+
+  var stdout = $.NSFileHandle.fileHandleWithStandardOutput;
+  var stderr = $.NSFileHandle.fileHandleWithStandardError;
+  var lastErrors = {};
+  var previousSource;
+  var hadSession = false;
+
+  function isRunning(bundleId) {
+    var applications = $.NSRunningApplication
+      .runningApplicationsWithBundleIdentifier(bundleId);
+    return Number(ObjC.unwrap(applications.count)) > 0;
+  }
+
+  function reportError(context, error) {
+    var message = "now-playing " + context + " error: " + String(error);
+    var now = Date.now();
+    if (!lastErrors[message] || now - lastErrors[message] >= ERROR_REPEAT_MS) {
+      write(stderr, message);
+      lastErrors[message] = now;
+    }
+  }
+
+  var adapters = [
+    { bundleId: "com.apple.Music", read: readMusic },
+    { bundleId: "com.spotify.client", read: readSpotify },
+  ];
+
+  while (true) {
+    var capturedAtMs = Date.now();
+    var candidates = [];
+    adapters.forEach(function (adapter) {
+      if (!isRunning(adapter.bundleId)) return;
+      try {
+        var snapshot = adapter.read(capturedAtMs);
+        if (snapshot && snapshot.title) candidates.push(snapshot);
+      } catch (error) {
+        reportError(adapter.bundleId, error);
+      }
+    });
+
+    var selected = chooseCandidate(candidates, previousSource);
+    if (selected) {
+      write(stdout, JSON.stringify(selected));
+      previousSource = selected.sourceAppId;
+      hadSession = true;
+    } else if (hadSession) {
+      write(stdout, JSON.stringify({
+        capturedAtMs: capturedAtMs,
+        playbackStatus: "closed",
+      }));
+      previousSource = undefined;
+      hadSession = false;
+    }
+    $.NSThread.sleepForTimeInterval(POLL_SECONDS);
+  }
+}
+
+if (typeof globalThis !== "undefined") {
+  globalThis.__HTF_MACOS_WATCHER_TEST__ = {
+    buildSnapshot: buildSnapshot,
+    chooseCandidate: chooseCandidate,
+    normalizeStatus: normalizeStatus,
+  };
+}

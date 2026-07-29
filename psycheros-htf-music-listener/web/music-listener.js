@@ -47,9 +47,10 @@ function sharedListeningCapability(settings) {
   return {
     supported,
     platform: settings?.capabilities?.platform ?? "unknown",
-    description: supported
-      ? "Use local playback metadata as a clock; no Spotify audio is captured."
-      : "Windows only for now — automatic OS Now Playing detection is unavailable on this device.",
+    description: settings?.capabilities?.description ??
+      (supported
+        ? "Use local playback metadata as a clock; no media audio is captured."
+        : "Automatic OS Now Playing detection is unavailable on this device."),
   };
 }
 
@@ -235,7 +236,7 @@ function settingRow() {
   const intro = document.createElement("div");
   intro.className = "htf-listener-settings__description";
   intro.textContent =
-    "Build a private sensory library, fetch synchronized lyrics before playback, and share the local Windows Now Playing clock with the entity.";
+    "Build a private sensory library, fetch synchronized lyrics before playback, and share the local Now Playing clock with the entity.";
   heading.append(title, intro);
   panel.append(heading);
 

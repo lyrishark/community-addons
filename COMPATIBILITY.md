@@ -1,13 +1,13 @@
 # Compatibility snapshot
 
-Checked 2026-07-24 against stock `psycheros-v0.10.0`, Entity Core 0.6.0, and
+Checked 2026-07-29 against stock `psycheros-v0.10.0`, Entity Core 0.6.0, and
 Psycheros plugin API v1.
 
 ## Current matrix
 
 | Package | Version | Compatibility result |
 | --- | --- | --- |
-| HTF Music Listener | 0.2.1 | Manager-native; Psycheros `>=0.10.0 <0.11.0`, Launcher `>=0.2.45`. |
+| HTF Music Listener | 0.3.0-rc.1 | Manager-native; Psycheros `>=0.10.0 <0.11.0`, Launcher `>=0.2.45`; shared Now Playing on Windows, macOS, and Linux. |
 | Accessibility Controls | 0.1.0-rc.1 | Manager-native; replaces the font and voice-resize source overlays. |
 | Windows Shell Fix | 0.3.0-rc.1 | Manager-native; replaces the stock `shell` tool registration on Windows. |
 | More Uploads | 0.3.0-rc.1 | Exact-0.10 guarded source bridge. |
@@ -47,8 +47,10 @@ or its own identical payload, and preflights every file before any write.
 - Loom Gemini Parser: parser format/check/test and clean guarded install.
 - Accessibility Controls and Windows Shell Fix: stock validator, exact-ZIP
   manager inspection/install, focused tests, and active manager load.
-- HTF Music Listener: stock validator, plugin tests, Windows helper builds,
-  exact-ZIP manager install/restart, settings smoke, and update check.
+- HTF Music Listener: 16 focused Deno tests, Windows/Linux native watcher
+  builds and tests, actual JXA self-tests on Intel and Apple-Silicon macOS,
+  five-platform runtime builds, release hash verification, a live packaged
+  Windows watcher snapshot, and an exact-ZIP type check.
 
 PowerShell installers were executed on clean Windows worktrees. Unix installer
 scripts are included for the Psycheros source bridges but were not executed on

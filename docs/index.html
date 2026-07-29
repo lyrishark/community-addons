@@ -191,9 +191,9 @@
       </p>
       <div class="notice">
         These are community projects, not official Psycheros releases. HTF Music
-        Listener 0.2.1 and Accessibility Controls 0.1.0-rc.1 are the current
-        Psycheros 0.10 plugin-manager packages. Source mods remain versioned
-        history only.
+        Listener 0.3.0-rc.1 and Accessibility Controls 0.1.0-rc.1 are current
+        Psycheros 0.10 plugin-manager packages. Current guarded source bridges
+        are labeled separately from historical 0.8/0.9 overlays.
       </div>
     </div>
   </header>
@@ -201,10 +201,10 @@
   <main class="wrap">
     <div class="grid">
       <article class="card">
-        <h2>HTF Music Listener 0.2.1</h2>
+        <h2>HTF Music Listener 0.3.0-rc.1</h2>
         <p>
           A trusted Psycheros 0.10 plugin for explicit one-off listening and
-          opt-in shared Windows Now Playing presence.
+          opt-in shared Windows, macOS, and Linux Now Playing presence.
         </p>
         <ul>
           <li>Official Settings &gt; Plugins configuration page</li>
@@ -238,16 +238,17 @@
       </article>
 
       <article class="card">
-        <h2>Psycheros 0.10 ports in progress</h2>
+        <h2>Current guarded source bridges</h2>
         <p>
-          More Uploads, Expression Sprites, Screen Presence, Windows Shell Fix,
-          the Loom Gemini parser, and combined packages are being carried
-          forward from their historical 0.9.2 implementations.
+          More Uploads, Expression Sprites, Screen Presence, the Loom Gemini
+          parser, and combined packages have explicit Psycheros 0.10 release
+          candidates where plugin API v1 does not expose the required hooks.
         </p>
         <ul>
           <li>Do not install the old source-overlay releases over Psycheros 0.10</li>
-          <li>New builds will use manager plugins where API v1 permits them</li>
-          <li>Guarded source bridges remain valid where host hooks are missing</li>
+          <li>Use only the release candidate matching stock Psycheros 0.10.0</li>
+          <li>Installers verify stock hashes and refuse unknown local edits</li>
+          <li>Manager-native dependencies remain separate inspectable plugins</li>
         </ul>
         <div class="actions">
           <a class="button primary" href="https://github.com/lyrishark/community-addons/blob/main/historical/README.md">Historical index</a>

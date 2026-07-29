@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.3.0-rc.1 - 2026-07-29
+
+- Add shared Now Playing support for Apple Music and Spotify on macOS through a readable
+  JXA adapter that does not launch stopped players.
+- Add Linux shared listening through MPRIS on the user session bus, including stable
+  arbitration when several players are open.
+- Preserve the existing Windows media-session watcher behind the same normalized,
+  stale-safe playback protocol.
+- Publish native HTF workers for macOS Intel/Apple Silicon, Linux x64/ARM64, and Windows
+  x64, plus native watchers for Windows and Linux.
+- Let plugin-manager installs download only their matching verified release runtime,
+  with pinned size, archive SHA-256, extracted-file verification, atomic installation,
+  and durable reuse from addon state.
+- Keep shared listening off on fresh installs and fail honestly when playback metadata
+  is unavailable or cannot be matched to a local sensory-library track.
+- Add four-host behavior CI and a five-platform reproducible runtime build pipeline.
+
 ## 0.2.1 - 2026-07-25
 
 - Preserve existing listener settings during one-click addon-manager updates by
@@ -12,10 +29,9 @@
 ## 0.2.0 - 2026-07-24
 
 - Declare tested Psycheros 0.10.x and Launcher 0.2.45+ compatibility.
-- Grey out Share Now Playing on macOS and Linux with a clear Windows-only
-  explanation, while leaving manual music listening and library features
-  available; advertise the host capability from the plugin backend and reject
-  unsupported attempts server-side.
+- Grey out Share Now Playing on macOS and Linux with a clear Windows-only explanation,
+  while leaving manual music listening and library features available; advertise the
+  host capability from the plugin backend and reject unsupported attempts server-side.
 - Add a manager-native settings page plus a monorepo-aware, compatibility-safe GitHub
   update channel.
 - Publish only the trusted plugin package for 0.10; retain older legacy packages under

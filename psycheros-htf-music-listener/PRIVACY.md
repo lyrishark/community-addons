@@ -16,8 +16,9 @@ HTF Music Listener is local-first and does not contain analytics or telemetry.
   in settings.
 - The durable index and HTF bundles are stored under that library's private
   `.psycheros/` directory. They are not uploaded by the plugin.
-- Windows Global System Media Transport Controls supplies local title, artist, album,
-  play/pause state, duration, and position. The helper does not capture the media
+- The local playback surface supplies title, artist, album, play/pause state, duration,
+  and position: Global System Media Transport Controls on Windows, Apple Music or
+  Spotify scripting on macOS, and MPRIS on Linux. The watcher does not capture the media
   stream, microphone, or speaker output.
 - Psycheros receives a bounded textual HTF/LRC interval on conversation turns. Normal
   model-provider handling applies to that text, just like other prompt context; raw
@@ -32,6 +33,10 @@ HTF Music Listener is local-first and does not contain analytics or telemetry.
 - If FFmpeg is missing, one request downloads the pinned Gyan FFmpeg archive from
   GitHub. Its exact SHA-256 digest is verified before use. No music or usage data is
   included.
+- On first need, the addon downloads the native HTF runtime for the current operating
+  system and CPU from this repository's matching GitHub release. The request contains no
+  music, playback metadata, local path, conversation, or account identifier. The pinned
+  size and SHA-256 digest are verified before extraction.
 
 Disabling the library stops new scans and playback sensing but preserves work already
 completed. To erase it immediately, remove the library's `.psycheros/` directory and any

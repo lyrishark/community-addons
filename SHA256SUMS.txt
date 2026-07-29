@@ -1,4 +1,9 @@
-671ce4141601e7639b812015580cb9771bbf4e5d83ddb48b167d86a256a683dc  psycheros-htf-music-listener-0.2.1-windows-x64.zip
+8ba6a04103efa4428decefef9697fa286009e49c949b0adeea50ea300143b68b  psycheros-htf-music-listener-0.3.0-rc.1.zip
+be4f8f7eb2100c73d69b40993c33a2dd53ee9a97714b63d588fbe28852ce1063  psycheros-htf-runtime-darwin-aarch64.tar.gz
+59f6f23e3ee0a7fdbd0c8890f2472ee5d23c4b1f0a2c0acf6da5d8203e5f6c96  psycheros-htf-runtime-darwin-x86_64.tar.gz
+f45ce617aae8995f1dac409e72080159eadbd48c3d963a9ccbb8b90bf3cfac1f  psycheros-htf-runtime-linux-aarch64.tar.gz
+da7d1f77a11374964463f2a915a416fbe00c971d4c0d7147fc3035ba60851358  psycheros-htf-runtime-linux-x86_64.tar.gz
+b9a8f1751aea93b62585730188a4f21cc6bb2a79e0896b1b89aabf092d97b187  psycheros-htf-runtime-windows-x86_64.tar.gz
 280fbb242ced8e974496d43124040163ac88113979871a7a73edd5c54fa59236  psycheros-accessibility-controls-0.1.0-rc.1.zip
 98ae2afe8ca499dab80d87d3832e9bc9156b2430a8edc505a9b3077642d2d654  psycheros-windows-shell-fix-0.3.0-rc.1.zip
 a903950e3ebf3914a2b8798db056ea928a09127b81d220187c78cf5009fa5c6c  psycheros-more-uploads-0.3.0-rc.1.zip
