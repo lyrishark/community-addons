@@ -14,7 +14,7 @@ existing Windows path and the deliberately opt-in listening boundary.
   native watcher; macOS keeps its application adapter as readable JXA source.
 - Verified first-use runtime installation from the matching GitHub release. Each
   download is pinned by exact size and SHA-256, its extracted executables are checked
-  again, and the completed runtime survives normal plugin-manager upgrades.
+  again. A completed runtime is reused until the addon release changes.
 
 ## Defaults and consent
 

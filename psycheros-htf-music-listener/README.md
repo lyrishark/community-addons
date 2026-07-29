@@ -54,8 +54,8 @@ The previous source remains preferred on equal status to prevent rapid switching
 The platform-specific HTF worker and Windows/Linux watcher are downloaded from the
 matching GitHub release on first need. The addon verifies the pinned byte size and
 SHA-256 digest before extraction, verifies the extracted executables again, and stores
-them under addon state so a plugin-manager update does not throw them away. Python and
-Rust are not required on an end-user machine.
+them in versioned addon state for reuse. A later addon release uses its own newly pinned
+runtime. Python and Rust are not required on an end-user machine.
 
 ### FFmpeg
 
