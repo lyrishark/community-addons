@@ -54,3 +54,12 @@ invalid statuses, negative time values, and wrong optional types.
 
 The fixtures under `tests/fixtures/now-playing/` are the executable examples for
 accepted, rejected, and stale snapshots.
+
+## Platform implementations
+
+- Windows uses Global System Media Transport Controls.
+- Linux uses the standard MPRIS player interface on the session D-Bus.
+- macOS uses explicit JavaScript for Automation adapters because Apple does not publish
+  a system-wide observer equivalent to GSMTC or MPRIS. The initial adapters cover Music
+  and Spotify, only query applications already running, and may trigger macOS's one-time
+  Automation permission prompt.
