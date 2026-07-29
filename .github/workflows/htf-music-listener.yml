@@ -1,0 +1,73 @@
+name: HTF Music Listener
+
+on:
+  pull_request:
+    paths:
+      - "psycheros-htf-music-listener/**"
+      - ".github/workflows/htf-music-listener.yml"
+  push:
+    branches:
+      - main
+      - "agent/htf-cross-platform-*"
+    paths:
+      - "psycheros-htf-music-listener/**"
+      - ".github/workflows/htf-music-listener.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: ${{ matrix.platform }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-x86_64
+            runner: windows-latest
+            native_watcher: true
+          - platform: linux-x86_64
+            runner: ubuntu-22.04
+            native_watcher: true
+          - platform: darwin-aarch64
+            runner: macos-15
+            native_watcher: false
+          - platform: darwin-x86_64
+            runner: macos-15-intel
+            native_watcher: false
+    runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        working-directory: psycheros-htf-music-listener
+    steps:
+      - uses: actions/checkout@v6
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.9.2
+      - name: Check addon
+        run: deno task check
+      - name: Test addon
+        run: deno task test
+      - name: Test native watcher
+        if: matrix.native_watcher
+        run: cargo test --manifest-path watcher/Cargo.toml
+      - name: Build native watcher
+        if: matrix.native_watcher
+        run: cargo build --release --manifest-path watcher/Cargo.toml
+      - name: Validate macOS JXA watcher
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          result="$(/usr/bin/osascript -l JavaScript watcher/macos/now-playing-watcher.jxa --self-test)"
+          printf '%s\n' "$result"
+          [[ "$result" == *'"platform":"darwin"'* ]]
+          [[ "$result" == *'"com.apple.Music"'* ]]
+          [[ "$result" == *'"com.spotify.client"'* ]]
+      - name: Check formatting
+        shell: bash
+        run: |
+          deno fmt --check psycheros.ts lib web tests docs
+          if [[ "${{ matrix.native_watcher }}" == "true" ]]; then
+            cargo fmt --manifest-path watcher/Cargo.toml -- --check
+          fi

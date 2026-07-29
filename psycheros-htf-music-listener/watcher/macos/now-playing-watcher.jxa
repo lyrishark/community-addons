@@ -135,9 +135,17 @@ function readSpotify(capturedAtMs) {
   });
 }
 
-function run() {
+function run(arguments) {
   ObjC.import("AppKit");
   ObjC.import("Foundation");
+
+  if (arguments && arguments[0] === "--self-test") {
+    return JSON.stringify({
+      schemaVersion: 1,
+      platform: "darwin",
+      adapters: ["com.apple.Music", "com.spotify.client"],
+    });
+  }
 
   function write(handle, value) {
     var data = $(String(value) + "\n").dataUsingEncoding($.NSUTF8StringEncoding);
