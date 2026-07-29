@@ -65,9 +65,8 @@ jobs:
           [[ "$result" == *'"com.apple.Music"'* ]]
           [[ "$result" == *'"com.spotify.client"'* ]]
       - name: Check formatting
+        if: matrix.platform == 'linux-x86_64'
         shell: bash
         run: |
           deno fmt --check psycheros.ts lib web tests docs
-          if [[ "${{ matrix.native_watcher }}" == "true" ]]; then
-            cargo fmt --manifest-path watcher/Cargo.toml -- --check
-          fi
+          cargo fmt --manifest-path watcher/Cargo.toml -- --check
