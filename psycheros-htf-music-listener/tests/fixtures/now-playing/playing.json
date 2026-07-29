@@ -1,0 +1,10 @@
+{
+  "capturedAtMs": 1700000000000,
+  "sourceAppId": "org.mpris.MediaPlayer2.spotify",
+  "title": "Signal Fire",
+  "artist": "Fixture Artist",
+  "album": "Fixture Album",
+  "positionMs": 42500,
+  "durationMs": 240000,
+  "playbackStatus": "playing"
+}

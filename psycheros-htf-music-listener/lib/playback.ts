@@ -3,9 +3,19 @@ import { fileURLToPath } from "node:url";
 import type { LibraryTrack, MusicLibrary } from "./library.ts";
 
 const PLUGIN_ROOT = dirname(fileURLToPath(import.meta.url));
+const ADDON_ROOT = join(PLUGIN_ROOT, "..");
 const MAX_JOURNAL_EVENTS = 256;
 const SNAPSHOT_STALE_MS = 15_000;
 const MAX_LYRIC_LINES_PER_TURN = 8;
+const PLAYBACK_STATUSES = new Set([
+  "playing",
+  "paused",
+  "stopped",
+  "changing",
+  "closed",
+  "opened",
+  "unknown",
+]);
 
 export interface NowPlayingSnapshot {
   capturedAtMs: number;
@@ -34,6 +44,28 @@ export interface PlaybackStatus {
   htfState?: string;
   lastUpdateAt?: string;
   error?: string;
+}
+
+export interface WatcherCommand {
+  command: string;
+  args: string[];
+  label: string;
+}
+
+export interface WatcherResolutionOptions {
+  os?: string;
+  arch?: string;
+  addonRoot?: string;
+  configuredPath?: string;
+  environmentPath?: string;
+  osascriptPath?: string;
+  pathExists?: (path: string) => Promise<boolean>;
+}
+
+export interface SharedListeningCapability {
+  sharedListening: boolean;
+  platform: string;
+  description: string;
 }
 
 export interface LrcLine {
@@ -70,6 +102,65 @@ interface PlaybackOptions {
 
 function safeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function optionalString(value: unknown): string | undefined | null {
+  if (value === undefined) return undefined;
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed || undefined;
+}
+
+function optionalNonnegativeNumber(value: unknown): number | undefined | null {
+  if (value === undefined) return undefined;
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+    return null;
+  }
+  return value;
+}
+
+export function parseNowPlayingSnapshot(
+  value: unknown,
+): NowPlayingSnapshot | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const input = value as Record<string, unknown>;
+  if (
+    typeof input.capturedAtMs !== "number" ||
+    !Number.isFinite(input.capturedAtMs) ||
+    input.capturedAtMs < 0 ||
+    typeof input.playbackStatus !== "string"
+  ) return undefined;
+  const playbackStatus = input.playbackStatus.trim().toLowerCase();
+  if (!PLAYBACK_STATUSES.has(playbackStatus)) return undefined;
+
+  const sourceAppId = optionalString(input.sourceAppId);
+  const title = optionalString(input.title);
+  const artist = optionalString(input.artist);
+  const album = optionalString(input.album);
+  const positionMs = optionalNonnegativeNumber(input.positionMs);
+  const durationMs = optionalNonnegativeNumber(input.durationMs);
+  if (
+    sourceAppId === null || title === null || artist === null || album === null ||
+    positionMs === null || durationMs === null
+  ) return undefined;
+
+  return {
+    capturedAtMs: input.capturedAtMs,
+    playbackStatus,
+    ...(sourceAppId ? { sourceAppId } : {}),
+    ...(title ? { title } : {}),
+    ...(artist ? { artist } : {}),
+    ...(album ? { album } : {}),
+    ...(positionMs !== undefined ? { positionMs } : {}),
+    ...(durationMs !== undefined ? { durationMs } : {}),
+  };
+}
+
+export function isNowPlayingSnapshotStale(
+  snapshot: NowPlayingSnapshot,
+  nowMs = Date.now(),
+): boolean {
+  return nowMs - snapshot.capturedAtMs > SNAPSHOT_STALE_MS;
 }
 
 async function exists(path: string): Promise<boolean> {
@@ -257,30 +348,89 @@ export function buildMusicPresence(options: {
   return lines.join("\n");
 }
 
-async function resolveWatcher(configured?: string): Promise<string> {
-  const candidates = [
-    configured?.trim(),
-    Deno.env.get("PSYCHEROS_PLUGIN_HTF_MUSIC_LISTENER_NOW_PLAYING")?.trim(),
-    join(
-      PLUGIN_ROOT,
-      "..",
-      "vendor",
-      `${Deno.build.os}-${Deno.build.arch}`,
-      "now-playing-watcher.exe",
-    ),
-    join(
-      PLUGIN_ROOT,
-      "..",
-      "watcher",
-      "target",
-      "release",
-      "psycheros-now-playing-watcher.exe",
-    ),
+export function watcherExecutableName(os = Deno.build.os): string {
+  return os === "windows" ? "now-playing-watcher.exe" : "now-playing-watcher";
+}
+
+export async function resolveWatcherCommand(
+  options: WatcherResolutionOptions = {},
+): Promise<WatcherCommand> {
+  const os = options.os ?? Deno.build.os;
+  const arch = options.arch ?? Deno.build.arch;
+  const addonRoot = options.addonRoot ?? ADDON_ROOT;
+  const pathExists = options.pathExists ?? exists;
+  const configuredCandidates = [
+    options.configuredPath?.trim(),
+    options.environmentPath?.trim(),
+    options.environmentPath === undefined
+      ? Deno.env.get("PSYCHEROS_PLUGIN_HTF_MUSIC_LISTENER_NOW_PLAYING")?.trim()
+      : undefined,
   ].filter((entry): entry is string => !!entry);
-  for (const candidate of candidates) {
-    if (await exists(candidate)) return candidate;
+  for (const candidate of configuredCandidates) {
+    if (await pathExists(candidate)) {
+      return {
+        command: candidate,
+        args: [],
+        label: `configured Now Playing watcher (${candidate})`,
+      };
+    }
   }
-  throw new Error("The Windows Now Playing helper is not installed yet.");
+
+  if (os === "darwin") {
+    const script = join(addonRoot, "watcher", "macos", "now-playing-watcher.jxa");
+    const osascript = options.osascriptPath ?? "/usr/bin/osascript";
+    if (await pathExists(script) && await pathExists(osascript)) {
+      return {
+        command: osascript,
+        args: ["-l", "JavaScript", script],
+        label: "macOS Now Playing watcher",
+      };
+    }
+  } else if (os === "windows" || os === "linux") {
+    const executable = watcherExecutableName(os);
+    const developmentExecutable = os === "windows"
+      ? "psycheros-now-playing-watcher.exe"
+      : "psycheros-now-playing-watcher";
+    const candidates = [
+      join(addonRoot, "vendor", `${os}-${arch}`, executable),
+      join(addonRoot, "watcher", "target", "release", developmentExecutable),
+    ];
+    for (const candidate of candidates) {
+      if (await pathExists(candidate)) {
+        return {
+          command: candidate,
+          args: [],
+          label: `${os} Now Playing watcher`,
+        };
+      }
+    }
+  }
+
+  throw new Error(
+    `No compatible Now Playing watcher is installed for ${os}-${arch}.`,
+  );
+}
+
+export async function inspectSharedListeningCapability(
+  options: WatcherResolutionOptions = {},
+): Promise<SharedListeningCapability> {
+  const platform = options.os ?? Deno.build.os;
+  try {
+    await resolveWatcherCommand(options);
+    return {
+      sharedListening: true,
+      platform,
+      description:
+        "Use local playback metadata as a clock; no media audio is captured.",
+    };
+  } catch {
+    return {
+      sharedListening: false,
+      platform,
+      description:
+        `Automatic Now Playing detection is unavailable because no compatible ${platform} watcher is installed.`,
+    };
+  }
 }
 
 async function* textLines(stream: ReadableStream<Uint8Array>): AsyncGenerator<string> {
@@ -342,23 +492,22 @@ export class PlaybackPresence {
 
   async start(): Promise<void> {
     if (!(await this.#options.enabled())) return;
-    if (Deno.build.os !== "windows") {
-      this.#status = {
-        available: false,
-        running: false,
-        error: "Now Playing sensing currently requires Windows.",
-      };
-      return;
-    }
     try {
-      const watcher = await resolveWatcher(this.#options.watcherPath);
-      this.#child = new Deno.Command(watcher, {
+      const watcher = await resolveWatcherCommand({
+        configuredPath: this.#options.watcherPath,
+      });
+      this.#child = new Deno.Command(watcher.command, {
+        args: watcher.args,
         stdin: "null",
         stdout: "piped",
         stderr: "piped",
         windowsRawArguments: false,
       }).spawn();
-      this.#status = { available: true, running: true, watcher };
+      this.#status = {
+        available: true,
+        running: true,
+        watcher: watcher.label,
+      };
       this.#consumeStdout(this.#child.stdout);
       this.#consumeStderr(this.#child.stderr);
       this.#child.status.then((status) => {
@@ -393,7 +542,7 @@ export class PlaybackPresence {
   currentPositionSeconds(): number | undefined {
     const snapshot = this.#snapshot;
     if (!snapshot || snapshot.positionMs === undefined) return undefined;
-    if (Date.now() - snapshot.capturedAtMs > SNAPSHOT_STALE_MS) return undefined;
+    if (isNowPlayingSnapshotStale(snapshot)) return undefined;
     const advance = snapshot.playbackStatus === "playing"
       ? Math.max(0, Date.now() - snapshot.capturedAtMs)
       : 0;
@@ -462,16 +611,14 @@ export class PlaybackPresence {
   async #consumeStdout(stream: ReadableStream<Uint8Array>): Promise<void> {
     try {
       for await (const line of textLines(stream)) {
-        let parsed: NowPlayingSnapshot;
+        let raw: unknown;
         try {
-          parsed = JSON.parse(line);
+          raw = JSON.parse(line);
         } catch {
           continue;
         }
-        if (
-          typeof parsed.capturedAtMs !== "number" ||
-          typeof parsed.playbackStatus !== "string"
-        ) continue;
+        const parsed = parseNowPlayingSnapshot(raw);
+        if (!parsed) continue;
         this.#updateSnapshot(parsed);
       }
     } catch (error) {

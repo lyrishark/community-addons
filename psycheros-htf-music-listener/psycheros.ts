@@ -5,7 +5,7 @@ import {
   type HtfPreviewImage,
 } from "./lib/htf.ts";
 import { type LibrarySettings, MusicLibrary } from "./lib/library.ts";
-import { PlaybackPresence } from "./lib/playback.ts";
+import { inspectSharedListeningCapability, PlaybackPresence } from "./lib/playback.ts";
 
 const PLUGIN_ID = "psycheros-htf-music-listener";
 const PLUGIN_ROOT = dirname(fileURLToPath(import.meta.url));
@@ -44,10 +44,6 @@ interface ListenerSettings {
   autoLyrics: boolean;
   precomputeHtf: boolean;
   sharedListening: boolean;
-}
-
-export function supportsSharedListening(os = Deno.build.os): boolean {
-  return os === "windows";
 }
 
 interface CommandResult {
@@ -969,12 +965,10 @@ async function settingsRoute(
   services: PluginServices,
 ): Promise<Response> {
   if (request.method === "GET") {
+    const capability = await inspectSharedListeningCapability();
     return Response.json({
       ...await readSettings(services.statePath),
-      capabilities: {
-        sharedListening: supportsSharedListening(),
-        platform: Deno.build.os,
-      },
+      capabilities: capability,
     });
   }
   let body: unknown;
@@ -1012,9 +1006,10 @@ async function settingsRoute(
     }
     next[key] = input[key] as boolean;
   }
-  if (next.sharedListening && !supportsSharedListening()) {
+  const capability = await inspectSharedListeningCapability();
+  if (next.sharedListening && !capability.sharedListening) {
     return Response.json(
-      { error: "Share Now Playing currently requires Windows." },
+      { error: capability.description },
       { status: 400 },
     );
   }

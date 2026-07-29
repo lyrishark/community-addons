@@ -47,9 +47,10 @@ function sharedListeningCapability(settings) {
   return {
     supported,
     platform: settings?.capabilities?.platform ?? "unknown",
-    description: supported
-      ? "Use local playback metadata as a clock; no Spotify audio is captured."
-      : "Windows only for now — automatic OS Now Playing detection is unavailable on this device.",
+    description: settings?.capabilities?.description ??
+      (supported
+        ? "Use local playback metadata as a clock; no media audio is captured."
+        : "Automatic OS Now Playing detection is unavailable on this device."),
   };
 }
 

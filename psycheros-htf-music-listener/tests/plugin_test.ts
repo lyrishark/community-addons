@@ -3,9 +3,9 @@ import { join } from "node:path";
 import plugin, {
   resolveAttachmentPath,
   restoreSettingsFromLatestManagerBackup,
-  supportsSharedListening,
 } from "../psycheros.ts";
 import { formatHtfSensoryObjectForAttachment } from "../lib/htf.ts";
+import { inspectSharedListeningCapability } from "../lib/playback.ts";
 
 Deno.test("manifest and tool expose the explicit music boundary", async () => {
   const manifest = JSON.parse(
@@ -28,12 +28,6 @@ Deno.test("manifest and tool expose the explicit music boundary", async () => {
   assert.match(tool.description, /explicitly asks me to listen/i);
   assert.match(tool.description, /do not use this for voice notes/i);
   assert.deepEqual(tool.parameters.required, ["audio_path"]);
-});
-
-Deno.test("shared Now Playing capability is Windows-only", () => {
-  assert.equal(supportsSharedListening("windows"), true);
-  assert.equal(supportsSharedListening("darwin"), false);
-  assert.equal(supportsSharedListening("linux"), false);
 });
 
 Deno.test("manager updates restore the newest valid settings backup once", async () => {
@@ -213,6 +207,7 @@ Deno.test("entity-view setting defaults off and persists through plugin routes",
       new Request("http://localhost/settings"),
       services,
     );
+    const capability = await inspectSharedListeningCapability();
     assert.deepEqual(await initial.json(), {
       displayEntityView: false,
       retentionDays: 7,
@@ -221,10 +216,7 @@ Deno.test("entity-view setting defaults off and persists through plugin routes",
       autoLyrics: true,
       precomputeHtf: true,
       sharedListening: false,
-      capabilities: {
-        sharedListening: Deno.build.os === "windows",
-        platform: Deno.build.os,
-      },
+      capabilities: capability,
     });
 
     const saved = await postRoute.handler(
