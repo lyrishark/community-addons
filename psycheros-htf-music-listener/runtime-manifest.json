@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "releaseTag": "psycheros-htf-music-listener-v0.3.0-rc.1",
+  "generatedAtUtc": "2026-07-29T18:57:08.584330+00:00",
+  "assets": {
+    "darwin-aarch64": {
+      "filename": "psycheros-htf-runtime-darwin-aarch64.tar.gz",
+      "url": "https://github.com/lyrishark/community-addons/releases/download/psycheros-htf-music-listener-v0.3.0-rc.1/psycheros-htf-runtime-darwin-aarch64.tar.gz",
+      "sha256": "be4f8f7eb2100c73d69b40993c33a2dd53ee9a97714b63d588fbe28852ce1063",
+      "size": 46809080,
+      "worker": "htf-worker",
+      "watcher": null
+    },
+    "darwin-x86_64": {
+      "filename": "psycheros-htf-runtime-darwin-x86_64.tar.gz",
+      "url": "https://github.com/lyrishark/community-addons/releases/download/psycheros-htf-music-listener-v0.3.0-rc.1/psycheros-htf-runtime-darwin-x86_64.tar.gz",
+      "sha256": "59f6f23e3ee0a7fdbd0c8890f2472ee5d23c4b1f0a2c0acf6da5d8203e5f6c96",
+      "size": 51371253,
+      "worker": "htf-worker",
+      "watcher": null
+    },
+    "linux-aarch64": {
+      "filename": "psycheros-htf-runtime-linux-aarch64.tar.gz",
+      "url": "https://github.com/lyrishark/community-addons/releases/download/psycheros-htf-music-listener-v0.3.0-rc.1/psycheros-htf-runtime-linux-aarch64.tar.gz",
+      "sha256": "f45ce617aae8995f1dac409e72080159eadbd48c3d963a9ccbb8b90bf3cfac1f",
+      "size": 91340779,
+      "worker": "htf-worker",
+      "watcher": "now-playing-watcher"
+    },
+    "linux-x86_64": {
+      "filename": "psycheros-htf-runtime-linux-x86_64.tar.gz",
+      "url": "https://github.com/lyrishark/community-addons/releases/download/psycheros-htf-music-listener-v0.3.0-rc.1/psycheros-htf-runtime-linux-x86_64.tar.gz",
+      "sha256": "da7d1f77a11374964463f2a915a416fbe00c971d4c0d7147fc3035ba60851358",
+      "size": 96187315,
+      "worker": "htf-worker",
+      "watcher": "now-playing-watcher"
+    },
+    "windows-x86_64": {
+      "filename": "psycheros-htf-runtime-windows-x86_64.tar.gz",
+      "url": "https://github.com/lyrishark/community-addons/releases/download/psycheros-htf-music-listener-v0.3.0-rc.1/psycheros-htf-runtime-windows-x86_64.tar.gz",
+      "sha256": "b9a8f1751aea93b62585730188a4f21cc6bb2a79e0896b1b89aabf092d97b187",
+      "size": 71863080,
+      "worker": "htf-worker.exe",
+      "watcher": "now-playing-watcher.exe"
+    }
+  }
+}

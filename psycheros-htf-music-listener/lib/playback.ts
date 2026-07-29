@@ -97,6 +97,7 @@ interface PlaybackOptions {
   library: MusicLibrary;
   enabled: () => Promise<boolean>;
   watcherPath?: string;
+  resolveWatcher?: () => Promise<WatcherCommand>;
   log?: (message: string) => void;
 }
 
@@ -493,9 +494,11 @@ export class PlaybackPresence {
   async start(): Promise<void> {
     if (!(await this.#options.enabled())) return;
     try {
-      const watcher = await resolveWatcherCommand({
-        configuredPath: this.#options.watcherPath,
-      });
+      const watcher = this.#options.resolveWatcher
+        ? await this.#options.resolveWatcher()
+        : await resolveWatcherCommand({
+          configuredPath: this.#options.watcherPath,
+        });
       this.#child = new Deno.Command(watcher.command, {
         args: watcher.args,
         stdin: "null",
