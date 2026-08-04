@@ -1,6 +1,6 @@
 {
   "name": "@local/codex-entity-core-connector",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "exports": "./src/server.ts",
   "nodeModulesDir": "none",
   "imports": {
@@ -12,7 +12,8 @@
   },
   "tasks": {
     "start": "deno run --node-modules-dir=none -A src/server.ts",
-    "check": "deno check src/server.ts scripts/smoke.ts",
+    "check": "deno check src/platform-paths.ts src/server.ts scripts/smoke.ts tests/platform_paths_test.ts",
+    "test": "deno test --node-modules-dir=none tests",
     "smoke": "deno run --node-modules-dir=none -A scripts/smoke.ts",
     "fmt": "deno fmt"
   },

@@ -5,8 +5,8 @@ local Psycheros entity-core.
 
 This is not an official Psycheros release.
 
-> **Psycheros 0.10 status:** Compatible. Connector `0.2.2` reads the canonical
-> `%APPDATA%\Psycheros\data\entity-core` files directly; its type-check and
+> **Psycheros 0.10 status:** Compatible. Connector `0.3.0` reads the canonical
+> Psycheros entity-core directory on Windows, macOS, or Linux; its type-check and
 > isolated read/write smoke test passed against the current data layout. It is
 > independent of the Psycheros plugin manager.
 
@@ -37,9 +37,11 @@ Codex cannot:
 
 By default, the connector looks for entity-core at:
 
-```text
-%APPDATA%\Psycheros\data\entity-core
-```
+| Platform | Default path |
+| --- | --- |
+| Windows | `%APPDATA%\Psycheros\data\entity-core` |
+| macOS | `~/Library/Application Support/Psycheros/data/entity-core` |
+| Linux | `${XDG_DATA_HOME:-$HOME/.local/share}/Psycheros/data/entity-core` |
 
 If Psycheros uses a different data directory, edit `.mcp.json` and add
 `ENTITY_CONNECTOR_DATA_DIR`.
@@ -49,7 +51,7 @@ If Psycheros uses a different data directory, edit `.mcp.json` and add
 Download the latest release:
 
 ```text
-https://github.com/lyrishark/community-addons/releases/tag/codex-entity-core-plugin-v0.2.2
+https://github.com/lyrishark/community-addons/releases/tag/codex-entity-core-plugin-v0.3.0
 ```
 
 Then:
@@ -96,6 +98,7 @@ The share package was validated with:
 - Deno check
 - Codex plugin validation
 - connector smoke test, including temporary write/fetch/search
+- platform-path tests for Windows, macOS, and Linux defaults
 
 ## Source and Issues
 

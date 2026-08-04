@@ -63,8 +63,13 @@ Current manager-native release candidate:
 
 Current independent Codex plugin prerelease:
 
-- `psycheros-entity-core-codex-plugin-0.2.2.zip`
-- `psycheros-entity-core-codex-plugin-0.2.2.zip.sha256`
+- `psycheros-entity-core-codex-plugin-0.3.0.zip`
+- `psycheros-entity-core-codex-plugin-0.3.0.zip.sha256`
+
+Current independent ChatGPT private bridge prerelease:
+
+- `psycheros-entity-core-chatgpt-private-0.2.0.zip`
+- `SHA256SUMS-chatgpt-bridge.txt`
 
 Do not relabel an old HTF or 0.9.2 source-overlay asset as compatible with 0.10.
 Older Psycheros 0.8/0.9 release assets stay attached to their existing tags.

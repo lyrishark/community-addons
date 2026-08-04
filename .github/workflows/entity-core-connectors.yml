@@ -1,0 +1,73 @@
+name: Entity Core connectors
+
+on:
+  pull_request:
+    paths:
+      - "chatgpt-entity-core-private/**"
+      - "codex-entity-core-plugin/**"
+      - "package-chatgpt-bridge.ps1"
+      - "scripts/Build-CodexEntityCoreRelease.ps1"
+      - ".github/workflows/entity-core-connectors.yml"
+  push:
+    branches: [main]
+    paths:
+      - "chatgpt-entity-core-private/**"
+      - "codex-entity-core-plugin/**"
+      - "package-chatgpt-bridge.ps1"
+      - "scripts/Build-CodexEntityCoreRelease.ps1"
+      - ".github/workflows/entity-core-connectors.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  connector-tests:
+    name: ${{ matrix.connector }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+        connector: [chatgpt, codex]
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.9.2
+
+      - name: Check ChatGPT bridge
+        if: matrix.connector == 'chatgpt'
+        working-directory: chatgpt-entity-core-private/connectors/codex-entity-core
+        run: deno task check
+
+      - name: Test ChatGPT bridge
+        if: matrix.connector == 'chatgpt'
+        working-directory: chatgpt-entity-core-private/connectors/codex-entity-core
+        run: |
+          deno task test
+          deno task smoke
+          deno task smoke:http
+          deno task smoke:oauth
+
+      - name: Check Codex plugin connector
+        if: matrix.connector == 'codex'
+        working-directory: codex-entity-core-plugin/plugin/connectors/codex-entity-core
+        run: deno task check
+
+      - name: Test Codex plugin connector
+        if: matrix.connector == 'codex'
+        working-directory: codex-entity-core-plugin/plugin/connectors/codex-entity-core
+        run: |
+          deno task test
+          deno task smoke
+
+      - name: Check POSIX helper syntax
+        if: matrix.connector == 'chatgpt' && runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in chatgpt-entity-core-private/*.command \
+            chatgpt-entity-core-private/connectors/codex-entity-core/scripts/*.sh; do
+            bash -n "$file"
+          done

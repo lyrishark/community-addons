@@ -1,6 +1,6 @@
 {
   "name": "@local/codex-entity-core-connector",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "exports": "./src/server.ts",
   "nodeModulesDir": "none",
   "imports": {
@@ -16,7 +16,8 @@
     "start": "deno run --node-modules-dir=none -A src/server.ts",
     "start:stdio": "deno run --node-modules-dir=none -A src/server.ts",
     "start:http": "deno run --node-modules-dir=none -A src/http.ts",
-    "check": "deno check src/auth.ts src/core.ts src/server.ts src/http.ts scripts/smoke.ts scripts/http-smoke.ts scripts/oauth-smoke.ts",
+    "check": "deno check src/auth.ts src/core.ts src/platform-paths.ts src/server.ts src/http.ts scripts/smoke.ts scripts/http-smoke.ts scripts/oauth-smoke.ts tests/platform_paths_test.ts",
+    "test": "deno test --node-modules-dir=none tests",
     "smoke": "deno run --node-modules-dir=none -A scripts/smoke.ts",
     "smoke:http": "deno run --node-modules-dir=none -A scripts/http-smoke.ts",
     "smoke:oauth": "deno run --node-modules-dir=none -A scripts/oauth-smoke.ts",

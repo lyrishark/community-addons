@@ -62,6 +62,13 @@ function parseToolJson(result: unknown): Record<string, unknown> {
   return JSON.parse(textFromToolResult(result));
 }
 
+function assertModelOnlyResult(result: unknown, label: string): void {
+  const maybeResult = result as { structuredContent?: unknown };
+  if (maybeResult.structuredContent !== undefined) {
+    throw new Error(`${label} duplicated its payload in structuredContent`);
+  }
+}
+
 async function waitForHealth(timeoutMs = 30_000): Promise<void> {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
@@ -170,31 +177,47 @@ try {
     throw new Error("lite endpoint should not expose output schemas");
   }
   const marker = `lite-http-smoke-${crypto.randomUUID()}`;
-  const rememberText = textFromToolResult(
-    await withTimeout(
-      "lite remember",
-      liteClient.callTool({
-        name: "remember",
-        arguments: { text: `Lite HTTP smoke marker ${marker}` },
-      }),
-      30_000,
-    ),
+  const rememberResult = await withTimeout(
+    "lite remember",
+    liteClient.callTool({
+      name: "remember",
+      arguments: { text: `Lite HTTP smoke marker ${marker}` },
+    }),
+    30_000,
   );
+  assertModelOnlyResult(rememberResult, "lite remember");
+  const rememberText = textFromToolResult(rememberResult);
   if (!rememberText.includes('"success":true')) {
     throw new Error("lite remember did not succeed");
   }
-  const searchText = textFromToolResult(
-    await withTimeout(
-      "lite search",
-      liteClient.callTool({
-        name: "search",
-        arguments: { query: marker },
-      }),
-      30_000,
-    ),
+  const rememberData = JSON.parse(rememberText) as { id?: string };
+  if (typeof rememberData.id !== "string") {
+    throw new Error("lite remember did not return a fetchable id");
+  }
+  const searchResult = await withTimeout(
+    "lite search",
+    liteClient.callTool({
+      name: "search",
+      arguments: { query: marker },
+    }),
+    30_000,
   );
+  assertModelOnlyResult(searchResult, "lite search");
+  const searchText = textFromToolResult(searchResult);
   if (!searchText.includes(marker)) {
     throw new Error("lite search did not return the remembered marker");
+  }
+  const fetchResult = await withTimeout(
+    "lite fetch",
+    liteClient.callTool({
+      name: "fetch",
+      arguments: { id: rememberData.id, maxChars: 500 },
+    }),
+    30_000,
+  );
+  assertModelOnlyResult(fetchResult, "lite fetch");
+  if (!textFromToolResult(fetchResult).includes(marker)) {
+    throw new Error("lite fetch did not return the remembered marker");
   }
 } finally {
   await client.close().catch(() => {});

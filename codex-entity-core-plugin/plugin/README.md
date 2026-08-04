@@ -14,16 +14,18 @@ This package includes:
 - Psycheros installed and initialized on the same computer.
 - Deno available on `PATH`.
 
-The connector defaults to:
+The connector defaults to the native Psycheros data location:
 
-```text
-%APPDATA%\Psycheros\data\entity-core
-```
+| Platform | Default path |
+| --- | --- |
+| Windows | `%APPDATA%\Psycheros\data\entity-core` |
+| macOS | `~/Library/Application Support/Psycheros/data/entity-core` |
+| Linux | `${XDG_DATA_HOME:-$HOME/.local/share}/Psycheros/data/entity-core` |
 
 If Psycheros stores entity-core somewhere else, edit `.mcp.json` and add:
 
 ```json
-"ENTITY_CONNECTOR_DATA_DIR": "C:\\path\\to\\Psycheros\\data\\entity-core"
+"ENTITY_CONNECTOR_DATA_DIR": "/custom/path/to/Psycheros/data/entity-core"
 ```
 
 inside the `env` object.
@@ -52,4 +54,3 @@ Set this in `.mcp.json` to make the plugin read-only:
 ```json
 "ENTITY_CONNECTOR_WRITE_ENABLED": "false"
 ```
-

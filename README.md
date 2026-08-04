@@ -31,8 +31,8 @@ not automatically install dependencies declared by a meta-plugin.
 | Project | Version | Surface |
 | --- | --- | --- |
 | [Thread Exporter](browser-thread-exporter/README.md) | 0.3.2 | Browser extension; no Psycheros host dependency. |
-| [Entity Core for Codex](codex-entity-core-plugin/README.md) | [0.2.2](https://github.com/lyrishark/community-addons/releases/tag/codex-entity-core-plugin-v0.2.2) | Codex MCP/plugin package. |
-| [Entity Core for ChatGPT](chatgpt-entity-core-private/START_HERE.md) | [0.1.3](https://github.com/lyrishark/community-addons/releases/tag/chatgpt-entity-core-private-v0.1.3) | Private HTTPS/OAuth bridge. |
+| [Entity Core for Codex](codex-entity-core-plugin/README.md) | [0.3.0](https://github.com/lyrishark/community-addons/releases/tag/codex-entity-core-plugin-v0.3.0) | Cross-platform Codex MCP/plugin package. |
+| [Entity Core for ChatGPT](chatgpt-entity-core-private/README.md) | [0.2.0](https://github.com/lyrishark/community-addons/releases/tag/chatgpt-entity-core-private-v0.2.0) | Cross-platform private HTTPS/OAuth bridge. |
 
 These projects have their own version streams. Their package numbers do not
 imply the version of Entity Core bundled with Psycheros.

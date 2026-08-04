@@ -1,157 +1,24 @@
 # Quickstart - ChatGPT Private Bridge
 
-This is the short path. If anything fails, use `SETUP.md` and
-`TROUBLESHOOTING.md`.
+Choose the detailed guide for the computer running Psycheros:
 
-This is not an official Psycheros release.
+- Windows: `START_HERE.md`
+- macOS or Linux: `START_HERE_MAC_LINUX.md`
 
-## 1. Install Requirements
+The short path on every platform is:
 
-Install:
+1. Install Psycheros, Deno, and Tailscale.
+2. Run helper 1 to check prerequisites.
+3. Run helper 2 and copy the Tailscale HTTPS hostname.
+4. Configure an Auth0 API and Regular Web Application with `entity:read`,
+   `memory:write`, delegated access, and offline access.
+5. Create a ChatGPT private app pointing to
+   `https://your-machine.your-tailnet.ts.net/mcp-lite`.
+6. Put the pathless public URL and Auth0 issuer into `bridge.env` using helper 3.
+7. Run helper 4, connect in ChatGPT, and test `search`.
+8. Run helper 5 to install platform-native automatic startup.
 
-- Psycheros
-- Deno
-- Tailscale
+Windows helpers end in `.bat`. macOS helpers end in `.command`. Linux users can
+run the matching files under `connectors/codex-entity-core/scripts` with `sh`.
 
-Create or log into:
-
-- Auth0
-- ChatGPT with Developer Mode private apps/connectors
-
-## 2. Check Your Computer
-
-Open PowerShell in `connectors\codex-entity-core`.
-
-Run:
-
-```powershell
-.\scripts\check-chatgpt-bridge-prereqs.ps1 -RunDenoCheck
-```
-
-Fix red `[fail]` lines before continuing.
-
-## 3. Start Tailscale Funnel
-
-In PowerShell:
-
-```powershell
-.\scripts\start-tailscale-funnel.ps1
-```
-
-Copy the HTTPS URL Tailscale prints.
-
-Public base URL:
-
-```text
-https://your-machine.your-tailnet.ts.net
-```
-
-ChatGPT MCP URL:
-
-```text
-https://your-machine.your-tailnet.ts.net/mcp-lite
-```
-
-## 4. Configure Auth0
-
-Create:
-
-- one Regular Web Application
-- one API
-
-Auth0 API Identifier must be the public base URL without `/mcp-lite` or `/mcp`:
-
-```text
-https://your-machine.your-tailnet.ts.net
-```
-
-Auth0 API permissions:
-
-```text
-entity:read
-memory:write
-```
-
-Auth0 Application token endpoint auth method:
-
-```text
-client_secret_post
-```
-
-Auth0 API Settings:
-
-```text
-User-delegated Access: All apps allowed
-```
-
-## 5. Start The Bridge
-
-In another PowerShell window:
-
-```powershell
-.\scripts\start-chatgpt-bridge.ps1 `
-  -PublicBaseUrl "https://your-machine.your-tailnet.ts.net" `
-  -OAuthIssuer "https://your-tenant.us.auth0.com"
-```
-
-Leave this terminal open until the connection test succeeds.
-
-Optional: copy `bridge.env.example` to
-`connectors\codex-entity-core\bridge.env`, fill in your URLs, then start with:
-
-```powershell
-.\scripts\start-chatgpt-bridge.ps1 -EnvFile .\bridge.env
-```
-
-## 6. Create ChatGPT App
-
-In ChatGPT private app setup:
-
-- Server URL: `https://your-machine.your-tailnet.ts.net/mcp-lite`
-- Authentication: OAuth
-- Registration method: User-Defined OAuth Client
-- Client ID: from Auth0 Application
-- Client Secret: from Auth0 Application
-- Token endpoint auth method: `client_secret_post`
-- Default scopes: `entity:read`, `memory:write`
-- Base scopes: `offline_access`
-
-Copy ChatGPT's callback URL into Auth0 Application > Allowed Callback URLs.
-
-## 7. Test Auth0
-
-```powershell
-.\scripts\test-auth0-chatgpt-authorize.ps1 `
-  -Auth0Domain "your-tenant.us.auth0.com" `
-  -ClientId "YOUR_AUTH0_CLIENT_ID" `
-  -CallbackUrl "https://chatgpt.com/connector/oauth/YOUR_CALLBACK_ID" `
-  -PublicBaseUrl "https://your-machine.your-tailnet.ts.net"
-```
-
-Good:
-
-```text
-[ok] Auth0 accepted the client/resource/scopes and redirected to login.
-```
-
-## 8. Connect
-
-Create the app in ChatGPT, click Connect, and sign in through Auth0.
-
-Try:
-
-```text
-Use Psycheros Entity Core to search for recent memories.
-```
-
-## 9. Enable Automatic Startup
-
-After the bridge works, run:
-
-```powershell
-.\scripts\install-chatgpt-bridge-autostart.ps1 -EnvFile .\bridge.env
-```
-
-Or double-click `5 Keep Bridge Running Automatically.bat` from the addon root.
-The supervised task starts at sign-in and recovers from bridge crashes or
-failed local health checks.
+If anything fails, open `TROUBLESHOOTING.md`.

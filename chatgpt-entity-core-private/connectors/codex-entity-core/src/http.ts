@@ -4,6 +4,8 @@ import express, {
   type Response,
 } from "express";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { ensureDir } from "@std/fs";
+import { dirname, join } from "@std/path";
 import {
   createAttachAuthMiddleware,
   createHttpAuthContext,
@@ -14,6 +16,7 @@ import {
   createEntityCoreLiteMcpServer,
   createEntityCoreMcpServer,
 } from "./core.ts";
+import { currentPsycherosPlatformPaths } from "./platform-paths.ts";
 
 const host = Deno.env.get("ENTITY_CONNECTOR_HTTP_HOST") ?? "127.0.0.1";
 const port = Number(
@@ -31,10 +34,9 @@ const corsOrigins = new Set(
     .map((origin) => origin.trim())
     .filter(Boolean),
 );
+const platformLogDir = currentPsycherosPlatformPaths().logDir;
 const accessLogPath = Deno.env.get("ENTITY_CONNECTOR_HTTP_ACCESS_LOG") ??
-  (Deno.env.get("APPDATA")
-    ? `${Deno.env.get("APPDATA")}\\Psycheros\\logs\\chatgpt-bridge.access.jsonl`
-    : "");
+  (platformLogDir ? join(platformLogDir, "chatgpt-bridge.access.jsonl") : "");
 
 if (!Number.isInteger(port) || port <= 0 || port > 65_535) {
   throw new Error(`Invalid HTTP port: ${port}`);
@@ -54,9 +56,44 @@ function accessLogAuthState(req: Request): string {
   return "other";
 }
 
+type RequestWithAuth = Request & {
+  auth?: {
+    clientId?: string;
+    scopes?: string[];
+    expiresAt?: number;
+  };
+};
+
+function accessLogAuthInfo(req: Request): Record<string, unknown> {
+  const auth = (req as RequestWithAuth).auth;
+  return {
+    authVerified: Boolean(auth),
+    authClientId: auth?.clientId ?? "",
+    authScopes: auth?.scopes ?? [],
+    authExpiresAt: auth?.expiresAt ?? null,
+  };
+}
+
+function accessLogRpcInfo(body: unknown): Record<string, unknown> {
+  const messages = Array.isArray(body) ? body : [body];
+  const first = messages.find((message) =>
+    message && typeof message === "object"
+  ) as Record<string, unknown> | undefined;
+  const params = first?.params && typeof first.params === "object"
+    ? first.params as Record<string, unknown>
+    : undefined;
+
+  return {
+    rpcBatchSize: Array.isArray(body) ? body.length : 1,
+    rpcMethod: typeof first?.method === "string" ? first.method : "",
+    rpcTool: typeof params?.name === "string" ? params.name : "",
+  };
+}
+
 async function appendAccessLog(entry: Record<string, unknown>): Promise<void> {
   if (!accessLogPath) return;
   try {
+    await ensureDir(dirname(accessLogPath));
     await Deno.writeTextFile(accessLogPath, `${JSON.stringify(entry)}\n`, {
       append: true,
       create: true,
@@ -88,6 +125,10 @@ app.use((req: Request, res: Response, next: NextFunction) => {
       status: res.statusCode,
       ms: Date.now() - started,
       auth: accessLogAuthState(req),
+      ...accessLogAuthInfo(req),
+      ...accessLogRpcInfo(req.body),
+      requestBytes: Number(req.header("content-length") ?? 0) || null,
+      responseBytes: Number(res.getHeader("content-length") ?? 0) || null,
       origin: req.header("origin") ?? "",
       userAgent: (req.header("user-agent") ?? "").slice(0, 160),
     });

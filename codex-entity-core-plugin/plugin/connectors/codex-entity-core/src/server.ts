@@ -12,17 +12,16 @@ import {
   getPromptLabel,
   loadIdentityMeta,
 } from "../../../packages/entity-core/src/tools/identity-meta.ts";
+import { currentPsycherosDataDir } from "./platform-paths.ts";
 
-const CONNECTOR_VERSION = "0.2.2";
+const CONNECTOR_VERSION = "0.3.0";
 const INSTANCE_ID = Deno.env.get("ENTITY_CONNECTOR_INSTANCE_ID") ?? "codex";
 const WRITE_ENABLED = Deno.env.get("ENTITY_CONNECTOR_WRITE_ENABLED") !==
   "false";
 const srcDir = dirname(fromFileUrl(import.meta.url));
 const repoRoot = join(srcDir, "..", "..", "..");
 const repoDataDir = join(repoRoot, "packages", "entity-core", "data");
-const installedDataDir = Deno.env.get("APPDATA")
-  ? join(Deno.env.get("APPDATA")!, "Psycheros", "data", "entity-core")
-  : null;
+const installedDataDir = currentPsycherosDataDir();
 const GRANULARITIES: Granularity[] = [
   "daily",
   "weekly",

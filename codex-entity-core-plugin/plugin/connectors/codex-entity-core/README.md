@@ -68,7 +68,11 @@ The plugin wrapper exposes this connector as an MCP server named
 defaults to the installed Psycheros data directory:
 
 ```text
-%APPDATA%\Psycheros\data\entity-core
+Windows: `%APPDATA%\Psycheros\data\entity-core`
+
+macOS: `~/Library/Application Support/Psycheros/data/entity-core`
+
+Linux: `${XDG_DATA_HOME:-$HOME/.local/share}/Psycheros/data/entity-core`
 ```
 
 Current status:
@@ -101,7 +105,7 @@ Useful environment variables:
   read-only connector
 
 By default, the connector prefers the installed Psycheros data directory at
-`%APPDATA%\Psycheros\data\entity-core`, then falls back to the repo data
+the platform-native Psycheros entity-core directory, then falls back to the repo data
 directory at `packages/entity-core/data`.
 
 This connector expects the Psycheros launcher or daemon supervisor to own daemon
