@@ -21,9 +21,9 @@ What it does not do:
 
 This setup is more involved than the browser extension because it needs a local
 server, Tailscale or another HTTPS tunnel, Auth0/OAuth, and ChatGPT Developer
-Mode. The docs include numbered double-click scripts, automatic Windows startup
-and crash recovery, and a troubleshooting guide for the Auth0 errors we hit
-during setup.
+Mode. Version 0.2.0 supports Windows, macOS, and Linux, with numbered helpers,
+platform-native automatic startup and crash recovery, and a troubleshooting
+guide for OAuth and long browser-thread failures.
 
 Source:
 

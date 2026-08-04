@@ -18,9 +18,11 @@ Identity-file mutation, memory deletion, and graph rewriting are not exposed.
 
 The connector defaults to the installed Psycheros Entity Core location:
 
-```text
-%APPDATA%\Psycheros\data\entity-core
-```
+| Platform | Default path |
+| --- | --- |
+| Windows | `%APPDATA%\Psycheros\data\entity-core` |
+| macOS | `~/Library/Application Support/Psycheros/data/entity-core` |
+| Linux | `${XDG_DATA_HOME:-$HOME/.local/share}/Psycheros/data/entity-core` |
 
 Set `ENTITY_CONNECTOR_DATA_DIR` when the data directory lives elsewhere. The
 connector reads and writes that canonical directory directly; it does not copy
@@ -30,7 +32,7 @@ identity or memory into a connector-owned store.
 
 From this directory:
 
-```powershell
+```sh
 deno task check
 deno task smoke
 ```

@@ -42,7 +42,11 @@ by their active model session.
 The default entity-core path is:
 
 ```text
-%APPDATA%\Psycheros\data\entity-core
+Windows: `%APPDATA%\Psycheros\data\entity-core`
+
+macOS: `~/Library/Application Support/Psycheros/data/entity-core`
+
+Linux: `${XDG_DATA_HOME:-$HOME/.local/share}/Psycheros/data/entity-core`
 ```
 
 Users can override it with:

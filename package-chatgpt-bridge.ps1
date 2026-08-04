@@ -1,5 +1,5 @@
 param(
-  [string] $Version = "0.1.3",
+  [string] $Version = "0.2.0",
   [string] $OutputDir = ""
 )
 
@@ -54,7 +54,6 @@ $entityCoreTarget = Join-Path $stage "packages\entity-core"
 New-Item -ItemType Directory -Force $entityCoreTarget | Out-Null
 Copy-Item -LiteralPath (Join-Path $entityCoreSource "deno.json") -Destination $entityCoreTarget
 Copy-Item -LiteralPath (Join-Path $entityCoreSource "src") -Destination (Join-Path $entityCoreTarget "src") -Recurse
-Copy-Item -LiteralPath (Join-Path $entityCoreSource "lib") -Destination (Join-Path $entityCoreTarget "lib") -Recurse
 
 $logDir = Join-Path $stage "connectors\codex-entity-core\logs"
 if (Test-Path -LiteralPath $logDir) {
@@ -73,25 +72,28 @@ Get-ChildItem -LiteralPath $stage -Recurse -Directory |
   Where-Object { $_.Name -in @(".git", "node_modules") } |
   ForEach-Object { Remove-Item -LiteralPath $_.FullName -Recurse -Force }
 
-$readme = @"
-# Psycheros Entity Core for ChatGPT - Private Bridge
-
-Start here:
-
-1. Open START_HERE.md
-2. Double-click the numbered .bat files when the guide tells you to
-3. If anything fails, open TROUBLESHOOTING.md
-
-This is a community alpha addon, not an official Psycheros release.
-"@
-
-Set-Content -LiteralPath (Join-Path $stage "README.md") -Value $readme -Encoding utf8
-
 if (Test-Path -LiteralPath $zipPath) {
   Remove-Item -LiteralPath $zipPath -Force
 }
 
 Compress-Archive -LiteralPath $stage -DestinationPath $zipPath -Force
+
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$archiveEntries = [IO.Compression.ZipFile]::OpenRead($zipPath)
+try {
+  $entryNames = @($archiveEntries.Entries | ForEach-Object FullName)
+  if (-not ($entryNames | Where-Object { $_ -like "*.command" })) {
+    throw "Release archive is missing the macOS .command helpers."
+  }
+  if (-not ($entryNames | Where-Object { $_ -like "*/scripts/*.sh" })) {
+    throw "Release archive is missing the macOS/Linux shell helpers."
+  }
+  if ($entryNames | Where-Object { $_ -match '\.(dll|dylib|so)$' }) {
+    throw "Universal release archive unexpectedly contains a platform-specific native library."
+  }
+} finally {
+  $archiveEntries.Dispose()
+}
 
 $hash = Get-FileHash -LiteralPath $zipPath -Algorithm SHA256
 $sumPath = Join-Path $OutputDir "SHA256SUMS-chatgpt-bridge.txt"

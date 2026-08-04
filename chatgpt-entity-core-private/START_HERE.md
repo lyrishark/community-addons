@@ -1,5 +1,8 @@
 # Start Here - Psycheros Entity Core for ChatGPT
 
+This guide is the Windows path. On macOS or Linux, open
+`START_HERE_MAC_LINUX.md` instead.
+
 This guide is for people who love or care for an AI companion and want ChatGPT
 to read from the same local Psycheros entity-core.
 

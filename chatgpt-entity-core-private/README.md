@@ -6,7 +6,7 @@ record memories in a local Psycheros entity-core through MCP.
 This is not an official Psycheros release.
 
 > **Psycheros 0.10 status:** Compatible as an independent bridge. Version
-> [`0.1.3`](https://github.com/lyrishark/community-addons/releases/tag/chatgpt-entity-core-private-v0.1.3)
+> [`0.2.0`](https://github.com/lyrishark/community-addons/releases/tag/chatgpt-entity-core-private-v0.2.0)
 > passed type-check, stdio and HTTP MCP smoke tests, and an OAuth bridge health
 > check. It does not install through the Psycheros plugin manager.
 
@@ -83,13 +83,30 @@ The OAuth resource/API identifier should be the same URL without `/mcp-lite` or
 https://your-machine.your-tailnet.ts.net
 ```
 
+## Choose Your Platform
+
+- Windows: open `START_HERE.md` and use the numbered `.bat` helpers.
+- macOS or Linux: open `START_HERE_MAC_LINUX.md` and use the numbered
+  `.command` helpers or their matching shell scripts.
+
+The bridge, OAuth flow, and ChatGPT app are the same on every platform. Only
+the local setup and automatic-startup mechanism changes.
+
 ## Helper Scripts
 
-Non-technical path: double-click the numbered `.bat` files in this folder.
-After the connection works, number 5 installs automatic startup and crash
-recovery so no terminal window has to stay open.
+Non-technical path: use the numbered `.bat` files on Windows or numbered
+`.command` files on macOS. After the connection works, number 5 installs
+automatic startup and crash recovery so no terminal window has to stay open.
 
-Manual path: open PowerShell in `connectors\codex-entity-core`.
+Linux and terminal-based macOS users can run:
+
+```sh
+sh connectors/codex-entity-core/scripts/check-chatgpt-bridge-prereqs.sh
+sh connectors/codex-entity-core/scripts/start-tailscale-funnel.sh
+sh connectors/codex-entity-core/scripts/start-chatgpt-bridge.sh
+```
+
+Windows manual path: open PowerShell in `connectors\codex-entity-core`.
 
 Check local prerequisites:
 
@@ -118,15 +135,15 @@ In a second terminal, start Tailscale Funnel:
 .\scripts\start-tailscale-funnel.ps1
 ```
 
-After testing the connection, install the supervised Windows startup task:
+After testing the connection, install automatic startup:
 
 ```powershell
 .\scripts\install-chatgpt-bridge-autostart.ps1 -EnvFile .\bridge.env
 ```
 
-The task uses a stable runtime copy under `%APPDATA%\Psycheros\addons`, restarts
-the bridge after crashes or failed health checks, and writes logs under
-`%APPDATA%\Psycheros\logs`.
+Windows uses Task Scheduler, macOS uses a user LaunchAgent, and Linux uses a
+systemd user service. Each uses a stable runtime copy under the platform's
+Psycheros data directory and restarts the bridge after crashes.
 
 After configuring Auth0, test the common Auth0 resource-server problem:
 
@@ -142,13 +159,10 @@ That script does not need your client secret.
 
 ## Full Setup
 
-If you are not technical, start with:
+If you are not technical, start with `START_HERE.md` on Windows or
+`START_HERE_MAC_LINUX.md` on macOS/Linux.
 
-```text
-START_HERE.md
-```
-
-It uses the numbered double-click files in this folder.
+Both guides use the numbered helper files in this folder.
 
 Use:
 

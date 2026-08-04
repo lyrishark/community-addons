@@ -33,8 +33,9 @@ import {
   parseMemoryMetadata,
   stripMemoryMetadata,
 } from "../../../packages/entity-core/src/storage/memory-metadata.ts";
+import { currentPsycherosPlatformPaths } from "./platform-paths.ts";
 
-const CONNECTOR_VERSION = "0.3.2";
+const CONNECTOR_VERSION = "0.4.0";
 const INSTANCE_ID = Deno.env.get("ENTITY_CONNECTOR_INSTANCE_ID") ?? "codex";
 const WRITE_ENABLED = Deno.env.get("ENTITY_CONNECTOR_WRITE_ENABLED") !==
   "false";
@@ -44,9 +45,7 @@ const OMIT_OUTPUT_SCHEMAS =
 const srcDir = dirname(fromFileUrl(import.meta.url));
 const repoRoot = join(srcDir, "..", "..", "..");
 const repoDataDir = join(repoRoot, "packages", "entity-core", "data");
-const installedDataDir = Deno.env.get("APPDATA")
-  ? join(Deno.env.get("APPDATA")!, "Psycheros", "data", "entity-core")
-  : null;
+const installedDataDir = currentPsycherosPlatformPaths().dataDir;
 const GRANULARITIES: Granularity[] = [
   "daily",
   "weekly",
@@ -160,6 +159,17 @@ function result(data: JsonObject, contentText = "Done.") {
 function jsonCompatResult(data: JsonObject) {
   return {
     structuredContent: data,
+    content: [
+      {
+        type: "text" as const,
+        text: JSON.stringify(data),
+      },
+    ],
+  };
+}
+
+function modelJsonResult(data: JsonObject) {
+  return {
     content: [
       {
         type: "text" as const,
@@ -1662,7 +1672,7 @@ export function createEntityCoreLiteMcpServer(
         .slice(0, maxResults)
         .map(compactSearchItem);
 
-      return jsonCompatResult({
+      return modelJsonResult({
         query,
         results,
         diagnostics: {
@@ -1676,6 +1686,7 @@ export function createEntityCoreLiteMcpServer(
 
   const FetchSchema = z.object({
     id: z.string().min(1).max(500),
+    maxChars: z.number().int().min(500).max(6_000).optional(),
   });
 
   server.registerTool(
@@ -1698,7 +1709,7 @@ export function createEntityCoreLiteMcpServer(
       if (authError) return authError;
 
       const { id } = args;
-      const limit = 8_000;
+      const limit = args.maxChars ?? 4_000;
 
       const memoryKey = parseMemoryKey(id);
       if (memoryKey) {
@@ -1706,7 +1717,7 @@ export function createEntityCoreLiteMcpServer(
           entry.id === memoryKey
         );
         if (!memory) {
-          return jsonCompatResult({
+          return modelJsonResult({
             id,
             kind: "memory",
             success: false,
@@ -1714,7 +1725,7 @@ export function createEntityCoreLiteMcpServer(
           });
         }
         const trimmed = trimText(memory.content, limit);
-        return jsonCompatResult({
+        return modelJsonResult({
           id,
           kind: "memory",
           success: true,
@@ -1741,7 +1752,7 @@ export function createEntityCoreLiteMcpServer(
           id: graphId,
         });
         const node = payload.node;
-        return jsonCompatResult({
+        return modelJsonResult({
           id,
           kind: "graph",
           success: payload.success,
@@ -1758,7 +1769,7 @@ export function createEntityCoreLiteMcpServer(
         });
       }
 
-      return jsonCompatResult({
+      return modelJsonResult({
         id,
         success: false,
         message: "Unknown ID. Use an ID returned by search.",
@@ -1835,7 +1846,7 @@ export function createEntityCoreLiteMcpServer(
       };
 
       if (!WRITE_ENABLED) {
-        return jsonCompatResult({
+        return modelJsonResult({
           success: false,
           message: "Memory writes are disabled.",
           id: connectorMemoryId(key),
@@ -1847,7 +1858,7 @@ export function createEntityCoreLiteMcpServer(
       const cache = await getLexicalCache();
       cache.indexLexical(memory);
 
-      return jsonCompatResult({
+      return modelJsonResult({
         success: true,
         id: connectorMemoryId(key),
         kind: granularity,

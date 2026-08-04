@@ -48,6 +48,13 @@ Get-ChildItem -Force -LiteralPath $sourceRoot | ForEach-Object {
 }
 Copy-Item -LiteralPath (Join-Path $communityRoot "LICENSE") -Destination (Join-Path $stagePlugin "LICENSE") -Force
 
+# sqlite-vec is selected and downloaded by the existing cross-platform loader.
+# Shipping one Windows DLL makes the universal package look Windows-only.
+$nativeLibDirectory = Join-Path $stagePlugin "packages\entity-core\lib"
+if (Test-Path -LiteralPath $nativeLibDirectory) {
+    Remove-Item -LiteralPath $nativeLibDirectory -Recurse -Force
+}
+
 $safeVersion = $manifest.version -replace '[^A-Za-z0-9._-]', '-'
 $zipName = "psycheros-entity-core-codex-plugin-$safeVersion.zip"
 $zipPath = Join-Path $OutputDirectory $zipName
@@ -55,6 +62,19 @@ if (Test-Path -LiteralPath $zipPath) {
     Remove-Item -LiteralPath $zipPath -Force
 }
 Compress-Archive -LiteralPath $stagePlugin -DestinationPath $zipPath -CompressionLevel Optimal
+
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$archiveEntries = [IO.Compression.ZipFile]::OpenRead($zipPath)
+try {
+    $nativeEntries = @($archiveEntries.Entries | Where-Object {
+        $_.FullName -match '\.(dll|dylib|so)$'
+    })
+    if ($nativeEntries.Count -gt 0) {
+        throw "Universal release archive unexpectedly contains a platform-specific native library."
+    }
+} finally {
+    $archiveEntries.Dispose()
+}
 
 $hash = Get-FileHash -LiteralPath $zipPath -Algorithm SHA256
 $hashLine = "$($hash.Hash.ToLowerInvariant())  $zipName"

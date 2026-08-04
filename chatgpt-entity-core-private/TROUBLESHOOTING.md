@@ -18,6 +18,12 @@ Run:
 .\scripts\check-chatgpt-bridge-prereqs.ps1
 ```
 
+On macOS or Linux:
+
+```sh
+sh scripts/check-chatgpt-bridge-prereqs.sh
+```
+
 ## ChatGPT Shows 502 Bad Gateway
 
 This means the public Tailscale Funnel is alive but the local bridge is not
@@ -42,6 +48,22 @@ its local health endpoint. Logs are in:
 ```text
 %APPDATA%\Psycheros\logs\chatgpt-bridge.error.log
 %APPDATA%\Psycheros\logs\chatgpt-bridge.supervisor.log
+```
+
+On macOS:
+
+```sh
+launchctl print gui/$(id -u)/ai.psycheros.chatgpt-bridge
+curl http://127.0.0.1:3006/healthz
+tail -f "$HOME/Library/Application Support/Psycheros/logs/chatgpt-bridge.error.log"
+```
+
+On Linux:
+
+```sh
+systemctl --user status psycheros-chatgpt-bridge.service
+curl http://127.0.0.1:3006/healthz
+journalctl --user -u psycheros-chatgpt-bridge.service -f
 ```
 
 ## OAuth Settings Spin Or Never Load
@@ -114,7 +136,46 @@ remember
 
 ## ChatGPT Worked For A Few Days, Then Crashes While Connecting To App
 
-This usually points to OAuth expiry before it points to the bridge.
+There are three different failures that look alike in ChatGPT. Check which one
+you have before rebuilding anything.
+
+First, keep the bridge access log visible while reproducing the failure:
+
+Windows:
+
+```powershell
+Get-Content "$env:APPDATA\Psycheros\logs\chatgpt-bridge.access.jsonl" -Wait
+```
+
+macOS:
+
+```sh
+tail -f "$HOME/Library/Application Support/Psycheros/logs/chatgpt-bridge.access.jsonl"
+```
+
+Linux:
+
+```sh
+tail -f "${XDG_DATA_HOME:-$HOME/.local/share}/Psycheros/logs/chatgpt-bridge.access.jsonl"
+```
+
+The access log records status, RPC method/tool, auth state, timing, and byte
+counts. It does not record tokens, prompts, search terms, or tool arguments.
+
+### No new `/mcp-lite` line appears
+
+ChatGPT did not call the bridge. This rules out a local database or bridge
+failure. If branching to a fresh chat immediately works, the active browser
+thread's accumulated connector/context state is the likely boundary.
+
+Use bridge v0.2.0 or later and the `/mcp-lite` endpoint. It exposes three small
+tools, avoids duplicate result payloads, and bounds individual fetches. A local
+connector cannot remove ChatGPT's own maximum conversation context, so a fresh
+branch remains the recovery when the browser never sends a request.
+
+### A new line has status `401`
+
+This points to OAuth expiry or scopes before it points to the bridge.
 
 First try:
 
@@ -145,6 +206,14 @@ If ChatGPT does not let you edit OAuth scopes after creation, delete and
 recreate the private app after changing Auth0. Use the `/mcp-lite` server URL
 when you recreate it.
 
+### A new line has status `200`
+
+The bridge accepted and completed the request. Check `responseBytes`; a very
+large result can age a long thread faster. Version 0.2.0 removes the former
+double copy and defaults lite fetches to 4,000 characters. If ChatGPT still
+fails after the 200 response, the failure is in ChatGPT's handling of the
+successful tool result rather than local authentication or Entity Core.
+
 ## Browser Console Shows `QuotaExceededError` For `system-connectors`
 
 This happens inside ChatGPT before the bridge is contacted. The local bridge can
@@ -174,8 +243,8 @@ than the local bridge.
 
 ## Auth0 Login Works But Tool Calls Fail
 
-Check the bridge terminal or
-`%APPDATA%\Psycheros\logs\chatgpt-bridge.error.log`. If it says the token
+Check the bridge terminal or `chatgpt-bridge.error.log` under the platform's
+Psycheros log directory. If it says the token
 audience/resource does not match, one of these is wrong:
 
 - `ENTITY_CONNECTOR_OAUTH_RESOURCE`

@@ -1,6 +1,6 @@
 {
   "name": "psycheros-entity-core",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "Read Psycheros entity-core context and record memories from Codex.",
   "author": {
     "name": "Psycheros Community Addons"
