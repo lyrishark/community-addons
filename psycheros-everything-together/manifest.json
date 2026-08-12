@@ -1,6 +1,6 @@
 {
   "name": "psycheros-everything-together",
-  "version": "0.3.0-rc.1",
+  "version": "0.3.0-rc.2",
   "description": "Psycheros 0.10 suite for expanded attachments, expressions, screen presence, accessibility, Windows shell support, and HTF listening.",
   "kind": "psycheros-release-suite",
   "official": false,
@@ -59,10 +59,10 @@
       },
       {
         "id": "psycheros-htf-music-listener",
-        "version": "0.2.0",
+        "version": "0.3.0-rc.1",
         "package_path": "psycheros-htf-music-listener",
-        "artifact": "psycheros-htf-music-listener-0.2.0-windows-x64.zip",
-        "sha256": "088382c5cedb660b342573ba9c24bc0676b8ae9dfd3b79fb34a61d12ad1e78db"
+        "artifact": "psycheros-htf-music-listener-0.3.0-rc.1.zip",
+        "sha256": "8ba6a04103efa4428decefef9697fa286009e49c949b0adeea50ea300143b68b"
       }
     ]
   },
@@ -74,7 +74,8 @@
       "psycheros-screen-presence-alpha"
     ],
     "supersedes": [
-      "psycheros-everything-together@0.2.0"
+      "psycheros-everything-together@0.2.0",
+      "psycheros-everything-together@0.3.0-rc.1"
     ]
   },
   "files": [

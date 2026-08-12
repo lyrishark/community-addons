@@ -2,7 +2,7 @@
 set -euo pipefail
 
 addon_id="psycheros-everything-together"
-addon_version="0.3.0-rc.1"
+addon_version="0.3.0-rc.2"
 supported_version="0.10.0"
 script_dir="$(cd -- "$(dirname -- "$0")" && pwd -P)"
 package_root="$(cd -- "$script_dir/.." && pwd -P)"

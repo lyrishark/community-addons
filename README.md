@@ -17,7 +17,7 @@ Read [COMPATIBILITY.md](COMPATIBILITY.md) before installing anything.
 | [Screen Presence Alpha](psycheros-screen-presence-alpha/README.md) | [0.3.0-rc.1](https://github.com/lyrishark/community-addons/releases/tag/psycheros-screen-presence-alpha-v0.3.0-rc.1) | Guarded source bridge | Consent-based screen context in chat and voice. |
 | [Loom Gemini Parser](psycheros-loom-gemini-parser-mod/README.md) | [0.3.0-rc.1](https://github.com/lyrishark/community-addons/releases/tag/psycheros-loom-gemini-parser-mod-v0.3.0-rc.1) | Guarded Loom source bridge | Merged Gemini export import in Entity Loom. |
 | [More Uploads + Voice Text Controls](psycheros-more-uploads-voice-resize/README.md) | [0.3.0-rc.1](https://github.com/lyrishark/community-addons/releases/tag/psycheros-more-uploads-voice-resize-v0.3.0-rc.1) | Release suite | Upload bridge plus an Accessibility Controls manager ZIP. |
-| [Everything Together](psycheros-everything-together/README.md) | [0.3.0-rc.1](https://github.com/lyrishark/community-addons/releases/tag/psycheros-everything-together-v0.3.0-rc.1) | Release suite | Merged source bridge plus Accessibility, Shell, and current HTF plugin ZIPs. |
+| [Everything Together](psycheros-everything-together/README.md) | 0.3.0-rc.2 | Release suite | Merged source bridge plus Accessibility, Shell, and current cross-platform HTF plugin ZIPs. |
 
 Manager plugins target Psycheros `>=0.10.0 <0.11.0`. Source bridges target
 exactly 0.10.0, verify stock-file hashes before writing, back up replaced files,

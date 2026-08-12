@@ -6,7 +6,8 @@ three ordinary plugin-manager packages for public API-v1 features.
 
 ## Compatibility
 
-Version 0.3.0-rc.1 targets stock Psycheros 0.10.0. The source bridge combines
+Version 0.3.0-rc.2 targets stock Psycheros 0.10.0 at upstream commit
+`de906658ea123802d3de20c6fb925434d2baf9e8`. The source bridge combines
 the overlapping host changes once, with exact-version and normalized-hash
 preflight, timestamped backups, and refusal of unknown local edits.
 
@@ -24,7 +25,7 @@ Plugin-manager ZIPs:
 
 - Accessibility Controls 0.1.0-rc.1.
 - Windows Shell Fix 0.3.0-rc.1.
-- HTF Music Listener 0.2.0.
+- HTF Music Listener 0.3.0-rc.1, including the cross-platform runtime selector.
 
 The old source overlays for typography, voice resizing, and Windows shell
 selection are gone because API v1 now supports those features cleanly. The
