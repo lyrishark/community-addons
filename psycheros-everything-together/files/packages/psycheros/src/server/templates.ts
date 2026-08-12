@@ -67,7 +67,7 @@ import {
   RAG_MAX_CHUNKS_MIN,
 } from "../memory/memory-settings.ts";
 
-const WEB_ASSET_VERSION = "everything-together-0.3.0-rc.1";
+const WEB_ASSET_VERSION = "everything-together-0.3.0-rc.2";
 
 // =============================================================================
 // Utilities

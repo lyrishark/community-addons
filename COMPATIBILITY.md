@@ -1,7 +1,8 @@
 # Compatibility snapshot
 
-Checked 2026-07-29 against stock `psycheros-v0.10.0`, Entity Core 0.6.0, and
-Psycheros plugin API v1.
+Checked 2026-08-12 against upstream main
+`de906658ea123802d3de20c6fb925434d2baf9e8` (`psycheros-v0.10.0`), Entity Core
+0.6.0, and Psycheros plugin API v1.
 
 ## Current matrix
 
@@ -15,7 +16,7 @@ Psycheros plugin API v1.
 | Screen Presence Alpha | 0.3.0-rc.1 | Exact-0.10 guarded source bridge. |
 | Loom Gemini Parser | 0.3.0-rc.1 | Exact-0.10 guarded Entity Loom source bridge. |
 | More Uploads + Voice Text Controls | 0.3.0-rc.1 | Upload source bridge plus exact Accessibility Controls manager artifact. |
-| Everything Together | 0.3.0-rc.1 | Merged source bridge plus exact Accessibility, Shell, and HTF artifacts. |
+| Everything Together | 0.3.0-rc.2 | Merged source bridge plus exact Accessibility, Shell, and cross-platform HTF artifacts. |
 
 ## Why four packages remain source bridges
 
@@ -43,7 +44,8 @@ or its own identical payload, and preflights every file before any write.
 - Screen Presence: five focused tests, Deno checks, JavaScript syntax, clean
   install, and atomic refusal. An unrelated provider-error overlay was removed.
 - Everything Together: 42 combined tests, Deno checks, JavaScript syntax, clean
-  install, and atomic refusal.
+  install, atomic refusal, and exact manager-artifact hashes. RC2 replaces the
+  stale HTF 0.2.0 bundle with HTF 0.3.0-rc.1.
 - Loom Gemini Parser: parser format/check/test and clean guarded install.
 - Accessibility Controls and Windows Shell Fix: stock validator, exact-ZIP
   manager inspection/install, focused tests, and active manager load.
@@ -70,8 +72,8 @@ this Windows-only validation host.
 
 ## Independent projects
 
-Thread Exporter 0.3.2 remains browser-only. Entity Core for Codex 0.2.2 and the
-ChatGPT bridge 0.1.3 have independent runtimes and release streams; they are not
+Thread Exporter 0.3.2 remains browser-only. Entity Core for Codex 0.3.0 and the
+ChatGPT bridge 0.2.0 have independent runtimes and release streams; they are not
 Psycheros plugin-manager packages.
 
 ## Historical releases
