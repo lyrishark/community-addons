@@ -1,6 +1,6 @@
 import { assertStringIncludes } from "@std/assert";
 
-Deno.test("browser package uses manager settings and current 0.10 voice selectors", async () => {
+Deno.test("browser package uses manager settings and current 0.10/0.11 voice selectors", async () => {
   const script = await Deno.readTextFile(
     new URL("../web/accessibility-controls.js", import.meta.url),
   );

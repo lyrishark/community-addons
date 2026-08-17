@@ -1,11 +1,11 @@
-﻿# Psycheros Thread Exporter
+# Psycheros Thread Exporter
 
 Community alpha browser extension for exporting AI chat threads and injecting
 Psycheros memory context into chat composers.
 
 This is not an official Psycheros release.
 
-> **Psycheros 0.10 status:** No compatibility change required. Version `0.3.2`
+> **Psycheros 0.11 status:** No compatibility change required. Version `0.3.2`
 > is a separate browser extension with no dependency on Psycheros application
 > source files.
 
@@ -156,6 +156,3 @@ Issues:
 ```text
 https://github.com/lyrishark/community-addons/issues
 ```
-
-
-

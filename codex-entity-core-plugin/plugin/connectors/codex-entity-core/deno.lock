@@ -582,6 +582,7 @@
   "workspace": {
     "dependencies": [
       "jsr:@db/sqlite@0.12",
+      "jsr:@std/dotenv@0.225",
       "jsr:@std/fs@1",
       "jsr:@std/path@1",
       "npm:@modelcontextprotocol/sdk@1",

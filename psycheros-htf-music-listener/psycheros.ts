@@ -575,7 +575,7 @@ async function resolveWorker(): Promise<WorkerCommand> {
   );
 }
 
-async function getPlatformRuntime(): Promise<InstalledRuntime> {
+function getPlatformRuntime(): Promise<InstalledRuntime> {
   if (!statePath) {
     throw new Error("The plugin state directory is not ready for runtime setup.");
   }

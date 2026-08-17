@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0-rc.2 - 2026-08-17
+
+- Verify the manager-native listener against Psycheros 0.11.
+- Expand host compatibility to Psycheros `>=0.10.0 <0.12.0`.
+- Keep using the byte-pinned RC1 native runtime archives; listener behavior is otherwise
+  unchanged.
+
 ## 0.3.0-rc.1 - 2026-07-29
 
 - Add shared Now Playing support for Apple Music and Spotify on macOS through a readable

@@ -1,8 +1,8 @@
 # Psycheros Accessibility Controls
 
-Manager-native accessibility controls for Psycheros 0.10.x.
+Manager-native accessibility controls for Psycheros 0.10 and 0.11.
 
-Version `0.1.0-rc.1` combines the useful parts of the historical Accessible Font
+Version `0.1.0-rc.2` combines the useful parts of the historical Accessible Font
 Settings and Voice Text Resize source packages without replacing any Psycheros
 files.
 
@@ -21,9 +21,13 @@ different comfortable sizes.
 
 ## Compatibility
 
-- Psycheros `>=0.10.0 <0.11.0`
+- Psycheros `>=0.10.0 <0.12.0`
 - trusted plugin API v1
 - no launcher-specific dependency
+
+Psycheros 0.11's Theme Studio controls palettes and decoration. This plugin
+remains complementary: it controls typography and the Yin Yang text box, which
+Theme Studio does not currently cover.
 
 This package is not compatible with Psycheros 0.9.x. The historical source
 packages remain attached to their original releases and must not be installed

@@ -1,0 +1,703 @@
+/**
+ * Shared plugin contract for my Psycheros hosts.
+ */
+
+import { basename, extname, isAbsolute, join, normalize } from "@std/path";
+import { parse } from "@std/dotenv";
+
+export const PLUGIN_API_VERSION = 2;
+/**
+ * apiVersions `validatePluginManifest` accepts. Version 1 manifests load
+ * unchanged; discordMedia capabilities require version 2.
+ */
+export const SUPPORTED_PLUGIN_API_VERSIONS: readonly number[] = [1, 2];
+export const DEFAULT_PROMPT_HOOK_TIMEOUT_MS = 15_000;
+export const DEFAULT_PROMPT_HOOK_MAX_CHARS = 12_000;
+export const DEFAULT_ATTACHMENT_HOOK_TIMEOUT_MS = 15_000;
+export const DEFAULT_ATTACHMENT_HOOK_MAX_CHARS = 4_000;
+
+export interface PluginManifest {
+  id: string;
+  name: string;
+  version: string;
+  apiVersion: number;
+  description?: string;
+  homepageUrl?: string;
+  enabled: boolean;
+  compatibility?: PluginCompatibility;
+  update?: PluginUpdateMetadata;
+  dependencies?: Record<string, string>;
+  entrypoints?: {
+    psycheros?: string;
+    entityCore?: string;
+  };
+  browser?: {
+    scripts?: string[];
+    styles?: string[];
+  };
+  promptHookDefaults?: {
+    timeoutMs?: number;
+    maxChars?: number;
+  };
+  capabilities?: PluginCapabilities;
+}
+
+export interface PluginCompatibility {
+  psycheros?: string;
+  entityCore?: string;
+  launcher?: string;
+}
+
+export interface PluginUpdateMetadata {
+  repoUrl?: string;
+  tagPrefix?: string;
+}
+
+/**
+ * Declares optional capabilities a plugin provides beyond tools, hooks, and
+ * routes. Each flag is a contract between the plugin and the host UI: when
+ * the flag is true, the plugin's entrypoint MUST export the corresponding
+ * field (e.g. `settings: true` requires `settingsFragment` on the psycheros
+ * entrypoint).
+ *
+ * Declaring capabilities in the manifest (rather than detecting them at
+ * import time) lets the host render UI affordances — like a "Configure"
+ * button — for plugins that are not yet loaded, including disabled-but-
+ * shipped plugins an operator needs to configure before enabling.
+ */
+export interface PluginCapabilities {
+  /**
+   * When true, the plugin provides a settings UI fragment via the
+   * `settingsFragment` field on its psycheros entrypoint. The Plugins
+   * Settings page renders a "Configure" button that loads the fragment.
+   */
+  settings?: boolean;
+  /**
+   * Claims on Discord gateway media. Requires apiVersion 2 — declaring it on
+   * a version 1 manifest fails validation.
+   */
+  discordMedia?: PluginDiscordMediaCapability;
+}
+
+/**
+ * Claims on Discord gateway media, declared in the manifest so install-review
+ * UI can show them before the entrypoint is imported.
+ *
+ * - `attachmentTypes` claims INBOUND processing for attachments the host's
+ *   native walk declined (non-vision image formats like GIF, or non-image
+ *   files like voice notes). The host consults the plugin's `attachmentHook`
+ *   only for declined attachments whose effective content type matches a
+ *   glob. Native vision handling (jpeg/png/webp) is never intercepted.
+ * - `send` gates the outbound Discord attachment service injected into the
+ *   psycheros entrypoint's `start()` services object. The host's bot token
+ *   is used and never exposed to plugin code.
+ */
+export interface PluginDiscordMediaCapability {
+  /** Content-type globs, e.g. `["audio/*", "image/gif"]`. Bare `"*"` claims all. */
+  attachmentTypes?: string[];
+  /** When true, the host injects the outbound Discord send service. */
+  send?: boolean;
+}
+
+export interface PluginCapabilityCounts {
+  tools: number;
+  promptHooks: number;
+  routes: number;
+  resultDecorators: number;
+  browserScripts: number;
+  browserStyles: number;
+  /** 0 or 1 — whether the plugin's entrypoint exports `settingsFragment`. */
+  settings: number;
+  /** 0 or 1 — whether the manifest declares `capabilities.discordMedia`. */
+  discordMedia: number;
+}
+
+export type PluginPendingAction = "install" | "remove";
+
+export interface PluginStatus {
+  id: string;
+  name: string;
+  version: string;
+  description?: string;
+  homepageUrl?: string;
+  enabled: boolean;
+  active: boolean;
+  degraded: boolean;
+  restartRequired: boolean;
+  compatibility?: PluginCompatibility;
+  update?: PluginUpdateMetadata;
+  dependencies?: Record<string, string>;
+  warnings?: string[];
+  pendingAction?: PluginPendingAction;
+  entrypoints: {
+    psycheros: boolean;
+    entityCore: boolean;
+  };
+  capabilities: PluginCapabilityCounts;
+  /**
+   * True when the manifest declares `capabilities.settings: true`. Distinct
+   * from `capabilities.settings` (the count) because the manifest field is
+   * populated during DISCOVER, before the entrypoint is imported. Lets the
+   * Plugins Settings UI render a "Configure" button on disabled plugins so
+   * operators can configure credentials before enabling.
+   */
+  declaresSettings?: boolean;
+  /**
+   * True when the manifest declares `capabilities.discordMedia`. Populated
+   * during DISCOVER like `declaresSettings`, so install review can surface
+   * the claim before the entrypoint is imported.
+   */
+  declaresDiscordMedia?: boolean;
+  /**
+   * Where the plugin was discovered. `builtin` plugins ship with Psycheros
+   * and load from `<projectRoot>/bundled-plugins/`; `installed` plugins are
+   * user-installed via zip/git from `<dataRoot>/.psycheros/plugins/`.
+   * Built-ins can't be removed (they ride with Psycheros updates).
+   */
+  origin?: "installed" | "builtin";
+  lastError?: string;
+}
+
+export interface DiscoveredPlugin {
+  directory: string;
+  manifest: PluginManifest;
+}
+
+export interface PluginEnv {
+  get(name: string): string | undefined;
+  has(name: string): boolean;
+  require(name: string): string;
+}
+
+export interface AppliedPluginEnv {
+  env: PluginEnv;
+  restore(): void;
+  /**
+   * Env var names from the plugin's secret file that were refused because they
+   * matched the denylist (process-global runtime, TLS, proxy, or host-owned
+   * namespace vars). Empty when nothing was refused. The host typically
+   * surfaces these in PluginStatus.warnings so the operator can see them.
+   */
+  readonly skippedEnvVars: readonly string[];
+}
+
+/**
+ * Env var names a plugin may not set, because setting them affects more than
+ * the plugin itself. These either redirect all outbound process traffic,
+ * override TLS trust, inject native code, mutate process identity, or
+ * reconfigure the host runtime. A plugin that genuinely needs one of these
+ * should document the requirement and let the operator set it at the daemon
+ * level instead.
+ *
+ * Lowercase proxy variants are included because some libraries read them in
+ * addition to the uppercase form.
+ */
+const PLUGIN_ENV_DENYLIST = new Set<string>([
+  // Outbound traffic redirection — affects every fetch() in the process,
+  // including the LLM client, MCP client, and auto-updater.
+  "HTTP_PROXY",
+  "HTTPS_PROXY",
+  "NO_PROXY",
+  "ALL_PROXY",
+  "http_proxy",
+  "https_proxy",
+  "no_proxy",
+  "all_proxy",
+  // TLS trust store override — could let a malicious proxy MITM HTTPS.
+  "SSL_CERT_FILE",
+  "SSL_CERT_DIR",
+  "REQUESTS_CA_BUNDLE",
+  "CURL_CA_BUNDLE",
+  "NODE_EXTRA_CA_CERTS",
+  "NODE_TLS_REJECT_UNAUTHORIZED",
+  // Native code injection (Linux/macOS dynamic linker).
+  "LD_PRELOAD",
+  "LD_LIBRARY_PATH",
+  "DYLD_INSERT_LIBRARIES",
+  "DYLD_LIBRARY_PATH",
+  "DYLD_FALLBACK_LIBRARY_PATH",
+  // Process identity / lookup — changing these breaks the host's own
+  // file resolution, expansion of ~/, and shell execution.
+  "PATH",
+  "HOME",
+  "USER",
+  "LOGNAME",
+  "SHELL",
+  "PWD",
+  // Node-compat runtime behavior.
+  "NODE_OPTIONS",
+  "NODE_PATH",
+  // Deno runtime behavior — module resolution, registry auth, reload flags.
+  "DENO_DIR",
+  "DENO_CONFIG_PATH",
+  "DENO_INSTALL_ROOT",
+  "DENO_RELOAD",
+  "DENO_AUTH_TOKENS",
+]);
+
+/**
+ * Returns true if a plugin-owned env file may not set the given var name.
+ *
+ * Exact-match names come from {@link PLUGIN_ENV_DENYLIST}. Prefix checks
+ * reserve host-owned namespaces:
+ *   - `PSYCHEROS_*` is host-owned; plugins use `PSYCHEROS_PLUGIN_<ID>_*`.
+ *   - `ENTITY_CORE_*` is the canonical identity server's own namespace.
+ */
+export function isDeniedPluginEnvVar(name: string): boolean {
+  if (PLUGIN_ENV_DENYLIST.has(name)) return true;
+  if (name.startsWith("PSYCHEROS_") && !name.startsWith("PSYCHEROS_PLUGIN_")) {
+    return true;
+  }
+  if (name.startsWith("ENTITY_CORE_")) return true;
+  return false;
+}
+
+function requireString(
+  value: unknown,
+  field: string,
+): asserts value is string {
+  if (typeof value !== "string" || !value.trim()) {
+    throw new Error(`${field} must be a non-empty string`);
+  }
+}
+
+function optionalString(
+  value: unknown,
+  field: string,
+): string | undefined {
+  if (value === undefined) return undefined;
+  requireString(value, field);
+  return value;
+}
+
+function validateStringRecord(
+  value: unknown,
+  field: string,
+): Record<string, string> | undefined {
+  if (value === undefined) return undefined;
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`${field} must be an object`);
+  }
+  const record: Record<string, string> = {};
+  for (const [key, item] of Object.entries(value)) {
+    requireString(item, `${field}.${key}`);
+    record[key] = item;
+  }
+  return record;
+}
+
+function validateCompatibility(
+  value: unknown,
+): PluginCompatibility | undefined {
+  if (value === undefined) return undefined;
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("compatibility must be an object");
+  }
+  const input = value as Record<string, unknown>;
+  return {
+    psycheros: optionalString(input.psycheros, "compatibility.psycheros"),
+    entityCore: optionalString(
+      input.entityCore ?? input.entity_core,
+      "compatibility.entityCore",
+    ),
+    launcher: optionalString(input.launcher, "compatibility.launcher"),
+  };
+}
+
+function validateUpdateMetadata(
+  value: unknown,
+): PluginUpdateMetadata | undefined {
+  if (value === undefined) return undefined;
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("update must be an object");
+  }
+  const input = value as Record<string, unknown>;
+  return {
+    repoUrl: optionalString(input.repoUrl ?? input.repo_url, "update.repoUrl"),
+    tagPrefix: optionalString(
+      input.tagPrefix ?? input.tag_prefix,
+      "update.tagPrefix",
+    ),
+  };
+}
+
+function validateCapabilities(
+  value: unknown,
+  apiVersion: number,
+): PluginCapabilities | undefined {
+  if (value === undefined) return undefined;
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("capabilities must be an object");
+  }
+  const input = value as Record<string, unknown>;
+  if (input.discordMedia !== undefined && apiVersion < 2) {
+    throw new Error(
+      "capabilities.discordMedia requires apiVersion 2 — bump the manifest's apiVersion or remove the field",
+    );
+  }
+  const discordMedia = validateDiscordMediaCapability(input.discordMedia);
+  if (
+    discordMedia && !discordMedia.attachmentTypes &&
+    discordMedia.send === undefined
+  ) {
+    throw new Error(
+      "capabilities.discordMedia must declare attachmentTypes, send, or both",
+    );
+  }
+  return {
+    settings: input.settings === undefined
+      ? undefined
+      : input.settings === true,
+    discordMedia,
+  };
+}
+
+function validateDiscordMediaCapability(
+  value: unknown,
+): PluginDiscordMediaCapability | undefined {
+  if (value === undefined) return undefined;
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("capabilities.discordMedia must be an object");
+  }
+  const input = value as Record<string, unknown>;
+  const attachmentTypes = input.attachmentTypes;
+  if (attachmentTypes !== undefined) {
+    if (
+      !Array.isArray(attachmentTypes) || attachmentTypes.length === 0 ||
+      attachmentTypes.length > 32
+    ) {
+      throw new Error(
+        "capabilities.discordMedia.attachmentTypes must be a non-empty array (max 32)",
+      );
+    }
+    for (const glob of attachmentTypes) {
+      if (typeof glob !== "string" || !isValidContentTypeGlob(glob)) {
+        throw new Error(
+          `invalid content-type glob: ${
+            String(glob)
+          } — expected "type/subtype" with optional "*" (e.g. "audio/*", "image/gif", or "*")`,
+        );
+      }
+    }
+  }
+  return {
+    attachmentTypes: attachmentTypes as string[] | undefined,
+    send: input.send === undefined ? undefined : input.send === true,
+  };
+}
+
+const CONTENT_TYPE_SEGMENT_RE = /^[a-z0-9][a-z0-9!#$&^_.+-]*$/i;
+
+/**
+ * A glob is valid when it is a bare `"*"`, a plain `type/subtype`, or one of
+ * those with `*` replacing a whole segment. No other wildcard positions — a
+ * partial-segment wildcard would be easy to misread and hard to review.
+ */
+function isValidContentTypeGlob(glob: string): boolean {
+  const g = glob.trim();
+  if (!g || /\s/.test(g)) return false;
+  if (g === "*") return true;
+  const parts = g.split("/");
+  if (parts.length !== 2) return false;
+  const validSegment = (segment: string) =>
+    segment === "*" || CONTENT_TYPE_SEGMENT_RE.test(segment);
+  return validSegment(parts[0]!) && validSegment(parts[1]!);
+}
+
+/**
+ * Case-insensitive content-type glob match. Parameters are stripped from the
+ * content type (`audio/ogg; codecs=opus` matches `audio/*`). Supports `*`
+ * segments only — see {@link isValidContentTypeGlob}.
+ */
+export function contentTypeMatchesGlob(
+  glob: string,
+  contentType: string,
+): boolean {
+  const g = glob.trim().toLowerCase();
+  const c = contentType.trim().toLowerCase().split(";")[0]?.trim() ?? "";
+  if (!g || !c) return false;
+  if (g === "*") return true;
+  if (!g.includes("*")) return g === c;
+  const [typeGlob = "", subtypeGlob = ""] = g.split("/");
+  const [type = "", subtype = ""] = c.split("/");
+  const typeMatches = typeGlob === "*" || typeGlob === type;
+  const subtypeMatches = subtypeGlob === "*" || subtypeGlob === subtype;
+  return typeMatches && subtypeMatches;
+}
+
+export function isSafePluginId(id: string): boolean {
+  return /^[a-z0-9][a-z0-9._-]*$/.test(id);
+}
+
+/**
+ * Validate a path declared by a plugin manifest.
+ *
+ * Manifest paths are always relative to the plugin directory. Requiring a
+ * leading "./" keeps the boundary around my plugin directory visible during
+ * review.
+ */
+export function validatePluginRelativePath(path: string): string {
+  requireString(path, "plugin path");
+  if (!path.startsWith("./") || isAbsolute(path)) {
+    throw new Error(`plugin path must start with "./": ${path}`);
+  }
+  const normalized = normalize(path.replace(/\\/g, "/")).replace(/\\/g, "/");
+  if (
+    normalized === ".." || normalized.startsWith("../") ||
+    normalized.includes("/../")
+  ) {
+    throw new Error(`plugin path escapes its directory: ${path}`);
+  }
+  return normalized.startsWith("./") ? normalized.slice(2) : normalized;
+}
+
+export function validatePluginManifest(
+  raw: unknown,
+  directoryName: string,
+): PluginManifest {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    throw new Error("plugin.json must contain an object");
+  }
+  const input = raw as Record<string, unknown>;
+  requireString(input.id, "id");
+  requireString(input.name, "name");
+  requireString(input.version, "version");
+  if (!isSafePluginId(input.id)) {
+    throw new Error(`id contains unsupported characters: ${input.id}`);
+  }
+  if (input.id !== directoryName) {
+    throw new Error(`id must match directory name "${directoryName}"`);
+  }
+  if (
+    typeof input.apiVersion !== "number" ||
+    !SUPPORTED_PLUGIN_API_VERSIONS.includes(input.apiVersion)
+  ) {
+    throw new Error(
+      `unsupported apiVersion: ${String(input.apiVersion)} (supported: ${
+        SUPPORTED_PLUGIN_API_VERSIONS.join(", ")
+      })`,
+    );
+  }
+
+  const entrypoints = input.entrypoints as
+    | Record<string, unknown>
+    | undefined;
+  const browser = input.browser as Record<string, unknown> | undefined;
+  const promptDefaults = input.promptHookDefaults as
+    | Record<string, unknown>
+    | undefined;
+  const validateOptionalPath = (value: unknown): string | undefined => {
+    if (value === undefined) return undefined;
+    return `./${validatePluginRelativePath(String(value))}`;
+  };
+  const validateOptionalEntrypoint = (value: unknown): string | undefined => {
+    const path = validateOptionalPath(value);
+    if (
+      path !== undefined && extname(path).toLowerCase() !== ".ts" &&
+      extname(path).toLowerCase() !== ".js"
+    ) {
+      throw new Error(`plugin entrypoint must use .ts or .js: ${path}`);
+    }
+    return path;
+  };
+  const validatePathArray = (value: unknown): string[] | undefined => {
+    if (value === undefined) return undefined;
+    if (!Array.isArray(value)) throw new Error("browser paths must be arrays");
+    return value.map((path) => `./${validatePluginRelativePath(String(path))}`);
+  };
+  const validatePositiveNumber = (
+    value: unknown,
+    field: string,
+  ): number | undefined => {
+    if (value === undefined) return undefined;
+    if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+      throw new Error(`${field} must be a positive number`);
+    }
+    return value;
+  };
+
+  return {
+    id: input.id,
+    name: input.name,
+    version: input.version,
+    apiVersion: input.apiVersion,
+    description: optionalString(input.description, "description"),
+    homepageUrl: optionalString(
+      input.homepageUrl ?? input.homepage_url,
+      "homepageUrl",
+    ),
+    enabled: input.enabled === undefined ? true : input.enabled === true,
+    compatibility: validateCompatibility(input.compatibility),
+    update: validateUpdateMetadata(input.update),
+    dependencies: validateStringRecord(input.dependencies, "dependencies"),
+    entrypoints: entrypoints
+      ? {
+        psycheros: validateOptionalEntrypoint(entrypoints.psycheros),
+        entityCore: validateOptionalEntrypoint(entrypoints.entityCore),
+      }
+      : undefined,
+    browser: browser
+      ? {
+        scripts: validatePathArray(browser.scripts),
+        styles: validatePathArray(browser.styles),
+      }
+      : undefined,
+    promptHookDefaults: promptDefaults
+      ? {
+        timeoutMs: validatePositiveNumber(
+          promptDefaults.timeoutMs,
+          "promptHookDefaults.timeoutMs",
+        ),
+        maxChars: validatePositiveNumber(
+          promptDefaults.maxChars,
+          "promptHookDefaults.maxChars",
+        ),
+      }
+      : undefined,
+    capabilities: validateCapabilities(input.capabilities, input.apiVersion),
+  };
+}
+
+export function emptyPluginCapabilityCounts(): PluginCapabilityCounts {
+  return {
+    tools: 0,
+    promptHooks: 0,
+    routes: 0,
+    resultDecorators: 0,
+    browserScripts: 0,
+    browserStyles: 0,
+    settings: 0,
+    discordMedia: 0,
+  };
+}
+
+/**
+ * Apply a plugin-owned environment file for the lifetime of one host load.
+ *
+ * My secrets live outside the executable plugin tree so my portable plugin
+ * backups do not include credentials. I should use namespaced variables
+ * because my trusted plugins share one process environment.
+ *
+ * When `secretsDir` is omitted, the path resolves to
+ * `<pluginRoot>/../plugin-secrets/<pluginId>.env` (the original behavior —
+ * installed plugins' secrets live alongside the plugins directory). When
+ * provided, secrets resolve to `<secretsDir>/<pluginId>.env`. PluginManager
+ * passes `<dataRoot>/.psycheros/plugin-secrets/` explicitly for both installed
+ * and bundled plugins so secrets land in user data regardless of plugin origin
+ * (bundled plugins load from `<projectRoot>/bundled-plugins/`, which is
+ * source-tree — we never want secrets written there).
+ */
+export async function applyPluginEnv(
+  pluginRoot: string,
+  pluginId: string,
+  secretsDir?: string,
+): Promise<AppliedPluginEnv> {
+  const values = await readPluginEnv(pluginRoot, pluginId, secretsDir);
+  const previous = new Map<string, string | undefined>();
+  const skippedEnvVars: string[] = [];
+  for (const [name, value] of Object.entries(values)) {
+    if (isDeniedPluginEnvVar(name)) {
+      skippedEnvVars.push(name);
+      console.warn(
+        `[Plugins] Refused to set denied env var "${name}" for plugin "${pluginId}". ` +
+          `This name is process-global or host-owned; if the plugin genuinely needs it, ` +
+          `the operator should set it at the daemon level.`,
+      );
+      continue;
+    }
+    previous.set(name, Deno.env.get(name));
+    Deno.env.set(name, value);
+  }
+
+  return {
+    env: createPluginEnv(),
+    skippedEnvVars,
+    restore() {
+      for (const [name, value] of previous) {
+        if (value === undefined) Deno.env.delete(name);
+        else Deno.env.set(name, value);
+      }
+    },
+  };
+}
+
+export function getPluginEnvPath(
+  pluginRoot: string,
+  pluginId: string,
+  secretsDir?: string,
+): string {
+  if (!isSafePluginId(pluginId)) {
+    throw new Error(`invalid plugin id: ${pluginId}`);
+  }
+  if (secretsDir) {
+    return join(secretsDir, `${pluginId}.env`);
+  }
+  return join(pluginRoot, "..", "plugin-secrets", `${pluginId}.env`);
+}
+
+export async function readPluginEnv(
+  pluginRoot: string,
+  pluginId: string,
+  secretsDir?: string,
+): Promise<Record<string, string>> {
+  try {
+    return parse(
+      await Deno.readTextFile(
+        getPluginEnvPath(pluginRoot, pluginId, secretsDir),
+      ),
+    );
+  } catch (error) {
+    if (error instanceof Deno.errors.NotFound) return {};
+    throw error;
+  }
+}
+
+export function createPluginEnv(): PluginEnv {
+  return {
+    get: (name) => Deno.env.get(name),
+    has: (name) => Deno.env.has(name),
+    require(name) {
+      const value = Deno.env.get(name);
+      if (!value) {
+        throw new Error(`missing required plugin environment: ${name}`);
+      }
+      return value;
+    },
+  };
+}
+
+/**
+ * Identify conventional credential files that should never enter my portable
+ * plugin archives. My plugin state may still contain sensitive provider data,
+ * so I should keep credentials in the supported plugin-secrets directory.
+ */
+export function isPluginSecretFilename(path: string): boolean {
+  const name = path.replace(/\\/g, "/").split("/").pop()?.toLowerCase() ?? "";
+  return name === ".env" || name.endsWith(".env") ||
+    name === "secrets.json" || name === ".secrets.json";
+}
+
+/**
+ * Validate my manually installed plugin directory before my next restart.
+ */
+export async function validatePluginDirectory(
+  directory: string,
+): Promise<PluginManifest> {
+  const manifest = validatePluginManifest(
+    JSON.parse(await Deno.readTextFile(join(directory, "plugin.json"))),
+    basename(normalize(directory)),
+  );
+  const paths = [
+    manifest.entrypoints?.psycheros,
+    manifest.entrypoints?.entityCore,
+    ...(manifest.browser?.scripts ?? []),
+    ...(manifest.browser?.styles ?? []),
+  ].filter((path): path is string => path !== undefined);
+  for (const path of paths) {
+    const stat = await Deno.stat(
+      join(directory, validatePluginRelativePath(path)),
+    );
+    if (!stat.isFile) throw new Error(`plugin path is not a file: ${path}`);
+  }
+  return manifest;
+}

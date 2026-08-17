@@ -7,8 +7,7 @@
 
 import type { FileStore } from "../storage/file-store.ts";
 import type { GraphStore } from "../graph/store.ts";
-import type { Granularity, MemoryEntry } from "../types.ts";
-import { memoryReference } from "../storage/mod.ts";
+import type { Granularity } from "../types.ts";
 import { createLLMClient } from "../llm/mod.ts";
 import { EmbeddingCache } from "../embeddings/cache.ts";
 import { getEmbedder } from "../embeddings/mod.ts";
@@ -106,8 +105,9 @@ function formatMemoryContent(title: string, bulletPoints: string[]): string {
 async function collectSourceMemories(
   store: FileStore,
   sourceGranularity: Granularity,
-): Promise<MemoryEntry[]> {
-  return await store.listMemories(sourceGranularity);
+): Promise<Array<{ date: string; content: string }>> {
+  const memories = await store.listMemories(sourceGranularity);
+  return memories.map((m) => ({ date: m.date, content: m.content }));
 }
 
 /**
@@ -257,32 +257,17 @@ export async function consolidate(
 
   // Write the consolidated memory
   const content = formatMemoryContent(dateInfo.title, bulletPoints);
-  const sourceMemoryIds = periodSources.map(memoryReference);
-  const chatIds = [
-    ...new Set(periodSources.flatMap((memory) => memory.chatIds)),
-  ];
-  const participatingInstances = [
-    ...new Set(
-      periodSources.flatMap((memory) => [
-        memory.sourceInstance,
-        ...(memory.participatingInstances ?? []),
-      ]).filter(Boolean),
-    ),
-  ];
-  const consolidatedMemory: MemoryEntry = {
+  await store.writeMemory({
     id: `${granularity}-${dateInfo.dateStr}`,
     granularity,
     date: dateInfo.dateStr,
     content,
-    chatIds,
-    sourceMemoryIds,
+    chatIds: [],
     sourceInstance: "entity-core",
-    participatingInstances,
     version: 1,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-  };
-  await store.writeMemory(consolidatedMemory);
+  });
 
   console.error(
     `[Consolidation] Created ${granularity} memory: ${dateInfo.dateStr}`,
@@ -311,7 +296,18 @@ export async function consolidate(
 
   // Extract to graph (fire-and-forget)
   extractMemoryToGraph(
-    consolidatedMemory,
+    {
+      id: `${granularity}-${dateInfo.dateStr}`,
+      granularity,
+      date: dateInfo.dateStr,
+      content,
+      chatIds: [],
+      sourceInstance: "entity-core",
+      participatingInstances: [],
+      version: 1,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
     graphStore,
     "entity-core",
   )

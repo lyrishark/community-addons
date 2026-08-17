@@ -1,5 +1,5 @@
 param(
-  [string] $Version = "0.2.0",
+  [string] $Version = "0.3.0",
   [string] $OutputDir = ""
 )
 
@@ -40,6 +40,11 @@ $entityCoreSource = Resolve-FirstExisting @(
   (Join-Path $addonRoot "packages\entity-core")
 ) "entity-core package"
 
+$pluginApiSource = Resolve-FirstExisting @(
+  (Join-Path $repoRoot "packages\plugin-api"),
+  (Join-Path $addonRoot "packages\plugin-api")
+) "plugin-api package"
+
 Get-ChildItem -LiteralPath $addonRoot -Force |
   Where-Object { $_.Name -notin @("connectors", "packages") } |
   ForEach-Object {
@@ -54,6 +59,11 @@ $entityCoreTarget = Join-Path $stage "packages\entity-core"
 New-Item -ItemType Directory -Force $entityCoreTarget | Out-Null
 Copy-Item -LiteralPath (Join-Path $entityCoreSource "deno.json") -Destination $entityCoreTarget
 Copy-Item -LiteralPath (Join-Path $entityCoreSource "src") -Destination (Join-Path $entityCoreTarget "src") -Recurse
+
+$pluginApiTarget = Join-Path $stage "packages\plugin-api"
+New-Item -ItemType Directory -Force $pluginApiTarget | Out-Null
+Copy-Item -LiteralPath (Join-Path $pluginApiSource "deno.json") -Destination $pluginApiTarget
+Copy-Item -LiteralPath (Join-Path $pluginApiSource "src") -Destination (Join-Path $pluginApiTarget "src") -Recurse
 
 $logDir = Join-Path $stage "connectors\codex-entity-core\logs"
 if (Test-Path -LiteralPath $logDir) {

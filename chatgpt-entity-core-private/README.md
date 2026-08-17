@@ -5,10 +5,13 @@ record memories in a local Psycheros entity-core through MCP.
 
 This is not an official Psycheros release.
 
-> **Psycheros 0.10 status:** Compatible as an independent bridge. Version
-> [`0.2.0`](https://github.com/lyrishark/community-addons/releases/tag/chatgpt-entity-core-private-v0.2.0)
-> passed type-check, stdio and HTTP MCP smoke tests, and an OAuth bridge health
-> check. It does not install through the Psycheros plugin manager.
+> **Psycheros 0.11 status:** Reconciled as an independent bridge. Prepared
+> release `0.3.0` bundles Entity Core `0.6.1`, plugin API v2, and connector
+> `0.5.0`, while preserving the bridge's private lexical-search seam. It passed
+> type-check plus stdio, HTTP, and OAuth smoke tests. It does not install
+> through the Psycheros plugin manager and is not published yet. The latest
+> public release remains
+> [`0.2.0`](https://github.com/lyrishark/community-addons/releases/tag/chatgpt-entity-core-private-v0.2.0).
 
 This is also not a public ChatGPT app. Each user runs the bridge on their own
 computer and connects it to their own ChatGPT account.
@@ -86,11 +89,11 @@ https://your-machine.your-tailnet.ts.net
 ## Choose Your Platform
 
 - Windows: open `START_HERE.md` and use the numbered `.bat` helpers.
-- macOS or Linux: open `START_HERE_MAC_LINUX.md` and use the numbered
-  `.command` helpers or their matching shell scripts.
+- macOS or Linux: open `START_HERE_MAC_LINUX.md` and use the numbered `.command`
+  helpers or their matching shell scripts.
 
-The bridge, OAuth flow, and ChatGPT app are the same on every platform. Only
-the local setup and automatic-startup mechanism changes.
+The bridge, OAuth flow, and ChatGPT app are the same on every platform. Only the
+local setup and automatic-startup mechanism changes.
 
 ## Helper Scripts
 
@@ -122,8 +125,8 @@ Start the local MCP bridge:
   -OAuthIssuer "https://your-tenant.us.auth0.com"
 ```
 
-Or copy `bridge.env.example` to `connectors\codex-entity-core\bridge.env`,
-edit it, and run:
+Or copy `bridge.env.example` to `connectors\codex-entity-core\bridge.env`, edit
+it, and run:
 
 ```powershell
 .\scripts\start-chatgpt-bridge.ps1 -EnvFile .\bridge.env

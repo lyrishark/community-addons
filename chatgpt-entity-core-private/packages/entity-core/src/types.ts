@@ -82,8 +82,6 @@ export interface MemoryEntry {
   content: string;
   /** Chat/conversation IDs referenced in this memory */
   chatIds: string[];
-  /** Canonical memory references used to produce this memory */
-  sourceMemoryIds?: string[];
   /** Which embodiment I was using when I created this memory */
   sourceInstance: string;
   /** Other embodiments that were involved in the conversation */
@@ -217,12 +215,19 @@ export interface ServerConfig {
    */
   graphStore?: import("./graph/mod.ts").GraphStore;
   /**
+   * Optional shared EmbeddingCache. I use this when plugin services and MCP
+   * memory tools share the same sqlite-vec connection during startup.
+   */
+  embeddingCache?: import("./embeddings/mod.ts").EmbeddingCache;
+  /**
    * Optional consolidation runner reference. When provided alongside
    * `graphStore`, the `entity_import` handler updates the runner's DB
    * handle after `graph.db` is replaced on disk so the runner doesn't
    * keep using a stale (closed) connection.
    */
   consolidationRunner?: import("./consolidation/runner.ts").ConsolidationRunner;
+  /** Trusted local plugins I prepare before my MCP transport connects */
+  pluginManager?: import("./plugins/mod.ts").EntityCorePluginManager;
   /** Minimum score threshold for RAG retrieval */
   ragMinScore?: number;
   /** Maximum chunks to retrieve */

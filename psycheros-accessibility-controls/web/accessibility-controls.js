@@ -115,7 +115,7 @@
       minWidth: Math.min(240, maxWidth),
       maxWidth,
       minHeight: 44,
-      maxHeight: Math.max(120, Math.min(360, window.innerHeight * 0.52)),
+      maxHeight: Math.max(120, Math.min(360, globalThis.innerHeight * 0.52)),
     };
   }
 
@@ -369,10 +369,10 @@
     ensureVoiceResize();
   }
 
-  window.addEventListener("pointermove", continueResize);
-  window.addEventListener("pointerup", endResize);
-  window.addEventListener("pointercancel", endResize);
-  window.addEventListener("resize", () => {
+  globalThis.addEventListener("pointermove", continueResize);
+  globalThis.addEventListener("pointerup", endResize);
+  globalThis.addEventListener("pointercancel", endResize);
+  globalThis.addEventListener("resize", () => {
     const input = document.getElementById("voice-text-input");
     const frame = input?.closest(".accessibility-voice-input-frame");
     if (frame) applyVoiceSize(frame, input, readVoiceState());

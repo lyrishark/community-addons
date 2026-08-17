@@ -27,6 +27,7 @@ import { FileStore } from "./storage/mod.ts";
 import { GraphStore } from "./graph/mod.ts";
 import { EmbeddingCache } from "./embeddings/mod.ts";
 import { getEmbedder } from "./embeddings/mod.ts";
+import { releaseRebuild, tryAcquireRebuild } from "./embeddings/mod.ts";
 import { ConsolidationRunner } from "./consolidation/mod.ts";
 import { consolidateGraph } from "./graph/mod.ts";
 
@@ -60,6 +61,14 @@ if (import.meta.main) {
   await store.initialize();
   await graphStore.initialize();
 
+  // One shared EmbeddingCache for the whole process. The boot rebuild runs
+  // in the background now — a second cache connection here would race it
+  // on the vec tables (that race is why the backfill previously ran only
+  // after the awaited rebuild; sharing one instance keeps the
+  // single-connection invariant without the await).
+  const embeddingCache = new EmbeddingCache(dataDir);
+  await embeddingCache.initialize();
+
   // Local consolidation runner — owns its own table in graph.db and
   // fires weekly/monthly/yearly memory consolidation at 5 AM UTC on the
   // appropriate boundary. Missed fires during downtime catch up on the
@@ -75,6 +84,7 @@ if (import.meta.main) {
     dataDir,
     store,
     graphStore,
+    embeddingCache,
     consolidationRunner: runner,
   });
 
@@ -98,56 +108,56 @@ if (import.meta.main) {
     }
 
     try {
-      const cache = new EmbeddingCache(dataDir);
-      await cache.initialize();
+      const cache = embeddingCache;
+      // When a rebuild is pending (or running in the background), skip the
+      // backfill — the rebuild re-embeds everything, and running both is
+      // redundant work on the same cache.
+      if (cache.getRebuildReason() !== "none") return;
+      if (!tryAcquireRebuild("backfill")) return;
+
       const embedder = getEmbedder();
 
-      const granularities:
-        ("daily" | "weekly" | "monthly" | "yearly" | "significant")[] = [
-          "daily",
-          "weekly",
-          "monthly",
-          "yearly",
-          "significant",
-        ];
+      if (cache.isAvailable() && embedder.isReady()) {
+        const granularities:
+          ("daily" | "weekly" | "monthly" | "yearly" | "significant")[] = [
+            "daily",
+            "weekly",
+            "monthly",
+            "yearly",
+            "significant",
+          ];
 
-      let backfilled = 0;
-      let lexicalIndexed = 0;
-      for (const granularity of granularities) {
-        const memories = await store.listMemories(granularity);
-        for (const memory of memories) {
-          cache.indexLexical(memory);
-          lexicalIndexed++;
-          if (cache.isAvailable() && embedder.isReady()) {
+        let backfilled = 0;
+        for (const granularity of granularities) {
+          const memories = await store.listMemories(granularity);
+          for (const memory of memories) {
             const result = await cache.getOrCompute(
-              memory,
+              {
+                granularity,
+                date: memory.date,
+                sourceInstance: memory.sourceInstance,
+                slug: memory.slug,
+                content: memory.content,
+              },
               embedder,
             );
             if (result) backfilled++;
           }
         }
-      }
 
-      if (lexicalIndexed > 0) {
-        console.error(
-          `[EmbeddingCache] Indexed ${lexicalIndexed} memory file(s) for lexical search`,
-        );
+        if (backfilled > 0) {
+          console.error(
+            `[EmbeddingCache] Backfilled ${backfilled} memory embedding(s) on startup`,
+          );
+        }
       }
-      if (backfilled > 0) {
-        console.error(
-          `[EmbeddingCache] Backfilled ${backfilled} memory embedding(s) on startup`,
-        );
-      }
-
-      // Close the cache so it doesn't hold graph.db open indefinitely.
-      // If import later needs to swap graph.db, a stale handle would
-      // block the rename on Windows.
-      cache.close();
     } catch (error) {
       console.error(
         "[EmbeddingCache] Startup backfill failed:",
         error instanceof Error ? error.message : String(error),
       );
+    } finally {
+      releaseRebuild();
     }
   })();
 }

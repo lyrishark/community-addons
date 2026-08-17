@@ -9,8 +9,14 @@ import { z } from "zod";
 import type { FileStore } from "../storage/mod.ts";
 import type { GraphStore } from "../graph/mod.ts";
 import type { Granularity, MemoryEntry } from "../types.ts";
-import { getEmbedder } from "../embeddings/mod.ts";
+import { getEmbedder, resetEmbedder } from "../embeddings/mod.ts";
 import type { EmbeddingCache } from "../embeddings/mod.ts";
+import {
+  notifyRebuild,
+  releaseRebuild,
+  tryAcquireRebuild,
+  yieldToEventLoop,
+} from "../embeddings/mod.ts";
 import { computeMemoryKey } from "../embeddings/mod.ts";
 import { chunkContent, shouldChunk } from "../embeddings/chunker.ts";
 
@@ -66,7 +72,6 @@ export const MemoryListSchema = z.object({
 export const MemoryReadSchema = z.object({
   granularity: GranularitySchema,
   date: z.string().regex(/^\d{4}(-W\d{2}|(-\d{2})?(-\d{2})?)$/),
-  sourceInstance: z.string().optional(),
   slug: z.string().optional(),
 });
 
@@ -1088,7 +1093,7 @@ export function createMemoryReadHandler(store: FileStore) {
   return async (
     input: z.infer<typeof MemoryReadSchema>,
   ): Promise<MemoryReadOutput> => {
-    const { granularity, date, sourceInstance, slug } = input;
+    const { granularity, date, slug } = input;
 
     let memory: import("../types.ts").MemoryEntry | null;
 
@@ -1101,16 +1106,9 @@ export function createMemoryReadHandler(store: FileStore) {
         undefined,
         slug,
       );
-    } else if (sourceInstance && granularity !== "significant") {
-      // Daily memories can have multiple same-day instance-scoped files.
-      memory = await store.readMemory(
-        granularity as Granularity,
-        date,
-        sourceInstance,
-      );
     } else {
-      // Use findMemoryByDate as a compatibility fallback when callers only
-      // know the date.
+      // Use findMemoryByDate to search across instance variants
+      // (e.g. daily memories with instance-scoped filenames like 2026-04-15_psycheros.md)
       memory = await store.findMemoryByDate(granularity, date);
     }
 
@@ -1118,8 +1116,8 @@ export function createMemoryReadHandler(store: FileStore) {
       return {
         success: false,
         message: `No memory found for ${granularity}/${date}${
-          sourceInstance ? `/${sourceInstance}` : ""
-        }${slug ? `/${slug}` : ""}.`,
+          slug ? `/${slug}` : ""
+        }.`,
       };
     }
 
@@ -1164,7 +1162,7 @@ export function createMemoryUpdateHandler(
       date,
       content,
       chatIds: existing?.chatIds ?? [],
-      sourceInstance: existing?.sourceInstance ?? instanceId ?? editedBy ?? "",
+      sourceInstance: existing?.sourceInstance ?? editedBy ?? instanceId ?? "",
       participatingInstances: existing?.participatingInstances,
       version: (existing?.version ?? 0) + 1,
       createdAt: existing?.createdAt ?? new Date().toISOString(),
@@ -1310,15 +1308,374 @@ export function createMemoryEmbeddingRebuildHandler(
   cache: EmbeddingCache,
 ) {
   return async (): Promise<MemoryEmbeddingRebuildOutput> => {
-    const statsBefore = cache.getStats();
-    const total = statsBefore.totalCached;
+    if (!tryAcquireRebuild("memory")) {
+      return {
+        rebuilt: 0,
+        failed: 0,
+        total: 0,
+        message: "Another rebuild is already in progress.",
+      };
+    }
 
-    // Clear all cached embeddings
-    cache.clearAll();
+    try {
+      // Pre-list every memory file so `total` reflects the work ahead, not
+      // the size of the (about-to-be-cleared) cache.
+      const granularities: Granularity[] = [
+        "daily",
+        "weekly",
+        "monthly",
+        "yearly",
+        "significant",
+      ];
+      const perGranularity = await Promise.all(
+        granularities.map((g) => store.listMemories(g)),
+      );
+      const total = perGranularity.reduce((n, list) => n + list.length, 0);
 
-    const embedder = getEmbedder();
-    let rebuilt = 0;
-    let failed = 0;
+      notifyRebuild({ phase: "started", scope: "memory", total });
+
+      // Clear all cached embeddings
+      cache.clearAll();
+
+      const embedder = getEmbedder();
+      let rebuilt = 0;
+      let failed = 0;
+
+      for (const memories of perGranularity) {
+        for (const memory of memories) {
+          try {
+            const result = await cache.getOrCompute(
+              {
+                granularity: memory.granularity,
+                date: memory.date,
+                sourceInstance: memory.sourceInstance || undefined,
+                slug: memory.slug || undefined,
+                content: memory.content,
+              },
+              embedder,
+            );
+            if (result) {
+              rebuilt++;
+            } else {
+              failed++;
+            }
+          } catch (err) {
+            console.error(
+              `[Memory] Failed to rebuild embedding for ${memory.granularity}/${memory.date}: ${err}`,
+            );
+            failed++;
+          }
+          // Keep answering requests (and pings) while I re-embed.
+          await yieldToEventLoop();
+          if ((rebuilt + failed) % 25 === 0) {
+            notifyRebuild({
+              phase: "progress",
+              scope: "memory",
+              done: rebuilt + failed,
+              total,
+            });
+          }
+        }
+      }
+
+      notifyRebuild({
+        phase: "done",
+        scope: "memory",
+        done: rebuilt + failed,
+        total,
+      });
+
+      return {
+        rebuilt,
+        failed,
+        total,
+        message: failed === 0
+          ? `Rebuilt ${rebuilt} embedding(s) from ${rebuilt} memory files.`
+          : `Rebuilt ${rebuilt} embedding(s), ${failed} failed.`,
+      };
+    } catch (error) {
+      notifyRebuild({
+        phase: "failed",
+        scope: "memory",
+        message: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    } finally {
+      releaseRebuild();
+    }
+  };
+}
+
+// =============================================================================
+// embedding/rebuild_all — full re-embed across memory cache AND graph nodes
+// =============================================================================
+
+export const EmbeddingRebuildAllSchema = z.object({});
+
+export interface EmbeddingRebuildAllOutput {
+  memoriesRebuilt: number;
+  memoriesFailed: number;
+  memoriesTotal: number;
+  nodesRebuilt: number;
+  nodesFailed: number;
+  nodesTotal: number;
+  message: string;
+}
+
+/**
+ * Build the rebuild-all handler. Called by the psycheros parent (via MCP)
+ * when the user switches embedding model or chunk size — drops+recreates
+ * the memory-cache and graph-node vec0 tables, re-embeds everything from
+ * the active model, and marks the composite schema version as up-to-date
+ * so the next boot doesn't re-trigger.
+ *
+ * Assumes the caller has already restarted me with the new
+ * `ENTITY_CORE_EMBEDDING_*` env vars — otherwise I'd re-embed with the old
+ * model.
+ */
+export function createEmbeddingRebuildAllHandler(
+  store: FileStore,
+  cache: EmbeddingCache,
+  graphStore: GraphStore,
+) {
+  return async (): Promise<EmbeddingRebuildAllOutput> => {
+    if (!tryAcquireRebuild("all")) {
+      return {
+        memoriesRebuilt: 0,
+        memoriesFailed: 0,
+        memoriesTotal: 0,
+        nodesRebuilt: 0,
+        nodesFailed: 0,
+        nodesTotal: 0,
+        message: "Another rebuild is already in progress.",
+      };
+    }
+
+    try {
+      console.error("[Embeddings] rebuild_all: starting");
+      // Pre-list everything so the started notification carries a real total.
+      const granularities: Granularity[] = [
+        "daily",
+        "weekly",
+        "monthly",
+        "yearly",
+        "significant",
+      ];
+      const perGranularity = await Promise.all(
+        granularities.map((g) => store.listMemories(g)),
+      );
+      const memoriesTotal = perGranularity.reduce(
+        (n, list) => n + list.length,
+        0,
+      );
+      const nodesTotal = graphStore.listNodeLabels().length;
+      const total = memoriesTotal + nodesTotal;
+
+      // Before any embedder work — the model load is part of the CPU spike
+      // my parent must pause its watchdog across.
+      notifyRebuild({ phase: "started", scope: "all", total });
+
+      // Pick up new env vars if my parent restarted me with them.
+      resetEmbedder();
+      const embedder = getEmbedder();
+      console.error("[Embeddings] rebuild_all: initializing embedder");
+      await embedder.initialize();
+      console.error("[Embeddings] rebuild_all: embedder ready");
+
+      // ---- Memory cache rebuild ----
+      console.error("[Embeddings] rebuild_all: clearing cache");
+      cache.clearAll();
+      console.error("[Embeddings] rebuild_all: cache cleared");
+
+      let memoriesRebuilt = 0;
+      let memoriesFailed = 0;
+      let done = 0;
+
+      const reportProgress = () => {
+        if (done % 25 === 0 && done > 0) {
+          notifyRebuild({ phase: "progress", scope: "all", done, total });
+        }
+      };
+
+      for (const memories of perGranularity) {
+        for (const memory of memories) {
+          try {
+            const result = await cache.getOrCompute(
+              {
+                granularity: memory.granularity,
+                date: memory.date,
+                sourceInstance: memory.sourceInstance || undefined,
+                slug: memory.slug || undefined,
+                content: memory.content,
+              },
+              embedder,
+            );
+            if (result) {
+              memoriesRebuilt++;
+            } else {
+              memoriesFailed++;
+            }
+          } catch (err) {
+            console.error(
+              `[Embeddings] rebuild_all: memory failed: ${
+                err instanceof Error ? err.message : String(err)
+              }`,
+            );
+            memoriesFailed++;
+          }
+          done++;
+          await yieldToEventLoop();
+          reportProgress();
+        }
+      }
+      console.error(
+        `[Embeddings] rebuild_all: memories done (${memoriesRebuilt} ok, ${memoriesFailed} failed)`,
+      );
+
+      // ---- Graph node rebuild ----
+      console.error("[Embeddings] rebuild_all: dropping vec_graph_nodes");
+      graphStore.reembedAllGraphNodes();
+      console.error(
+        `[Embeddings] rebuild_all: ${nodesTotal} graph nodes to re-embed`,
+      );
+      let nodesRebuilt = 0;
+      let nodesFailed = 0;
+
+      if (nodesTotal > 0) {
+        const nodes = graphStore.listNodeLabels();
+        for (const node of nodes) {
+          try {
+            const vec = await embedder.embed(node.label);
+            if (!vec) {
+              nodesFailed++;
+            } else {
+              graphStore.updateNodeEmbedding(node.id, vec);
+              nodesRebuilt++;
+            }
+          } catch (err) {
+            console.error(
+              `[Embeddings] rebuild_all: graph node failed: ${
+                err instanceof Error ? err.message : String(err)
+              }`,
+            );
+            nodesFailed++;
+          }
+          done++;
+          await yieldToEventLoop();
+          reportProgress();
+        }
+      }
+      console.error(
+        `[Embeddings] rebuild_all: graph done (${nodesRebuilt} ok, ${nodesFailed} failed)`,
+      );
+
+      // Success path only — a failed rebuild must leave the fingerprint
+      // stale so the next boot retries.
+      cache.markSchemaUpToDate();
+      console.error("[Embeddings] rebuild_all: complete");
+
+      notifyRebuild({ phase: "done", scope: "all", done, total });
+
+      const ok = memoriesFailed === 0 && nodesFailed === 0;
+      return {
+        memoriesRebuilt,
+        memoriesFailed,
+        memoriesTotal,
+        nodesRebuilt,
+        nodesFailed,
+        nodesTotal,
+        message: ok
+          ? `Rebuilt ${memoriesRebuilt} memory + ${nodesRebuilt} node embeddings.`
+          : `Rebuilt ${memoriesRebuilt} memory + ${nodesRebuilt} node embeddings; ${
+            memoriesFailed + nodesFailed
+          } failed.`,
+      };
+    } catch (error) {
+      notifyRebuild({
+        phase: "failed",
+        scope: "all",
+        message: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    } finally {
+      releaseRebuild();
+    }
+  };
+}
+
+/**
+ * Input schema for memory/grep tool.
+ */
+export const MemoryGrepSchema = z.object({
+  query: z.string().min(1),
+  maxResults: z.number().min(1).max(50).optional(),
+});
+
+/**
+ * Output type for memory/grep tool.
+ */
+export interface MemoryGrepOutput {
+  results: Array<{
+    granularity: string;
+    date: string;
+    slug?: string;
+    title: string;
+    score: number;
+    context: string;
+  }>;
+  totalScanned: number;
+}
+
+/**
+ * Extract a short context window around the first matching query term.
+ */
+function extractGrepContext(
+  content: string,
+  queryTerms: string[],
+  maxLen = 300,
+): string {
+  const lower = content.toLowerCase();
+  let bestPos = -1;
+
+  for (const term of queryTerms) {
+    const idx = lower.indexOf(term);
+    if (idx !== -1) {
+      bestPos = idx;
+      break;
+    }
+  }
+
+  if (bestPos === -1) return content.slice(0, maxLen);
+
+  const halfWindow = Math.max(0, Math.floor((maxLen - 20) / 2));
+  const start = Math.max(0, bestPos - halfWindow);
+  const end = Math.min(content.length, start + maxLen);
+
+  let context = content.slice(start, end);
+  if (start > 0) context = "..." + context;
+  if (end < content.length) context += "...";
+
+  return context;
+}
+
+/**
+ * Create the memory/grep tool handler.
+ *
+ * Plain-text grep search across all my memories. Splits the query into
+ * terms, scores memories by how many query words appear in the content,
+ * and returns a compact hit list with titles and matching context.
+ */
+export function createMemoryGrepHandler(store: FileStore) {
+  return async (
+    input: z.infer<typeof MemoryGrepSchema>,
+  ): Promise<MemoryGrepOutput> => {
+    const { query, maxResults: maxResultsInput } = input;
+    const maxResults = maxResultsInput ?? 20;
+
+    const queryTerms = extractQueryTerms(query);
+    if (queryTerms.length === 0) {
+      return { results: [], totalScanned: 0 };
+    }
 
     const granularities: Granularity[] = [
       "daily",
@@ -1328,41 +1685,43 @@ export function createMemoryEmbeddingRebuildHandler(
       "significant",
     ];
 
+    const results: MemoryGrepOutput["results"] = [];
+    let totalScanned = 0;
+
     for (const granularity of granularities) {
       const memories = await store.listMemories(granularity);
+
       for (const memory of memories) {
-        try {
-          const result = await cache.getOrCompute(
-            {
-              granularity: memory.granularity,
-              date: memory.date,
-              sourceInstance: memory.sourceInstance || undefined,
-              slug: memory.slug || undefined,
-              content: memory.content,
-            },
-            embedder,
-          );
-          if (result) {
-            rebuilt++;
-          } else {
-            failed++;
-          }
-        } catch (err) {
-          console.error(
-            `[Memory] Failed to rebuild embedding for ${granularity}/${memory.date}: ${err}`,
-          );
-          failed++;
-        }
+        totalScanned++;
+        const lowerContent = memory.content.toLowerCase();
+
+        const matched = queryTerms.filter((t) =>
+          lowerContent.includes(t)
+        ).length;
+        const score = matched / queryTerms.length;
+
+        if (score < 0.1) continue;
+
+        const titleMatch = memory.content.match(/^#\s+(.+)$/m);
+        const title = titleMatch ? titleMatch[1].trim() : memory.date;
+
+        const context = extractGrepContext(memory.content, queryTerms);
+
+        results.push({
+          granularity,
+          date: memory.date,
+          ...(memory.slug ? { slug: memory.slug } : {}),
+          title,
+          score: Math.round(score * 1000) / 1000,
+          context,
+        });
       }
     }
 
+    results.sort((a, b) => b.score - a.score);
     return {
-      rebuilt,
-      failed,
-      total,
-      message: failed === 0
-        ? `Rebuilt ${rebuilt} embedding(s) from ${rebuilt} memory files.`
-        : `Rebuilt ${rebuilt} embedding(s), ${failed} failed.`,
+      results: results.slice(0, maxResults),
+      totalScanned,
     };
   };
 }
@@ -1377,6 +1736,11 @@ export const memoryTools = {
     description:
       "Search my memories for relevant content. Uses vector similarity with multi-signal ranking (semantic relevance, recency, graph context, and instance affinity). Falls back to text matching if embeddings are unavailable.",
     inputSchema: MemorySearchSchema,
+  },
+  "memory/grep": {
+    description:
+      "Plain-text keyword search across all my memories. Splits the query into terms and scores memories by how many of those terms appear in the content. Returns a compact hit list with titles and matching context. I use this alongside semantic search when I need to find memories by specific keywords, names, or phrases that the embedding model might miss.",
+    inputSchema: MemoryGrepSchema,
   },
   "memory/list": {
     description:
@@ -1407,5 +1771,10 @@ export const memoryTools = {
     description:
       "Clear all memory embeddings and rebuild them from existing memory files. I use this after bulk deletion or migration to ensure embeddings match current files.",
     inputSchema: MemoryEmbeddingRebuildSchema,
+  },
+  "embedding/rebuild_all": {
+    description:
+      "Rebuild every embedding I own — memory cache AND knowledge graph nodes — using the currently-active model. My Psycheros parent calls this when the user switches embedding model or chunk size. Assumes I've been restarted with the new ENTITY_CORE_EMBEDDING_* env vars first.",
+    inputSchema: EmbeddingRebuildAllSchema,
   },
 };

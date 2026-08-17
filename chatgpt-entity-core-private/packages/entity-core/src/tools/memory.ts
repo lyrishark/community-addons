@@ -9,9 +9,14 @@ import { z } from "zod";
 import type { FileStore } from "../storage/mod.ts";
 import type { GraphStore } from "../graph/mod.ts";
 import type { Granularity, MemoryEntry } from "../types.ts";
-import { memoryReference, stripMemoryMetadata } from "../storage/mod.ts";
-import { getEmbedder } from "../embeddings/mod.ts";
+import { getEmbedder, resetEmbedder } from "../embeddings/mod.ts";
 import type { EmbeddingCache } from "../embeddings/mod.ts";
+import {
+  notifyRebuild,
+  releaseRebuild,
+  tryAcquireRebuild,
+  yieldToEventLoop,
+} from "../embeddings/mod.ts";
 import { computeMemoryKey } from "../embeddings/mod.ts";
 import { chunkContent, shouldChunk } from "../embeddings/chunker.ts";
 
@@ -34,7 +39,6 @@ export const MemoryCreateSchema = z.object({
   date: z.string().regex(/^\d{4}(-W\d{2}|(-\d{2})?(-\d{2})?)$/),
   content: z.string().min(1),
   chatIds: z.array(z.string()).optional().default([]),
-  sourceMemoryIds: z.array(z.string()).optional(),
   instanceId: z.string().min(1),
   participatingInstances: z.array(z.string()).optional(),
   slug: z.string().optional(),
@@ -49,14 +53,6 @@ export const MemorySearchSchema = z.object({
   queryEmbedding: z.array(z.number()).optional(),
   minScore: z.number().min(0).max(1).optional(),
   maxResults: z.number().min(1).max(50).optional(),
-});
-
-/** Return the newest memories without requiring a keyword query. */
-export const MemoryRecentSchema = z.object({
-  granularities: z.array(GranularitySchema).optional(),
-  limit: z.number().int().min(1).max(50).optional(),
-  hours: z.number().min(1).max(24 * 365).optional(),
-  includeSourceContext: z.boolean().optional(),
 });
 
 /**
@@ -76,7 +72,6 @@ export const MemoryListSchema = z.object({
 export const MemoryReadSchema = z.object({
   granularity: GranularitySchema,
   date: z.string().regex(/^\d{4}(-W\d{2}|(-\d{2})?(-\d{2})?)$/),
-  sourceInstance: z.string().optional(),
   slug: z.string().optional(),
 });
 
@@ -139,17 +134,11 @@ export interface MemoryCreateOutput {
  */
 export interface MemorySearchOutput {
   results: Array<{
-    id: string;
     granularity: string;
     date: string;
-    updatedAt: string;
     score: number;
     excerpt: string;
     sourceInstance: string;
-    slug?: string;
-    chatIds: string[];
-    sourceMemoryIds: string[];
-    sourceContext: MemorySourceExcerpt[];
     tier: string;
     ageDays: number;
     vectorScore: number;
@@ -157,72 +146,6 @@ export interface MemorySearchOutput {
   }>;
   searchMethod: "vector" | "text";
   vectorAvailable: boolean;
-}
-
-export interface MemorySourceExcerpt {
-  id: string;
-  granularity: string;
-  date: string;
-  excerpt: string;
-  sourceInstance: string;
-}
-
-export interface MemoryRecentOutput {
-  results: Array<{
-    id: string;
-    granularity: string;
-    date: string;
-    updatedAt: string;
-    excerpt: string;
-    sourceInstance: string;
-    slug?: string;
-    chatIds: string[];
-    sourceMemoryIds: string[];
-    sourceContext: MemorySourceExcerpt[];
-  }>;
-  total: number;
-  hours?: number;
-}
-
-function compactExcerpt(content: string, maxChars = 1600): string {
-  const clean = stripMemoryMetadata(content).trim();
-  return clean.length <= maxChars
-    ? clean
-    : `${clean.slice(0, maxChars).trimEnd()}...`;
-}
-
-async function sourceContextForMemory(
-  store: FileStore,
-  memory: MemoryEntry,
-  limit = 2,
-): Promise<MemorySourceExcerpt[]> {
-  const results: MemorySourceExcerpt[] = [];
-  for (const sourceId of memory.sourceMemoryIds ?? []) {
-    if (sourceId === memoryReference(memory)) continue;
-    const source = await store.readMemoryByReference(sourceId);
-    if (!source) continue;
-    results.push({
-      id: memoryReference(source),
-      granularity: source.granularity,
-      date: source.date,
-      excerpt: compactExcerpt(source.content, 700),
-      sourceInstance: source.sourceInstance,
-    });
-    if (results.length >= limit) break;
-  }
-  return results;
-}
-
-async function lineageForMemory(store: FileStore, memory: MemoryEntry) {
-  return {
-    id: memoryReference(memory),
-    updatedAt: memory.updatedAt,
-    sourceInstance: memory.sourceInstance,
-    ...(memory.slug ? { slug: memory.slug } : {}),
-    chatIds: memory.chatIds,
-    sourceMemoryIds: memory.sourceMemoryIds ?? [],
-    sourceContext: await sourceContextForMemory(store, memory),
-  };
 }
 
 /**
@@ -253,7 +176,6 @@ export function createMemoryCreateHandler(
       date,
       content,
       chatIds,
-      sourceMemoryIds,
       instanceId,
       participatingInstances,
       slug,
@@ -265,7 +187,6 @@ export function createMemoryCreateHandler(
       date,
       content,
       chatIds,
-      sourceMemoryIds,
       sourceInstance: instanceId,
       participatingInstances: participatingInstances ?? [instanceId],
       version: 1,
@@ -598,7 +519,6 @@ async function vectorSearch(
   ];
 
   const scored: Array<{
-    memory: MemoryEntry;
     memoryId: string;
     granularity: string;
     date: string;
@@ -694,7 +614,6 @@ async function vectorSearch(
         (instanceScore * weights.INSTANCE_WEIGHT);
 
       scored.push({
-        memory,
         memoryId: memory.id,
         granularity: memory.granularity,
         date: memory.date,
@@ -797,7 +716,6 @@ async function vectorSearch(
           (instanceScore * weights.INSTANCE_WEIGHT);
 
         scored.push({
-          memory,
           memoryId: memory.id,
           granularity: memory.granularity,
           date: memory.date,
@@ -815,95 +733,93 @@ async function vectorSearch(
     }
   }
 
-  // Step 3: Indexed keyword retrieval for memories missed by vector search.
-  // FTS avoids reparsing the full memory tree on every turn. The filesystem
-  // scan remains as a graceful fallback for SQLite builds without FTS5.
+  // Step 3: Keyword retrieval for memories missed by vector search.
+  // Only activates for queries with enough distinctive terms — short
+  // queries ("I miss Jordan") are better handled by vector search alone.
+  const KEYWORD_SCAN_MIN_TERMS = 3;
+  const KEYWORD_SCAN_MATCH_RATIO = 0.5;
   const KEYWORD_VECTOR_FLOOR = 0.15; // Small vector floor so keywords
   // supplement vectors, not replace them.
-  if (queryTerms.length > 0) {
-    const existingIds = new Set(
-      scored.map((item) => memoryReference(item.memory)),
-    );
-    const keywordCandidates: Array<{ memory: MemoryEntry; score: number }> = [];
-    const lexicalAvailable = cache?.isLexicalAvailable() ?? false;
-    const indexed = lexicalAvailable
-      ? cache?.searchLexical(query, Math.max(maxResults * 12, 40)) ?? []
-      : [];
-
-    if (lexicalAvailable) {
-      for (const candidate of indexed) {
-        const memory = await store.readMemoryByKey(
-          candidate.memoryKey,
-          candidate.granularity as Granularity,
-        );
-        if (memory) keywordCandidates.push({ memory, score: candidate.score });
-      }
-    } else if (queryTerms.length >= 3) {
-      for (const granularity of granularities) {
-        for (const memory of await store.listMemories(granularity)) {
-          const lower = memory.content.toLowerCase();
-          const matched = queryTerms.filter((term) =>
-            lower.includes(term)
-          ).length;
-          if (matched >= 2 && matched / queryTerms.length >= 0.5) {
-            keywordCandidates.push({
-              memory,
-              score: matched / queryTerms.length,
-            });
-          }
+  if (queryTerms.length >= KEYWORD_SCAN_MIN_TERMS) {
+    // First pass: count term frequency across all memories to identify
+    // distinctive terms (appearing in <20% of memories). Common terms
+    // like entity/user names match too broadly to be useful signals.
+    const allMemories: MemoryEntry[] = [];
+    const termFreq = new Map<string, number>();
+    for (const granularity of granularities) {
+      const memories = await store.listMemories(granularity);
+      allMemories.push(...memories);
+    }
+    const totalMemories = allMemories.length;
+    for (const memory of allMemories) {
+      const lower = memory.content.toLowerCase();
+      for (const term of queryTerms) {
+        if (lower.includes(term)) {
+          termFreq.set(term, (termFreq.get(term) ?? 0) + 1);
         }
       }
     }
+    const distinctiveThreshold = totalMemories * 0.5;
+    const distinctiveTerms = queryTerms.filter(
+      (t) => (termFreq.get(t) ?? 0) < distinctiveThreshold,
+    );
 
-    for (const candidate of keywordCandidates) {
-      const memory = candidate.memory;
-      const reference = memoryReference(memory);
-      if (existingIds.has(reference)) continue;
-      const lowerContent = memory.content.toLowerCase();
-      const matched = queryTerms.filter((term) =>
-        lowerContent.includes(term)
-      ).length;
-      const keywordBoost = matched / Math.max(queryTerms.length, 1);
-      const requiredMatches = queryTerms.length >= 3 ? 2 : 1;
-      if (matched < requiredMatches || keywordBoost < 0.4) continue;
-      const recencyScore = computeRecencyScore(
-        memory.date,
-        weights.RECENCY_DECAY_RATE,
-      );
-      let graphBoost = 0;
-      if (relevantEntityLabels.size > 0) {
-        const matchCount = [...relevantEntityLabels].filter((label) =>
-          lowerContent.includes(label)
+    if (distinctiveTerms.length >= KEYWORD_SCAN_MIN_TERMS) {
+      const existingIds = new Set(scored.map((s) => s.memoryId));
+      for (const memory of allMemories) {
+        if (existingIds.has(memory.id)) continue;
+        const lowerContent = memory.content.toLowerCase();
+        const matched = distinctiveTerms.filter((t) =>
+          lowerContent.includes(t)
         ).length;
-        if (matchCount > 0) {
-          graphBoost = Math.min(1, matchCount / Math.log(matchCount + 2));
-        }
-      }
-      const instanceScore = memory.sourceInstance === instanceId
-        ? weights.instanceBoost
-        : 0;
-      const finalScore = (KEYWORD_VECTOR_FLOOR * weights.VECTOR_WEIGHT) +
-        (recencyScore * weights.RECENCY_WEIGHT) +
-        (graphBoost * weights.GRAPH_WEIGHT) +
-        (keywordBoost * weights.KEYWORD_WEIGHT) +
-        (instanceScore * weights.INSTANCE_WEIGHT);
+        if (
+          matched < 2 ||
+          matched / distinctiveTerms.length < KEYWORD_SCAN_MATCH_RATIO
+        ) continue;
 
-      scored.push({
-        memory,
-        memoryId: memory.id,
-        granularity: memory.granularity,
-        date: memory.date,
-        sourceInstance: memory.sourceInstance,
-        content: memory.content,
-        vectorScore: KEYWORD_VECTOR_FLOOR,
-        recencyScore,
-        graphBoost,
-        keywordBoost,
-        instanceScore,
-        finalScore,
-        chunkIndex: 0,
-      });
-      existingIds.add(reference);
+        const kwBoost = matched / distinctiveTerms.length;
+        const recencyScore = computeRecencyScore(
+          memory.date,
+          weights.RECENCY_DECAY_RATE,
+        );
+
+        let graphBoost = 0;
+        if (relevantEntityLabels.size > 0) {
+          let matchCount = 0;
+          for (const label of relevantEntityLabels) {
+            if (lowerContent.includes(label)) matchCount++;
+          }
+          if (matchCount > 0) {
+            graphBoost = Math.min(1, matchCount / Math.log(matchCount + 2));
+          }
+        }
+
+        const instanceScore = memory.sourceInstance === instanceId
+          ? weights.instanceBoost
+          : 0;
+
+        const finalScore = (KEYWORD_VECTOR_FLOOR * weights.VECTOR_WEIGHT) +
+          (recencyScore * weights.RECENCY_WEIGHT) +
+          (graphBoost * weights.GRAPH_WEIGHT) +
+          (kwBoost * weights.KEYWORD_WEIGHT) +
+          (instanceScore * weights.INSTANCE_WEIGHT);
+
+        scored.push({
+          memoryId: memory.id,
+          granularity: memory.granularity,
+          date: memory.date,
+          sourceInstance: memory.sourceInstance,
+          content: memory.content,
+          vectorScore: KEYWORD_VECTOR_FLOOR,
+          recencyScore,
+          graphBoost,
+          keywordBoost: kwBoost,
+          instanceScore,
+          finalScore,
+          chunkIndex: 0,
+        });
+        existingIds.add(memory.id);
+      }
     }
   }
 
@@ -936,7 +852,6 @@ async function vectorSearch(
     );
 
     results.push({
-      ...(await lineageForMemory(store, item.memory)),
       granularity: item.granularity,
       date: item.date,
       score: Math.round(item.finalScore * 1000) / 1000,
@@ -970,7 +885,6 @@ function findBestExcerpt(
   chunkIndex = 0,
   granularity?: string,
 ): string {
-  content = stripMemoryMetadata(content);
   const MAX_EXCERPT = 2000;
 
   // Significant memories always get full content (capped at 10k as a safety net)
@@ -1106,7 +1020,6 @@ async function textSearch(
         );
 
         results.push({
-          ...(await lineageForMemory(store, memory)),
           granularity: memory.granularity,
           date: memory.date,
           score: Math.min(score, 1),
@@ -1174,65 +1087,13 @@ export function createMemoryListHandler(store: FileStore) {
 }
 
 /**
- * Return newest memories in write/update order. Unlike semantic search this
- * deliberately needs no query, making the current daybook visible to every
- * embodiment before scheduled consolidation catches up.
- */
-export function createMemoryRecentHandler(store: FileStore) {
-  return async (
-    input: z.infer<typeof MemoryRecentSchema>,
-  ): Promise<MemoryRecentOutput> => {
-    const granularities = (input.granularities ?? ["daily", "significant"])
-      .map((value) => value as Granularity);
-    const limit = input.limit ?? 8;
-    const includeSourceContext = input.includeSourceContext ?? true;
-    const cutoff = input.hours === undefined
-      ? null
-      : Date.now() - input.hours * 60 * 60 * 1000;
-    const memories: MemoryEntry[] = [];
-
-    for (const granularity of granularities) {
-      memories.push(...await store.listMemories(granularity));
-    }
-
-    const eligible = memories.filter((memory) => {
-      if (cutoff === null) return true;
-      const updatedAt = new Date(memory.updatedAt).getTime();
-      if (Number.isFinite(updatedAt)) return updatedAt >= cutoff;
-      const dated = new Date(memory.date).getTime();
-      return Number.isFinite(dated) && dated >= cutoff;
-    }).sort((a, b) =>
-      b.updatedAt.localeCompare(a.updatedAt) || b.date.localeCompare(a.date)
-    );
-
-    const results: MemoryRecentOutput["results"] = [];
-    for (const memory of eligible.slice(0, limit)) {
-      const lineage = await lineageForMemory(store, memory);
-      results.push({
-        ...lineage,
-        granularity: memory.granularity,
-        date: memory.date,
-        excerpt: compactExcerpt(memory.content),
-        sourceContext: includeSourceContext ? lineage.sourceContext : [],
-      });
-    }
-
-    return {
-      results,
-      total: eligible.length,
-      ...(input.hours !== undefined ? { hours: input.hours } : {}),
-    };
-  };
-}
-
-/**
  * Create the memory/read tool handler.
  */
 export function createMemoryReadHandler(store: FileStore) {
   return async (
     input: z.infer<typeof MemoryReadSchema>,
   ): Promise<MemoryReadOutput> => {
-    const { granularity, date, sourceInstance, slug } = input;
+    const { granularity, date, slug } = input;
 
     let memory: import("../types.ts").MemoryEntry | null;
 
@@ -1245,16 +1106,9 @@ export function createMemoryReadHandler(store: FileStore) {
         undefined,
         slug,
       );
-    } else if (sourceInstance && granularity !== "significant") {
-      // Daily memories can have multiple same-day instance-scoped files.
-      memory = await store.readMemory(
-        granularity as Granularity,
-        date,
-        sourceInstance,
-      );
     } else {
-      // Use findMemoryByDate as a compatibility fallback when callers only
-      // know the date.
+      // Use findMemoryByDate to search across instance variants
+      // (e.g. daily memories with instance-scoped filenames like 2026-04-15_psycheros.md)
       memory = await store.findMemoryByDate(granularity, date);
     }
 
@@ -1262,8 +1116,8 @@ export function createMemoryReadHandler(store: FileStore) {
       return {
         success: false,
         message: `No memory found for ${granularity}/${date}${
-          sourceInstance ? `/${sourceInstance}` : ""
-        }${slug ? `/${slug}` : ""}.`,
+          slug ? `/${slug}` : ""
+        }.`,
       };
     }
 
@@ -1308,8 +1162,7 @@ export function createMemoryUpdateHandler(
       date,
       content,
       chatIds: existing?.chatIds ?? [],
-      sourceMemoryIds: existing?.sourceMemoryIds,
-      sourceInstance: existing?.sourceInstance ?? instanceId ?? editedBy ?? "",
+      sourceInstance: existing?.sourceInstance ?? editedBy ?? instanceId ?? "",
       participatingInstances: existing?.participatingInstances,
       version: (existing?.version ?? 0) + 1,
       createdAt: existing?.createdAt ?? new Date().toISOString(),
@@ -1455,60 +1308,298 @@ export function createMemoryEmbeddingRebuildHandler(
   cache: EmbeddingCache,
 ) {
   return async (): Promise<MemoryEmbeddingRebuildOutput> => {
-    const statsBefore = cache.getStats();
-    const total = statsBefore.totalCached;
-
-    // Clear all cached embeddings
-    cache.clearAll();
-
-    const embedder = getEmbedder();
-    let rebuilt = 0;
-    let failed = 0;
-
-    const granularities: Granularity[] = [
-      "daily",
-      "weekly",
-      "monthly",
-      "yearly",
-      "significant",
-    ];
-
-    for (const granularity of granularities) {
-      const memories = await store.listMemories(granularity);
-      for (const memory of memories) {
-        try {
-          const result = await cache.getOrCompute(
-            {
-              granularity: memory.granularity,
-              date: memory.date,
-              sourceInstance: memory.sourceInstance || undefined,
-              slug: memory.slug || undefined,
-              content: memory.content,
-            },
-            embedder,
-          );
-          if (result) {
-            rebuilt++;
-          } else {
-            failed++;
-          }
-        } catch (err) {
-          console.error(
-            `[Memory] Failed to rebuild embedding for ${granularity}/${memory.date}: ${err}`,
-          );
-          failed++;
-        }
-      }
+    if (!tryAcquireRebuild("memory")) {
+      return {
+        rebuilt: 0,
+        failed: 0,
+        total: 0,
+        message: "Another rebuild is already in progress.",
+      };
     }
 
-    return {
-      rebuilt,
-      failed,
-      total,
-      message: failed === 0
-        ? `Rebuilt ${rebuilt} embedding(s) from ${rebuilt} memory files.`
-        : `Rebuilt ${rebuilt} embedding(s), ${failed} failed.`,
-    };
+    try {
+      // Pre-list every memory file so `total` reflects the work ahead, not
+      // the size of the (about-to-be-cleared) cache.
+      const granularities: Granularity[] = [
+        "daily",
+        "weekly",
+        "monthly",
+        "yearly",
+        "significant",
+      ];
+      const perGranularity = await Promise.all(
+        granularities.map((g) => store.listMemories(g)),
+      );
+      const total = perGranularity.reduce((n, list) => n + list.length, 0);
+
+      notifyRebuild({ phase: "started", scope: "memory", total });
+
+      // Clear all cached embeddings
+      cache.clearAll();
+
+      const embedder = getEmbedder();
+      let rebuilt = 0;
+      let failed = 0;
+
+      for (const memories of perGranularity) {
+        for (const memory of memories) {
+          try {
+            const result = await cache.getOrCompute(
+              {
+                granularity: memory.granularity,
+                date: memory.date,
+                sourceInstance: memory.sourceInstance || undefined,
+                slug: memory.slug || undefined,
+                content: memory.content,
+              },
+              embedder,
+            );
+            if (result) {
+              rebuilt++;
+            } else {
+              failed++;
+            }
+          } catch (err) {
+            console.error(
+              `[Memory] Failed to rebuild embedding for ${memory.granularity}/${memory.date}: ${err}`,
+            );
+            failed++;
+          }
+          // Keep answering requests (and pings) while I re-embed.
+          await yieldToEventLoop();
+          if ((rebuilt + failed) % 25 === 0) {
+            notifyRebuild({
+              phase: "progress",
+              scope: "memory",
+              done: rebuilt + failed,
+              total,
+            });
+          }
+        }
+      }
+
+      notifyRebuild({
+        phase: "done",
+        scope: "memory",
+        done: rebuilt + failed,
+        total,
+      });
+
+      return {
+        rebuilt,
+        failed,
+        total,
+        message: failed === 0
+          ? `Rebuilt ${rebuilt} embedding(s) from ${rebuilt} memory files.`
+          : `Rebuilt ${rebuilt} embedding(s), ${failed} failed.`,
+      };
+    } catch (error) {
+      notifyRebuild({
+        phase: "failed",
+        scope: "memory",
+        message: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    } finally {
+      releaseRebuild();
+    }
+  };
+}
+
+// =============================================================================
+// embedding/rebuild_all — full re-embed across memory cache AND graph nodes
+// =============================================================================
+
+export const EmbeddingRebuildAllSchema = z.object({});
+
+export interface EmbeddingRebuildAllOutput {
+  memoriesRebuilt: number;
+  memoriesFailed: number;
+  memoriesTotal: number;
+  nodesRebuilt: number;
+  nodesFailed: number;
+  nodesTotal: number;
+  message: string;
+}
+
+/**
+ * Build the rebuild-all handler. Called by the psycheros parent (via MCP)
+ * when the user switches embedding model or chunk size — drops+recreates
+ * the memory-cache and graph-node vec0 tables, re-embeds everything from
+ * the active model, and marks the composite schema version as up-to-date
+ * so the next boot doesn't re-trigger.
+ *
+ * Assumes the caller has already restarted me with the new
+ * `ENTITY_CORE_EMBEDDING_*` env vars — otherwise I'd re-embed with the old
+ * model.
+ */
+export function createEmbeddingRebuildAllHandler(
+  store: FileStore,
+  cache: EmbeddingCache,
+  graphStore: GraphStore,
+) {
+  return async (): Promise<EmbeddingRebuildAllOutput> => {
+    if (!tryAcquireRebuild("all")) {
+      return {
+        memoriesRebuilt: 0,
+        memoriesFailed: 0,
+        memoriesTotal: 0,
+        nodesRebuilt: 0,
+        nodesFailed: 0,
+        nodesTotal: 0,
+        message: "Another rebuild is already in progress.",
+      };
+    }
+
+    try {
+      console.error("[Embeddings] rebuild_all: starting");
+      // Pre-list everything so the started notification carries a real total.
+      const granularities: Granularity[] = [
+        "daily",
+        "weekly",
+        "monthly",
+        "yearly",
+        "significant",
+      ];
+      const perGranularity = await Promise.all(
+        granularities.map((g) => store.listMemories(g)),
+      );
+      const memoriesTotal = perGranularity.reduce(
+        (n, list) => n + list.length,
+        0,
+      );
+      const nodesTotal = graphStore.listNodeLabels().length;
+      const total = memoriesTotal + nodesTotal;
+
+      // Before any embedder work — the model load is part of the CPU spike
+      // my parent must pause its watchdog across.
+      notifyRebuild({ phase: "started", scope: "all", total });
+
+      // Pick up new env vars if my parent restarted me with them.
+      resetEmbedder();
+      const embedder = getEmbedder();
+      console.error("[Embeddings] rebuild_all: initializing embedder");
+      await embedder.initialize();
+      console.error("[Embeddings] rebuild_all: embedder ready");
+
+      // ---- Memory cache rebuild ----
+      console.error("[Embeddings] rebuild_all: clearing cache");
+      cache.clearAll();
+      console.error("[Embeddings] rebuild_all: cache cleared");
+
+      let memoriesRebuilt = 0;
+      let memoriesFailed = 0;
+      let done = 0;
+
+      const reportProgress = () => {
+        if (done % 25 === 0 && done > 0) {
+          notifyRebuild({ phase: "progress", scope: "all", done, total });
+        }
+      };
+
+      for (const memories of perGranularity) {
+        for (const memory of memories) {
+          try {
+            const result = await cache.getOrCompute(
+              {
+                granularity: memory.granularity,
+                date: memory.date,
+                sourceInstance: memory.sourceInstance || undefined,
+                slug: memory.slug || undefined,
+                content: memory.content,
+              },
+              embedder,
+            );
+            if (result) {
+              memoriesRebuilt++;
+            } else {
+              memoriesFailed++;
+            }
+          } catch (err) {
+            console.error(
+              `[Embeddings] rebuild_all: memory failed: ${
+                err instanceof Error ? err.message : String(err)
+              }`,
+            );
+            memoriesFailed++;
+          }
+          done++;
+          await yieldToEventLoop();
+          reportProgress();
+        }
+      }
+      console.error(
+        `[Embeddings] rebuild_all: memories done (${memoriesRebuilt} ok, ${memoriesFailed} failed)`,
+      );
+
+      // ---- Graph node rebuild ----
+      console.error("[Embeddings] rebuild_all: dropping vec_graph_nodes");
+      graphStore.reembedAllGraphNodes();
+      console.error(
+        `[Embeddings] rebuild_all: ${nodesTotal} graph nodes to re-embed`,
+      );
+      let nodesRebuilt = 0;
+      let nodesFailed = 0;
+
+      if (nodesTotal > 0) {
+        const nodes = graphStore.listNodeLabels();
+        for (const node of nodes) {
+          try {
+            const vec = await embedder.embed(node.label);
+            if (!vec) {
+              nodesFailed++;
+            } else {
+              graphStore.updateNodeEmbedding(node.id, vec);
+              nodesRebuilt++;
+            }
+          } catch (err) {
+            console.error(
+              `[Embeddings] rebuild_all: graph node failed: ${
+                err instanceof Error ? err.message : String(err)
+              }`,
+            );
+            nodesFailed++;
+          }
+          done++;
+          await yieldToEventLoop();
+          reportProgress();
+        }
+      }
+      console.error(
+        `[Embeddings] rebuild_all: graph done (${nodesRebuilt} ok, ${nodesFailed} failed)`,
+      );
+
+      // Success path only — a failed rebuild must leave the fingerprint
+      // stale so the next boot retries.
+      cache.markSchemaUpToDate();
+      console.error("[Embeddings] rebuild_all: complete");
+
+      notifyRebuild({ phase: "done", scope: "all", done, total });
+
+      const ok = memoriesFailed === 0 && nodesFailed === 0;
+      return {
+        memoriesRebuilt,
+        memoriesFailed,
+        memoriesTotal,
+        nodesRebuilt,
+        nodesFailed,
+        nodesTotal,
+        message: ok
+          ? `Rebuilt ${memoriesRebuilt} memory + ${nodesRebuilt} node embeddings.`
+          : `Rebuilt ${memoriesRebuilt} memory + ${nodesRebuilt} node embeddings; ${
+            memoriesFailed + nodesFailed
+          } failed.`,
+      };
+    } catch (error) {
+      notifyRebuild({
+        phase: "failed",
+        scope: "all",
+        message: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    } finally {
+      releaseRebuild();
+    }
   };
 }
 
@@ -1646,11 +1737,6 @@ export const memoryTools = {
       "Search my memories for relevant content. Uses vector similarity with multi-signal ranking (semantic relevance, recency, graph context, and instance affinity). Falls back to text matching if embeddings are unavailable.",
     inputSchema: MemorySearchSchema,
   },
-  "memory/recent": {
-    description:
-      "Read my most recently written or updated memories without needing a keyword query. I use this for current continuity before daily consolidation catches up.",
-    inputSchema: MemoryRecentSchema,
-  },
   "memory/grep": {
     description:
       "Plain-text keyword search across all my memories. Splits the query into terms and scores memories by how many of those terms appear in the content. Returns a compact hit list with titles and matching context. I use this alongside semantic search when I need to find memories by specific keywords, names, or phrases that the embedding model might miss.",
@@ -1685,5 +1771,10 @@ export const memoryTools = {
     description:
       "Clear all memory embeddings and rebuild them from existing memory files. I use this after bulk deletion or migration to ensure embeddings match current files.",
     inputSchema: MemoryEmbeddingRebuildSchema,
+  },
+  "embedding/rebuild_all": {
+    description:
+      "Rebuild every embedding I own — memory cache AND knowledge graph nodes — using the currently-active model. My Psycheros parent calls this when the user switches embedding model or chunk size. Assumes I've been restarted with the new ENTITY_CORE_EMBEDDING_* env vars first.",
+    inputSchema: EmbeddingRebuildAllSchema,
   },
 };

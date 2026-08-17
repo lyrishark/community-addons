@@ -5,13 +5,14 @@ import platform.
 
 ## Compatibility
 
-Version 0.3.0-rc.1 is rebuilt and tested against stock Psycheros 0.10.0. It is
-not compatible with older source trees and is not an API-v1 manager plugin:
-Psycheros 0.10's plugin manager cannot register Entity Loom parsers.
+Version 0.4.0-rc.1 is rebuilt and tested against stock Psycheros 0.11.0 and
+Entity Loom 0.4. It is not compatible with older source trees and is not a
+manager plugin: Psycheros 0.11's plugin APIs cannot register Entity Loom
+parsers.
 
 The installer verifies the Psycheros version and the normalized SHA-256 of every
 stock file it will replace before writing anything. It accepts a pristine
-0.10.0 file or the identical 0.3.0-rc.1 payload for safe reinstallation, creates
+0.11.0 file or the identical 0.4.0-rc.1 payload for safe reinstallation, creates
 timestamped backups, and refuses unknown local edits.
 
 ## What it adds

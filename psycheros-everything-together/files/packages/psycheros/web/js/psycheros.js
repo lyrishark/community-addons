@@ -24,7 +24,8 @@ function focusInputWhenReady() {
 
 let currentConversationId = null;
 let isStreaming = false;
-let pendingAttachments = [];
+let pendingAttachmentId = null;
+let pendingAttachmentUrl = null;
 const pendingToolCalls = new Map();
 let currentAbortController = null;
 let streamingConversationId = null; // The conversation currently being streamed (may differ from currentConversationId)
@@ -33,64 +34,11 @@ let expressionDisplaySettings = null;
 let expressionDisplaySettingsPromise = null;
 let expressionStageState = null;
 let expressionStageResizeObserver = null;
-const CLIENT_CACHE_VERSION = 'everything-together-0.3.0-rc.2';
+const CLIENT_CACHE_VERSION = 'expression-sprites-beta-0.2.0';
 const CLIENT_CACHE_VERSION_KEY = 'psycheros.clientCacheVersion';
 
 // General settings (display names)
 globalThis.PsycherosSettings = { entityName: 'Assistant', userName: 'You', timezone: '' };
-
-const CHAT_ATTACHMENT_ACCEPT = [
-  '.png', '.jpg', '.jpeg', '.gif', '.webp', '.avif', '.svg',
-  '.txt', '.md', '.csv', '.json', '.pdf', '.docx', '.xlsx',
-  '.mp3', '.mp4', '.mpeg', '.mpga', '.wav', '.flac', '.m4a', '.aac',
-  '.aif', '.aiff', '.ogg', '.opus', '.webm',
-  'image/*', 'audio/*', 'text/plain', 'text/markdown', 'text/csv',
-  'application/json', 'application/pdf',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-].join(',');
-const CHAT_ATTACHMENT_EXTENSIONS = new Set([
-  'png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'svg',
-  'txt', 'md', 'csv', 'json', 'pdf', 'docx', 'xlsx',
-  'mp3', 'mp4', 'mpeg', 'mpga', 'wav', 'flac', 'm4a', 'aac',
-  'aif', 'aiff', 'ogg', 'opus', 'webm'
-]);
-const CHAT_ATTACHMENT_IMAGE_EXTENSIONS = new Set([
-  'png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'svg'
-]);
-const CHAT_ATTACHMENT_AUDIO_EXTENSIONS = new Set([
-  'mp3', 'mp4', 'mpeg', 'mpga', 'wav', 'flac', 'm4a', 'aac',
-  'aif', 'aiff', 'ogg', 'opus', 'webm'
-]);
-const CHAT_ATTACHMENT_MIME_TYPES = new Set([
-  'image/png',
-  'image/jpeg',
-  'image/gif',
-  'image/webp',
-  'image/avif',
-  'image/svg+xml',
-  'audio/mpeg',
-  'audio/mp3',
-  'audio/mp4',
-  'audio/mpga',
-  'audio/wav',
-  'audio/x-wav',
-  'audio/flac',
-  'audio/x-m4a',
-  'audio/aac',
-  'audio/aiff',
-  'audio/x-aiff',
-  'audio/ogg',
-  'audio/opus',
-  'audio/webm',
-  'text/plain',
-  'text/markdown',
-  'text/csv',
-  'application/json',
-  'application/pdf',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-]);
 
 // Selection mode state
 let selectionMode = false;
@@ -109,8 +57,7 @@ const touchState = {
 
 // Context inspector state
 let contextInspectorOpen = false;
-let contextSnapshots = [];
-let selectedSnapshotIdx = -1;
+let contextSnapshot = null;
 let contextSearchQuery = '';
 
 // Tokenizer state
@@ -220,7 +167,14 @@ function initPersistentSSE() {
       const update = JSON.parse(event.data);
       const target = document.querySelector(update.target);
       if (target) {
-        htmx.swap(target, update.html, { swapStyle: update.swap || 'innerHTML' });
+        // Empty payload = clear the region. Direct assignment — htmx.swap
+        // with empty content is unreliable, and regions that collapse via
+        // :empty (held-skill chips) depend on a truly empty element.
+        if (update.html === '') {
+          target.innerHTML = '';
+        } else {
+          htmx.swap(target, update.html, { swapStyle: update.swap || 'innerHTML' });
+        }
         hydrateExpressionDisplays();
         // Auto-scroll when content is appended to messages
         if (update.target === '#messages') {
@@ -499,6 +453,14 @@ function initPersistentSSE() {
     }
   });
 
+  persistentSSE.addEventListener('embedding_reindex', (event) => {
+    try {
+      globalThis.ReindexBanner?.onEvent(JSON.parse(event.data));
+    } catch (e) {
+      console.warn('Failed to handle embedding_reindex:', e);
+    }
+  });
+
   persistentSSE.onerror = () => {
     // Don't rely on EventSource built-in reconnect — it can silently get
     // stuck in CONNECTING state. Close explicitly and reconnect ourselves.
@@ -507,6 +469,32 @@ function initPersistentSSE() {
     // Reconnect after a short delay to avoid tight error loops
     setTimeout(initPersistentSSE, 1000);
   };
+}
+
+// Check the embedding index dimension against the settings model. The
+// settings file can drift from the vec0 tables when a model switch was
+// saved but its re-embed never completed — retrieval silently fails with
+// dimension mismatches until re-indexed. The server logs this at boot, but
+// the model_change_detected SSE event is one-shot and easily missed, so
+// re-derive the state on every page load.
+async function checkEmbeddingSync() {
+  try {
+    const resp = await fetch('/api/embedding-settings');
+    if (!resp.ok) return;
+    const data = await resp.json();
+    if (
+      typeof data.resolvedDimension === 'number' &&
+      typeof data.actualDimension === 'number' &&
+      data.resolvedDimension !== data.actualDimension
+    ) {
+      globalThis.ReindexBanner?.onEvent({
+        phase: 'model_change_detected',
+        message: `Embedding index out of sync — settings model is ${data.resolvedDimension}d but indexed data is ${data.actualDimension}d.`,
+      });
+    }
+  } catch (e) {
+    console.warn('Failed to check embedding sync:', e);
+  }
 }
 
 // =============================================================================
@@ -536,7 +524,6 @@ async function clearStaleClientCaches() {
 
 document.addEventListener('DOMContentLoaded', async () => {
   await clearStaleClientCaches();
-  initComposerAttachmentEvents();
 
   // Register service worker
   if ('serviceWorker' in navigator) {
@@ -569,6 +556,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   window.addEventListener('resize', updateExpressionStageBottom);
   requestAnimationFrame(hydrateExpressionStageFromDocument);
   void loadExpressionDisplaySettings(true);
+
+  // Surface embedding settings-vs-index dimension drift (e.g. a model
+  // switch whose re-embed never completed) via the re-index banner.
+  checkEmbeddingSync();
 
   // Reconnect SSE and reload conversation when returning to the app (mobile PWA).
   // Mobile browsers drop EventSource connections when the app is backgrounded,
@@ -894,8 +885,7 @@ async function loadConversationFromUrl(conversationId, { silent = false } = {}) 
   currentConversationId = conversationId;
 
   // Clear context inspector state for the new conversation
-  contextSnapshots = [];
-  selectedSnapshotIdx = -1;
+  contextSnapshot = null;
 
   try {
     // Fetch the chat fragment from the dedicated fragment endpoint
@@ -996,8 +986,7 @@ async function newConversation() {
     htmx.trigger('#conv-list', 'load');
 
     // Clear context inspector state — new conversation has no snapshots yet
-    contextSnapshots = [];
-    selectedSnapshotIdx = -1;
+    contextSnapshot = null;
     if (contextInspectorOpen) {
       renderContextInspector();
     }
@@ -1014,14 +1003,14 @@ async function newConversation() {
         </div>
         <div class="input-area">
           <div class="input-container">
-            <button class="attach-btn" onclick="document.getElementById('attach-input').click()" title="Attach files">
+            <button class="attach-btn" onclick="document.getElementById('attach-input').click()" title="Attach image">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
                 <circle cx="8.5" cy="8.5" r="1.5"/>
                 <polyline points="21 15 16 10 5 21"/>
               </svg>
             </button>
-            <input type="file" id="attach-input" accept="${CHAT_ATTACHMENT_ACCEPT}" multiple style="display:none" onchange="Psycheros.handleAttachment(this)">
+            <input type="file" id="attach-input" accept="image/*" style="display:none" onchange="Psycheros.handleAttachment(this)">
             <textarea
               class="input-field"
               id="message-input"
@@ -1106,8 +1095,7 @@ function selectConversation(id) {
 
   // Clear context inspector state — snapshots belong to the previous conversation
   // and must not leak into the new one
-  contextSnapshots = [];
-  selectedSnapshotIdx = -1;
+  contextSnapshot = null;
   if (contextInspectorOpen) {
     loadContextSnapshots();
   } else {
@@ -1362,245 +1350,41 @@ async function stopPulseGeneration() {
 // =============================================================================
 
 async function handleAttachment(input) {
-  await uploadAttachments(input.files, { notifyIfEmpty: true });
-  input.value = '';
-}
-
-function getAttachmentExtension(name) {
-  return String(name || '').split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') || '';
-}
-
-function isAllowedAttachmentFile(file) {
-  const ext = getAttachmentExtension(file.name);
-  return CHAT_ATTACHMENT_EXTENSIONS.has(ext) || CHAT_ATTACHMENT_MIME_TYPES.has(file.type);
-}
-
-function attachmentFilesFromList(files) {
-  return Array.from(files || []).filter(isAllowedAttachmentFile);
-}
-
-function extractAttachmentFilesFromDataTransfer(dataTransfer) {
-  if (!dataTransfer) return [];
-  if (dataTransfer.files?.length) {
-    return attachmentFilesFromList(dataTransfer.files);
-  }
-  return Array.from(dataTransfer.items || [])
-    .filter((item) => item.kind === 'file')
-    .map((item) => item.getAsFile())
-    .filter(Boolean)
-    .filter(isAllowedAttachmentFile);
-}
-
-function dataTransferHasFiles(dataTransfer) {
-  if (!dataTransfer) return false;
-  if (Array.from(dataTransfer.types || []).includes('Files')) return true;
-  return Array.from(dataTransfer.items || []).some((item) => item.kind === 'file');
-}
-
-async function uploadAttachments(files, options = {}) {
-  const attachmentFiles = attachmentFilesFromList(files);
-  if (attachmentFiles.length === 0) {
-    if (options.notifyIfEmpty) {
-      showToast('Use images, text, Markdown, CSV, JSON, PDF, DOCX, or XLSX files');
-    }
-    return;
-  }
+  const file = input.files?.[0];
+  if (!file) return;
 
   try {
-    const results = await Promise.allSettled(attachmentFiles.map(uploadChatAttachment));
-    const uploaded = [];
-    let failed = 0;
-
-    for (const result of results) {
-      if (result.status === 'fulfilled') {
-        uploaded.push(result.value);
-      } else {
-        failed += 1;
-        console.error('Attachment upload failed:', result.reason);
-      }
+    const formData = new FormData();
+    formData.append('file', file);
+    const resp = await fetch('/api/chat-attachments', { method: 'POST', body: formData });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      showToast(err.error || 'Failed to upload attachment');
+      return;
     }
+    const data = await resp.json();
+    pendingAttachmentId = data.id;
+    pendingAttachmentUrl = data.url;
 
-    if (uploaded.length > 0) {
-      pendingAttachments = pendingAttachments.concat(uploaded);
-      renderAttachmentPreview();
-    }
-    if (failed > 0) {
-      showToast(`Failed to upload ${failed} attachment${failed === 1 ? '' : 's'}`);
+    const preview = document.getElementById('attachment-preview');
+    if (preview) {
+      preview.style.display = 'flex';
+      preview.innerHTML = `
+        <img src="${escapeHtml(data.url)}" class="attachment-thumb" alt="Attachment"/>
+        <button class="attachment-remove" onclick="Psycheros.removeAttachment()">&times;</button>
+      `;
     }
   } catch (error) {
     showToast('Failed to upload attachment');
   }
+  input.value = '';
 }
 
-function composerDropZoneFromTarget(target) {
-  return target instanceof Element ? target.closest('.input-area') : null;
-}
-
-function setComposerDragActive(zone, active) {
-  if (zone) zone.classList.toggle('is-attachment-dragover', active);
-}
-
-function clearComposerDragActive() {
-  document.querySelectorAll('.input-area.is-attachment-dragover').forEach((zone) => {
-    zone.classList.remove('is-attachment-dragover');
-  });
-}
-
-function handleComposerDragEnter(event) {
-  const zone = composerDropZoneFromTarget(event.target);
-  if (!zone || !dataTransferHasFiles(event.dataTransfer)) return;
-  event.preventDefault();
-  setComposerDragActive(zone, true);
-}
-
-function handleComposerDragOver(event) {
-  const zone = composerDropZoneFromTarget(event.target);
-  if (!zone || !dataTransferHasFiles(event.dataTransfer)) return;
-  event.preventDefault();
-  if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
-  setComposerDragActive(zone, true);
-}
-
-function handleComposerDragLeave(event) {
-  const zone = composerDropZoneFromTarget(event.target);
-  if (!zone) return;
-  if (event.relatedTarget instanceof Node && zone.contains(event.relatedTarget)) return;
-  setComposerDragActive(zone, false);
-}
-
-function handleComposerDrop(event) {
-  const zone = composerDropZoneFromTarget(event.target);
-  if (!zone || !dataTransferHasFiles(event.dataTransfer)) return;
-  event.preventDefault();
-  clearComposerDragActive();
-  void uploadAttachments(extractAttachmentFilesFromDataTransfer(event.dataTransfer), { notifyIfEmpty: true });
-}
-
-function handleComposerPaste(event) {
-  const target = event.target instanceof Element ? event.target : document.activeElement;
-  const zone = target instanceof Element ? target.closest('.input-area') : null;
-  if (!zone) return;
-
-  const files = extractAttachmentFilesFromDataTransfer(event.clipboardData);
-  if (files.length === 0) return;
-  event.preventDefault();
-  void uploadAttachments(files);
-}
-
-function initComposerAttachmentEvents() {
-  if (globalThis.__psycherosComposerAttachmentEvents) return;
-  globalThis.__psycherosComposerAttachmentEvents = true;
-  document.addEventListener('dragenter', handleComposerDragEnter);
-  document.addEventListener('dragover', handleComposerDragOver);
-  document.addEventListener('dragleave', handleComposerDragLeave);
-  document.addEventListener('dragend', clearComposerDragActive);
-  document.addEventListener('drop', handleComposerDrop);
-  document.addEventListener('paste', handleComposerPaste);
-}
-
-async function uploadChatAttachment(file) {
-  const resp = await fetch('/api/chat-attachments', {
-    method: 'POST',
-    headers: {
-      'Accept': 'application/json',
-      'Content-Type': file.type || 'application/octet-stream',
-      'X-Psycheros-Filename': encodeURIComponent(file.name)
-    },
-    body: file
-  });
-  if (!resp.ok) {
-    const err = await resp.json().catch(() => ({}));
-    throw new Error(err.error || 'Failed to upload attachment');
-  }
-  const data = await resp.json();
-  return {
-    id: data.id,
-    url: data.url,
-    filename: data.filename || file.name,
-    name: data.name || file.name,
-    type: data.type || file.type,
-    size: data.size || file.size,
-    kind: data.kind || inferAttachmentKind(data.filename || file.name)
-  };
-}
-
-function inferAttachmentKind(name) {
-  const ext = getAttachmentExtension(name);
-  if (CHAT_ATTACHMENT_IMAGE_EXTENSIONS.has(ext)) return 'image';
-  if (CHAT_ATTACHMENT_AUDIO_EXTENSIONS.has(ext)) return 'audio';
-  return 'file';
-}
-
-function isImageAttachment(attachment) {
-  return attachment.kind === 'image' || inferAttachmentKind(attachment.filename || attachment.url || '') === 'image';
-}
-
-function isAudioAttachment(attachment) {
-  return attachment.kind === 'audio' || inferAttachmentKind(attachment.filename || attachment.url || '') === 'audio';
-}
-
-function attachmentFileIconSvg() {
-  return '<svg class="attachment-file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>';
-}
-
-function renderAttachmentPreviewItem(attachment, idx) {
-  const label = attachment.name || attachment.filename || `Attachment ${idx + 1}`;
-  const body = isImageAttachment(attachment)
-    ? `<img src="${escapeHtml(attachment.url)}" class="attachment-thumb" alt="Attachment ${idx + 1}"/>`
-    : `<span class="attachment-file-preview">${attachmentFileIconSvg()}<span class="attachment-file-name">${escapeHtml(label)}</span></span>`;
-  return `
-    <div class="attachment-preview-item">
-      ${body}
-      <button class="attachment-remove" onclick="Psycheros.removeAttachment(${idx})" aria-label="Remove attachment ${idx + 1}">&times;</button>
-    </div>
-  `;
-}
-
-function renderAttachmentInMessage(attachment, idx) {
-  const label = attachment.name || attachment.filename || `Attachment ${idx + 1}`;
-  if (isImageAttachment(attachment)) {
-    return `<img src="${escapeHtml(attachment.url)}" class="attachment-in-message" alt="Attached image ${idx + 1}" loading="lazy"/>`;
-  }
-  if (isAudioAttachment(attachment)) {
-    return `<audio src="${escapeHtml(attachment.url)}" class="attachment-audio-in-message" controls preload="metadata"></audio>`;
-  }
-  return `<a href="${escapeHtml(attachment.url)}" class="attachment-file-in-message" target="_blank" rel="noopener" download>${attachmentFileIconSvg()}<span class="attachment-file-name">${escapeHtml(label)}</span></a>`;
-}
-
-function renderAttachmentPreview() {
+function removeAttachment() {
+  pendingAttachmentId = null;
+  pendingAttachmentUrl = null;
   const preview = document.getElementById('attachment-preview');
-  if (!preview) return;
-
-  if (pendingAttachments.length === 0) {
-    preview.style.display = 'none';
-    preview.innerHTML = '';
-    return;
-  }
-
-  preview.style.display = 'flex';
-  preview.innerHTML = pendingAttachments.map(renderAttachmentPreviewItem).join('');
-}
-
-function removeAttachment(index) {
-  if (typeof index === 'number') {
-    pendingAttachments.splice(index, 1);
-  } else {
-    pendingAttachments = [];
-  }
-  renderAttachmentPreview();
-}
-
-function attachmentFallbackText(attachments) {
-  const imageCount = attachments.filter(isImageAttachment).length;
-  const audioCount = attachments.filter(isAudioAttachment).length;
-  const fileCount = attachments.length - imageCount - audioCount;
-  if ((imageCount > 0 && (audioCount > 0 || fileCount > 0)) || (audioCount > 0 && fileCount > 0)) return '(attachments attached)';
-  if (imageCount > 1) return '(images attached)';
-  if (imageCount === 1) return '(image attached)';
-  if (audioCount > 1) return '(audio clips attached)';
-  if (audioCount === 1) return '(audio clip attached)';
-  if (fileCount > 1) return '(files attached)';
-  return '(file attached)';
+  if (preview) { preview.style.display = 'none'; preview.innerHTML = ''; }
 }
 
 async function sendMessage() {
@@ -1608,7 +1392,7 @@ async function sendMessage() {
   const sendBtn = document.getElementById('send-btn');
   const message = input?.value.trim();
 
-  if ((!message && pendingAttachments.length === 0) || isStreaming || pulseStreamingPulseId) return;
+  if ((!message && !pendingAttachmentId) || isStreaming || pulseStreamingPulseId) return;
 
   // Create conversation if needed
   if (!currentConversationId) {
@@ -1634,11 +1418,13 @@ async function sendMessage() {
   input.disabled = true;
   clearDraft(currentConversationId);
 
-  // Save and clear attachments before sending.
-  const attachments = pendingAttachments.slice();
-  const attachmentIds = attachments.map((attachment) => attachment.id);
-  pendingAttachments = [];
-  renderAttachmentPreview();
+  // Save and clear attachment before sending
+  const attachmentId = pendingAttachmentId || undefined;
+  const attachmentUrl = pendingAttachmentUrl || undefined;
+  pendingAttachmentId = null;
+  pendingAttachmentUrl = null;
+  const preview = document.getElementById('attachment-preview');
+  if (preview) { preview.style.display = 'none'; preview.innerHTML = ''; }
 
   // Switch send button to stop button (requires double-tap)
   stopConfirmed = false;
@@ -1659,7 +1445,9 @@ async function sendMessage() {
   const userTime = formatChatTimestamp(new Date());
   if (messages) {
     const userHtml = message ? DOMPurify.sanitize(marked.parse(message)) : '';
-    const attachmentHtml = attachments.map(renderAttachmentInMessage).join('');
+    const attachmentHtml = attachmentUrl
+      ? `<img src="${escapeHtml(attachmentUrl)}" class="attachment-in-message" alt="Attached image" loading="lazy"/>`
+      : '';
     messages.insertAdjacentHTML('beforeend', `
       <div class="msg msg--user">
         <div class="msg-header">
@@ -1705,8 +1493,8 @@ async function sendMessage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         conversationId: currentConversationId,
-        message: message || attachmentFallbackText(attachments),
-        attachmentIds,
+        message: message || '(image attached)',
+        attachmentId: attachmentId,
         deviceType: isMobileDevice() ? 'mobile' : 'desktop'
       }),
       signal: currentAbortController.signal
@@ -2529,7 +2317,7 @@ function addPronunciationEntry() {
   row.dataset.idx = idx;
   row.innerHTML =
     '<input type="text" class="input-field llm-input" placeholder="Written (e.g. Psycheros)">' +
-    '<span style="color: var(--text-dim);">&rarr;</span>' +
+    '<span style="color: var(--c-fg-muted);">&rarr;</span>' +
     '<input type="text" class="input-field llm-input" placeholder="Spoken (e.g. sy-KEH-ros)">' +
     '<button class="btn btn--ghost btn--sm" onclick="removePronunciationEntry(this)" title="Remove">&times;</button>';
   list.appendChild(row);
@@ -2547,7 +2335,7 @@ function addSTTCorrectionEntry() {
   row.className = 'pronunciation-row stt-correction-row';
   row.innerHTML =
     '<input type="text" class="input-field llm-input" placeholder="Misheard (e.g. sih keh ros)">' +
-    '<span style="color: var(--text-dim);">&rarr;</span>' +
+    '<span style="color: var(--c-fg-muted);">&rarr;</span>' +
     '<input type="text" class="input-field llm-input" placeholder="Correct (e.g. Psycheros)">' +
     '<button class="btn btn--ghost btn--sm" onclick="removeSTTCorrectionEntry(this)" title="Remove">&times;</button>';
   list.appendChild(row);
@@ -2867,7 +2655,13 @@ function handleSSEEvent(eventType, data, messageEl, state) {
         const update = JSON.parse(data);
         const target = document.querySelector(update.target);
         if (target) {
-          htmx.swap(target, update.html, { swapStyle: update.swap || 'innerHTML' });
+          // Empty payload = clear the region (direct assignment — see the
+          // persistent-SSE dom_update handler for why).
+          if (update.html === '') {
+            target.innerHTML = '';
+          } else {
+            htmx.swap(target, update.html, { swapStyle: update.swap || 'innerHTML' });
+          }
         }
       } catch (e) {
         console.error('Failed to handle dom_update:', e);
@@ -4204,6 +3998,70 @@ window.addEventListener('beforeunload', () => {
 });
 
 // =============================================================================
+// Skills (Settings > Tools > Skills tab)
+// =============================================================================
+
+function psycherosSkillsNew() {
+  htmx.ajax('GET', '/fragments/settings/skills/new', { target: '#chat', swap: 'innerHTML' });
+}
+
+function psycherosSkillsEdit(name) {
+  htmx.ajax('GET', '/fragments/settings/skills/edit/' + encodeURIComponent(name), { target: '#chat', swap: 'innerHTML' });
+}
+
+function psycherosSkillsCancel() {
+  htmx.ajax('GET', '/fragments/settings/tools', { target: '#chat', swap: 'innerHTML' });
+}
+
+async function psycherosSkillsSave() {
+  const nameInput = document.getElementById('skill-editor-name');
+  const descInput = document.getElementById('skill-editor-description');
+  const bodyInput = document.getElementById('skill-editor-body');
+  if (!nameInput || !descInput || !bodyInput) return;
+  const name = nameInput.value.trim();
+  if (!name) { showToast('Skill name is required', 'warning'); return; }
+  try {
+    const resp = await fetch('/api/skills', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, description: descInput.value, body: bodyInput.value }),
+    });
+    const data = await resp.json();
+    if (data.success) {
+      showToast('Skill saved');
+      htmx.ajax('GET', '/fragments/settings/tools', { target: '#chat', swap: 'innerHTML' });
+    } else {
+      showToast('Save failed: ' + (data.error || 'Unknown error'), 'warning');
+    }
+  } catch (e) {
+    showToast('Save failed: ' + e.message, 'warning');
+  }
+}
+
+async function psycherosSkillsDelete(name) {
+  if (!confirm('Delete the skill "' + name + '"? This cannot be undone.')) return;
+  try {
+    const resp = await fetch('/api/skills/' + encodeURIComponent(name), { method: 'DELETE' });
+    const data = await resp.json();
+    if (data.success) {
+      showToast('Deleted ' + name);
+      const resp2 = await fetch('/api/skills/list');
+      document.getElementById('cat-skills').outerHTML = await resp2.text();
+    } else {
+      showToast('Delete failed: ' + (data.error || 'Unknown error'), 'warning');
+    }
+  } catch (e) {
+    showToast('Delete failed: ' + e.message, 'warning');
+  }
+}
+
+globalThis.psycherosSkillsNew = psycherosSkillsNew;
+globalThis.psycherosSkillsEdit = psycherosSkillsEdit;
+globalThis.psycherosSkillsCancel = psycherosSkillsCancel;
+globalThis.psycherosSkillsSave = psycherosSkillsSave;
+globalThis.psycherosSkillsDelete = psycherosSkillsDelete;
+
+// =============================================================================
 // Metrics Display
 // =============================================================================
 
@@ -4675,8 +4533,7 @@ async function confirmDelete() {
       history.pushState({}, '', '/');
 
       // Clear context inspector state — the conversation no longer exists
-      contextSnapshots = [];
-      selectedSnapshotIdx = -1;
+      contextSnapshot = null;
       if (contextInspectorOpen) {
         renderContextInspector();
       }
@@ -4699,14 +4556,14 @@ async function confirmDelete() {
           </div>
           <div class="input-area">
             <div class="input-container">
-              <button class="attach-btn" onclick="document.getElementById('attach-input').click()" title="Attach files">
+              <button class="attach-btn" onclick="document.getElementById('attach-input').click()" title="Attach image">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
                   <circle cx="8.5" cy="8.5" r="1.5"/>
                   <polyline points="21 15 16 10 5 21"/>
                 </svg>
               </button>
-              <input type="file" id="attach-input" accept="${CHAT_ATTACHMENT_ACCEPT}" multiple style="display:none" onchange="Psycheros.handleAttachment(this)">
+              <input type="file" id="attach-input" accept="image/*" style="display:none" onchange="Psycheros.handleAttachment(this)">
               <textarea
                 class="input-field"
                 id="message-input"
@@ -4889,8 +4746,7 @@ async function loadContextSnapshots() {
   }
 
   if (!targetConversationId) {
-    contextSnapshots = [];
-    selectedSnapshotIdx = -1;
+    contextSnapshot = null;
     renderContextInspector();
     return;
   }
@@ -4898,16 +4754,13 @@ async function loadContextSnapshots() {
   try {
     const res = await fetch(`/api/conversations/${targetConversationId}/context`);
     if (res.status === 204 || !res.ok) {
-      contextSnapshots = [];
-      selectedSnapshotIdx = -1;
+      contextSnapshot = null;
     } else {
-      contextSnapshots = await res.json();
-      selectedSnapshotIdx = contextSnapshots.length > 0 ? contextSnapshots.length - 1 : -1;
+      contextSnapshot = await res.json();
     }
   } catch (e) {
-    console.warn('Failed to load context snapshots:', e);
-    contextSnapshots = [];
-    selectedSnapshotIdx = -1;
+    console.warn('Failed to load context snapshot:', e);
+    contextSnapshot = null;
   }
 
   // Discard results if the user has switched conversations during the fetch.
@@ -4941,11 +4794,6 @@ function createContextInspector() {
       <h2>Context Inspector</h2>
       <button class="context-viewer-close" onclick="Psycheros.hideContextViewer()">&times;</button>
     </div>
-    <div class="context-turn-selector" id="context-turn-selector">
-      <button class="context-turn-btn" onclick="Psycheros.contextPrevTurn()" title="Previous turn">&lsaquo;</button>
-      <span class="context-turn-label" id="context-turn-label">No data</span>
-      <button class="context-turn-btn" onclick="Psycheros.contextNextTurn()" title="Next turn">&rsaquo;</button>
-    </div>
     <div class="context-search-bar">
       <input type="text" class="context-search" id="context-search-input"
              placeholder="Search context..." oninput="Psycheros.searchContext(this.value)">
@@ -4973,26 +4821,6 @@ function createContextInspector() {
 }
 
 /**
- * Navigate to the previous snapshot.
- */
-function contextPrevTurn() {
-  if (selectedSnapshotIdx > 0) {
-    selectedSnapshotIdx--;
-    renderContextInspector();
-  }
-}
-
-/**
- * Navigate to the next snapshot.
- */
-function contextNextTurn() {
-  if (selectedSnapshotIdx < contextSnapshots.length - 1) {
-    selectedSnapshotIdx++;
-    renderContextInspector();
-  }
-}
-
-/**
  * Switch to a different context tab.
  */
 function switchContextTab(tabName) {
@@ -5014,17 +4842,6 @@ function searchContext(query) {
  * Render the context inspector — turn selector + active tab.
  */
 function renderContextInspector() {
-  // Update turn selector
-  const label = document.getElementById('context-turn-label');
-  if (label) {
-    if (contextSnapshots.length === 0) {
-      label.textContent = 'No data';
-    } else {
-      const snap = contextSnapshots[selectedSnapshotIdx];
-      label.textContent = `Turn ${snap.turnIndex}`;
-    }
-  }
-
   const activeTab = document.querySelector('.context-tab.active')?.dataset.tab || 'system';
   renderContextTab(activeTab);
 }
@@ -5036,12 +4853,12 @@ function renderContextTab(tabName) {
   const content = document.getElementById('context-content');
   if (!content) return;
 
-  if (contextSnapshots.length === 0 || selectedSnapshotIdx < 0) {
+  if (!contextSnapshot) {
     content.innerHTML = '<div class="context-empty">No context data yet — send a message to populate</div>';
     return;
   }
 
-  const snap = contextSnapshots[selectedSnapshotIdx];
+  const snap = contextSnapshot;
 
   switch (tabName) {
     case 'system':
@@ -5121,6 +4938,7 @@ function renderSystemTab(snap) {
   html += renderContextSection('Relationship', snap.relationshipContent, true);
   html += renderContextSection('Custom', snap.customContent, true);
   html += renderContextSection('Situational Awareness', snap.situationalAwarenessContent, true);
+  html += renderContextSection('Skills I\'m Holding', snap.heldSkillsContent, true);
   html += renderContextSection('Full System Message', snap.systemMessage, false);
   return html;
 }
@@ -5154,7 +4972,7 @@ function renderMessagesTab(snap) {
     return '<div class="context-empty">Failed to parse messages data</div>';
   }
 
-  let html = `<div class="context-info">Total Messages: ${messages.length}</div>`;
+  let html = `<div class="context-info">Total Messages in Context Window: ${messages.length}</div>`;
 
   if (messages.length === 0) {
     html += '<div class="context-empty">No messages in context</div>';
@@ -5269,7 +5087,7 @@ function renderMetricsTab(snap) {
     const pct = metrics.pluginBudgetMax > 0
       ? Math.min(100, Math.round((metrics.pluginBudgetUsed / metrics.pluginBudgetMax) * 100))
       : 0;
-    const meterColor = pct >= 90 ? 'var(--c-danger, #ff6b6b)' : (pct >= 70 ? 'var(--c-warning, #f0ad4e)' : 'var(--c-accent)');
+    const meterColor = pct >= 90 ? 'var(--c-error)' : (pct >= 70 ? 'var(--c-warning)' : 'var(--c-accent)');
     pluginBudgetRow = `
       <div class="context-utilization" style="margin-top:var(--sp-2);">
         <div class="context-utilization-label">Plugin Context Budget</div>
@@ -5287,7 +5105,7 @@ function renderMetricsTab(snap) {
         <span>${totalSystemChars.toLocaleString()} chars / ${totalSystemTokens.toLocaleString()} tokens${tokenLabel}</span>
       </div>
       <div class="context-metrics-row">
-        <span>Total Messages</span>
+        <span>Total Messages in Context Window</span>
         <span>${metrics.totalMessages || '—'}${metrics.messagesTruncated ? ` (${metrics.messagesTruncated} oldest trimmed)` : ''}</span>
       </div>
       <div class="context-metrics-row">
@@ -5342,7 +5160,7 @@ function renderPluginsTab(snap) {
     const pct = metrics.pluginBudgetMax > 0
       ? Math.min(100, Math.round((metrics.pluginBudgetUsed / metrics.pluginBudgetMax) * 100))
       : 0;
-    const meterColor = pct >= 90 ? 'var(--c-danger, #ff6b6b)' : (pct >= 70 ? 'var(--c-warning, #f0ad4e)' : 'var(--c-accent)');
+    const meterColor = pct >= 90 ? 'var(--c-error)' : (pct >= 70 ? 'var(--c-warning)' : 'var(--c-accent)');
     budgetOverview = `
       <div class="context-utilization">
         <div class="context-utilization-label">Plugin Context Budget</div>
@@ -5792,7 +5610,7 @@ function renderDeviceBridgeStatus() {
       <span>${bleDot} Bluetooth ${bleConnected ? 'Connected' : 'Disconnected'}</span>
       <span>${wsDot} Bridge ${wsConnected ? 'Connected' : 'Disconnected'}</span>
     </div>
-    ${bleConnected ? `<div style="color:var(--c-fg-muted, var(--text-dim));margin-top:4px;">${deviceBridgeBLE.device.name}</div>` : ''}
+    ${bleConnected ? `<div style="color:var(--c-fg-muted);margin-top:4px;">${deviceBridgeBLE.device.name}</div>` : ''}
   `;
 }
 
@@ -6174,6 +5992,176 @@ async function saveMessageEdit(messageId) {
   }
 }
 
+// =============================================================================
+// Message management — soft-delete (tombstone) + flag-glitched
+// Per plan §9f. Surfaces the trigger paths to the user. Entity has its own
+// path via the manage_message tool. Both reach the same DB methods.
+// =============================================================================
+
+/**
+ * Get the conversation ID from the page context. Used by message-management
+ * actions that need it for the API body.
+ */
+function getCurrentConversationId() {
+  // Prefer the URL (canonical): /c/<id>
+  const m = window.location.pathname.match(/^\/c\/([^/?#]+)/);
+  if (m) return decodeURIComponent(m[1]);
+  // Fall back to data attribute on the messages container (set by some views)
+  const msgs = document.getElementById('messages');
+  return msgs?.dataset.conversationId || null;
+}
+
+/**
+ * Confirm + soft-delete a message. Re-renders the message as a tombstone via
+ * the HTMX-swap response.
+ */
+async function confirmDeleteMessage(messageId) {
+  const reason = window.prompt('Soft-delete this message?\n\nOptional reason (shown in the tombstone notice):');
+  if (reason === null) return; // user clicked Cancel
+
+  const conversationId = getCurrentConversationId();
+  if (!conversationId) {
+    showToast('Cannot determine conversation for message');
+    return;
+  }
+
+  const msgElement = document.querySelector(`[data-message-id="${messageId}"]`);
+  if (!msgElement) {
+    showToast('Message element not found');
+    return;
+  }
+
+  try {
+    const res = await fetch(`/api/messages/${messageId}/delete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ conversationId, reason: reason || undefined }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showToast(`Delete failed: ${err.error || res.status}`);
+      return;
+    }
+    const html = await res.text();
+    // Replace the message element with the tombstone render
+    const template = document.createElement('template');
+    template.innerHTML = html.trim();
+    const newEl = template.content.firstElementChild;
+    if (newEl) msgElement.replaceWith(newEl);
+  } catch (err) {
+    showToast(`Network error: ${err.message}`);
+  }
+}
+
+/**
+ * Confirm + flag a message as glitched (corrupted). Entity can then repair
+ * via the psycheros-repair-glitched-message workspace skill.
+ */
+async function confirmFlagGlitched(messageId) {
+  const reason = window.prompt('Flag this message as corrupted/glitched?\n\nOptional reason (recorded for the repair workflow):');
+  if (reason === null) return;
+
+  const conversationId = getCurrentConversationId();
+  if (!conversationId) {
+    showToast('Cannot determine conversation for message');
+    return;
+  }
+
+  const msgElement = document.querySelector(`[data-message-id="${messageId}"]`);
+  if (!msgElement) {
+    showToast('Message element not found');
+    return;
+  }
+
+  try {
+    const res = await fetch(`/api/messages/${messageId}/flag-glitched`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ conversationId, reason: reason || undefined }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showToast(`Flag failed: ${err.error || res.status}`);
+      return;
+    }
+    const html = await res.text();
+    const template = document.createElement('template');
+    template.innerHTML = html.trim();
+    const newEl = template.content.firstElementChild;
+    if (newEl) msgElement.replaceWith(newEl);
+  } catch (err) {
+    showToast(`Network error: ${err.message}`);
+  }
+}
+
+/**
+ * Restore a tombstoned message (undo soft-delete). Wired to a "Restore"
+ * affordance rendered inside the tombstone notice.
+ */
+async function restoreDeletedMessage(messageId) {
+  const conversationId = getCurrentConversationId();
+  if (!conversationId) {
+    showToast('Cannot determine conversation for message');
+    return;
+  }
+  const msgElement = document.querySelector(`[data-message-id="${messageId}"]`);
+  if (!msgElement) return;
+
+  try {
+    const res = await fetch(`/api/messages/${messageId}/restore`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ conversationId }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showToast(`Restore failed: ${err.error || res.status}`);
+      return;
+    }
+    const html = await res.text();
+    const template = document.createElement('template');
+    template.innerHTML = html.trim();
+    const newEl = template.content.firstElementChild;
+    if (newEl) msgElement.replaceWith(newEl);
+  } catch (err) {
+    showToast(`Network error: ${err.message}`);
+  }
+}
+
+/**
+ * Clear the glitched flag on a message (manual override). Wired to a "Clear
+ * flag" affordance rendered inside the glitched notice.
+ */
+async function clearGlitchedFlag(messageId) {
+  const conversationId = getCurrentConversationId();
+  if (!conversationId) {
+    showToast('Cannot determine conversation for message');
+    return;
+  }
+  const msgElement = document.querySelector(`[data-message-id="${messageId}"]`);
+  if (!msgElement) return;
+
+  try {
+    const res = await fetch(`/api/messages/${messageId}/clear-glitched`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ conversationId }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showToast(`Clear flag failed: ${err.error || res.status}`);
+      return;
+    }
+    const html = await res.text();
+    const template = document.createElement('template');
+    template.innerHTML = html.trim();
+    const newEl = template.content.firstElementChild;
+    if (newEl) msgElement.replaceWith(newEl);
+  } catch (err) {
+    showToast(`Network error: ${err.message}`);
+  }
+}
+
 /**
  * Create a new significant memory via the API.
  */
@@ -6218,7 +6206,7 @@ async function createSignificantMemory() {
     // The endpoint returns HX-Redirect — reload the significant tab content
     const target = document.getElementById('settings-content');
     if (target) {
-      target.innerHTML = '<div style="padding: 16px; color: var(--muted);">Loading...</div>';
+      target.innerHTML = '<div style="padding: 16px; color: var(--c-muted);">Loading...</div>';
       const resp = await fetch('/fragments/settings/memories/significant');
       if (resp.ok) {
         target.innerHTML = await resp.text();
@@ -6269,12 +6257,12 @@ function goBack() {
       chat.innerHTML = `
         <div class="messages" id="messages"><div class="empty-state" id="empty-state"><div class="empty-title">Psycheros</div><p class="empty-text">What's on your mind?</p></div></div>
         <div class="input-area"><div class="input-container">
-          <button class="attach-btn" onclick="document.getElementById('attach-input').click()" title="Attach files">
+          <button class="attach-btn" onclick="document.getElementById('attach-input').click()" title="Attach image">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
             </svg>
           </button>
-          <input type="file" id="attach-input" accept="${CHAT_ATTACHMENT_ACCEPT}" multiple style="display:none" onchange="Psycheros.handleAttachment(this)">
+          <input type="file" id="attach-input" accept="image/*" style="display:none" onchange="Psycheros.handleAttachment(this)">
           <button class="screen-share-btn" type="button" data-screen-presence-toggle onclick="Psycheros.toggleScreenPresence()" title="Share screen" aria-label="Share screen" aria-pressed="false">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8"/><path d="M12 16v4"/>
@@ -6321,13 +6309,16 @@ globalThis.Psycheros = {
   startMessageEdit,
   cancelMessageEdit,
   saveMessageEdit,
+  // Message management (soft-delete + glitch flag — plan §9f)
+  confirmDeleteMessage,
+  confirmFlagGlitched,
+  restoreDeletedMessage,
+  clearGlitchedFlag,
   // Tool card image caption toggle
   toggleImageCaption,
   // Context inspector
   toggleContextViewer,
   hideContextViewer,
-  contextPrevTurn,
-  contextNextTurn,
   searchContext,
   // Custom file management
   createCustomFile,
@@ -6347,6 +6338,7 @@ globalThis.Psycheros = {
   autoScrollJump: () => AutoScroll.jumpToBottom(),
   // Voice chat
   startVoiceCall,
+  renderVoiceExpressionStage,
   renderVoiceExpressionStage,
   // Screen presence
   toggleScreenPresence,
@@ -6756,7 +6748,7 @@ async function loadPluginHealth() {
   let budgetHtml = '';
   if (budget && typeof budget.cap === 'number') {
     const pct = budget.cap > 0 ? Math.min(100, Math.round((budget.used / budget.cap) * 100)) : 0;
-    const meterColor = pct >= 90 ? 'var(--c-danger, #ff6b6b)' : (pct >= 70 ? 'var(--c-warning, #f0ad4e)' : 'var(--c-accent)');
+    const meterColor = pct >= 90 ? 'var(--c-error)' : (pct >= 70 ? 'var(--c-warning)' : 'var(--c-accent)');
     budgetHtml =
       '<div class="context-utilization" style="margin-top:var(--sp-3);">' +
         '<div class="context-utilization-label">Plugin context budget (last turn)</div>' +
@@ -7066,8 +7058,19 @@ function updateVoiceCallButtonVisibility() {
   }).catch(function() {});
 }
 
+// Held-skill chips are conversation state — hide the strip outside
+// conversation views (settings etc.). Returning to a conversation re-renders
+// the strip via the chat fragment's OOB swap, which replaces the element
+// fresh (no `hidden`), so this only ever hides.
+function updateHeldSkillsStripVisibility() {
+  var strip = document.getElementById('held-skills-strip');
+  if (!strip) return;
+  strip.hidden = document.getElementById('messages') === null;
+}
+
 updateVoiceCallButtonVisibility();
 syncScreenPresenceStatus();
+updateHeldSkillsStripVisibility();
 
 // Re-evaluate whenever #chat is swapped via HTMX (settings nav, sidebar, etc.).
 document.body.addEventListener('htmx:afterSwap', function(e) {
@@ -7075,6 +7078,7 @@ document.body.addEventListener('htmx:afterSwap', function(e) {
     updateVoiceCallButtonVisibility();
     hydrateExpressionDisplays();
     updateScreenPresenceButtons();
+    updateHeldSkillsStripVisibility();
   }
   if (e.detail.target && e.detail.target.id === 'settings-content') {
     hydrateExpressionDisplays();
