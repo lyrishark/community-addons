@@ -42,28 +42,24 @@ permissions and browser-store data disclosure forms.
 
 ## 3. Create Release Assets
 
-Prepared Psycheros 0.11 manager artifacts:
+Current Psycheros 0.11 manager artifacts:
 
 - `psycheros-htf-music-listener-0.3.0-rc.2.zip`
 - `psycheros-accessibility-controls-0.1.0-rc.2.zip`
 - `psycheros-windows-shell-fix-0.3.0-rc.2.zip`
 
-Prepared exact-0.11 source bridges and release suite:
+Current exact-0.11.2 source bridges and release suite:
 
-- `psycheros-expression-sprites-beta-0.4.0-rc.1.zip`
-- `psycheros-screen-presence-alpha-0.4.0-rc.1.zip`
-- `psycheros-loom-gemini-parser-mod-0.4.0-rc.1.zip`
-- `psycheros-everything-together-0.4.0-rc.1.zip`
+- `psycheros-expression-sprites-beta-0.4.0-rc.2.zip`
+- `psycheros-screen-presence-alpha-0.4.0-rc.2.zip`
+- `psycheros-loom-gemini-parser-mod-0.4.0-rc.2.zip`
+- `psycheros-everything-together-0.4.0-rc.2.zip`
 
-Prepared independent Entity Core artifacts:
+Current independent Entity Core artifacts:
 
 - `psycheros-entity-core-codex-plugin-0.4.0.zip`
 - `psycheros-entity-core-chatgpt-private-0.3.0.zip`
 - matching `.sha256` or checksum-list files
-
-These artifacts are review builds, not published releases. Do not tag, upload,
-or announce them until the reconciliation PR is merged and release publication
-is separately authorized.
 
 Do not relabel More Uploads or another 0.10 source-overlay asset as compatible
 with 0.11. More Uploads is upstream in 0.11. Older Psycheros release assets stay

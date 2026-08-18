@@ -6,10 +6,10 @@ three ordinary plugin-manager packages for public API-v1 features.
 
 ## Compatibility
 
-Version 0.4.0-rc.1 targets stock Psycheros 0.11.0 at upstream commit
-`4405cb4cf5c8b812260dc68c80581355da786b13`. The source bridge combines
-the overlapping host changes once, with exact-version and normalized-hash
-preflight, timestamped backups, and refusal of unknown local edits.
+Version 0.4.0-rc.2 targets stock Psycheros 0.11.2 at upstream commit
+`a1561f515fcb01327c52589b90f65595e5a0d064`. The source bridge combines the
+overlapping host changes once, with exact-version and normalized-hash preflight,
+timestamped backups, and refusal of unknown local edits.
 
 ## Included
 
@@ -28,9 +28,9 @@ Plugin-manager ZIPs:
 
 Multiple image, document, and audio attachments are now stock Psycheros 0.11
 behavior, so this suite deliberately removes the old More Uploads source
-component. The source overlays for typography, voice resizing, and Windows
-shell selection remain manager plugins. The unrelated provider-error overlay
-also remains excluded.
+component. The source overlays for typography, voice resizing, and Windows shell
+selection remain manager plugins. The unrelated provider-error overlay also
+remains excluded.
 
 ## Install
 
@@ -45,8 +45,8 @@ also remains excluded.
        ./install.sh "/path/to/Psycheros/source"
 
 3. Restart Psycheros.
-4. In Settings > Plugins > Add plugin, install each desired ZIP from the
-   suite's `plugins` directory.
+4. In Settings > Plugins > Add plugin, install each desired ZIP from the suite's
+   `plugins` directory.
 
 Psycheros 0.11 can validate each manager plugin, but it does not automatically
 install a meta-package's declared dependencies. That is why the suite contains
@@ -59,13 +59,13 @@ Run the focused source tests:
     deno test -A packages/psycheros/tests/expression_checkerboard_test.ts packages/psycheros/tests/expression_classifier_test.ts packages/psycheros/tests/expression_persistence_test.ts packages/psycheros/tests/expression_settings_nav_test.ts packages/psycheros/tests/expression_sprites_test.ts packages/psycheros/tests/screen_presence_test.ts
 
 Then verify the plugin manager shows each installed plugin as active. Test a
-a stock multi-file message, a configured expression sprite, screen presence in
+stock multi-file message, a configured expression sprite, screen presence in
 chat and voice, typography/resize controls, a Windows shell command where
 applicable, and HTF listening.
 
 ## Undo
 
-Disable or remove the manager plugins in Settings > Plugins. Close Psycheros
-and restore the timestamped source backup under `.community-addon-backups`, or
+Disable or remove the manager plugins in Settings > Plugins. Close Psycheros and
+restore the timestamped source backup under `.community-addon-backups`, or
 reinstall official source. Do not delete identity, memory, database, or state
 folders.

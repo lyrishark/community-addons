@@ -1,19 +1,19 @@
 {
   "name": "psycheros-loom-gemini-parser-mod",
-  "version": "0.4.0-rc.1",
+  "version": "0.4.0-rc.2",
   "description": "Guarded Entity Loom 0.4 source bridge for merged Gemini exports from Psycheros Thread Exporter.",
   "kind": "psycheros-entity-loom-source-bridge",
   "official": false,
   "requires": {
-    "psycheros_version": "0.11.0",
+    "psycheros_version": "0.11.2",
     "compatible_psycheros_versions": [
-      "0.11.0"
+      "0.11.2"
     ],
     "psycheros_package": "packages/entity-loom",
     "browser_thread_exporter": "0.3.2+"
   },
   "source_bridge": {
-    "base": "psycheros-v0.11.0",
+    "base": "psycheros-v0.11.2",
     "backup_package": "packages/entity-loom",
     "stock_sha256": {
       "packages/entity-loom/src/parsers/mod.ts": "9b2a60789977be978f0fab77abe244e6572d4eb1c21c58be1491da70e7c1ec05",

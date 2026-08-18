@@ -1,18 +1,18 @@
 # Psycheros Expression Sprites Beta
 
-Live expression state and optional user-supplied character sprites for
-Psycheros chat and voice.
+Live expression state and optional user-supplied character sprites for Psycheros
+chat and voice.
 
 ## Compatibility
 
-Version 0.4.0-rc.1 is rebuilt and tested against stock Psycheros 0.11.0. It is
-a guarded source bridge, not a manager plugin: Psycheros 0.11 still does not
+Version 0.4.0-rc.2 is rebuilt and tested against stock Psycheros 0.11.2. It is a
+guarded source bridge, not a manager plugin: Psycheros 0.11 still does not
 expose streamed-response transformation, final-message metadata, settings
 surface, or voice-overlay hooks to plugins.
 
 The installer verifies the exact Psycheros version and normalized SHA-256 of
-every stock file it will replace. It accepts pristine 0.11.0 files or an
-identical 0.4.0-rc.1 payload, makes timestamped backups, and refuses unknown
+every stock file it will replace. It accepts pristine 0.11.2 files or an
+identical 0.4.0-rc.2 payload, makes timestamped backups, and refuses unknown
 local edits before changing anything.
 
 ## What it adds
@@ -44,8 +44,8 @@ macOS or Linux:
     chmod +x ./install.sh ./tools/install-source-files.sh
     ./install.sh "/path/to/Psycheros/source"
 
-The selected root must contain `packages/psycheros/deno.json` and report
-version 0.11.0. Restart Psycheros after installation.
+The selected root must contain `packages/psycheros/deno.json` and report version
+0.11.2. Restart Psycheros after installation.
 
 ## Add sprites
 

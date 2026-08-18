@@ -1,25 +1,25 @@
 # Psycheros Loom Gemini Parser
 
-A guarded Entity Loom source bridge that adds merged Gemini exports as an
-import platform.
+A guarded Entity Loom source bridge that adds merged Gemini exports as an import
+platform.
 
 ## Compatibility
 
-Version 0.4.0-rc.1 is rebuilt and tested against stock Psycheros 0.11.0 and
+Version 0.4.0-rc.2 is rebuilt and tested against stock Psycheros 0.11.2 and
 Entity Loom 0.4. It is not compatible with older source trees and is not a
 manager plugin: Psycheros 0.11's plugin APIs cannot register Entity Loom
 parsers.
 
 The installer verifies the Psycheros version and the normalized SHA-256 of every
-stock file it will replace before writing anything. It accepts a pristine
-0.11.0 file or the identical 0.4.0-rc.1 payload for safe reinstallation, creates
+stock file it will replace before writing anything. It accepts a pristine 0.11.2
+file or the identical 0.4.0-rc.2 payload for safe reinstallation, creates
 timestamped backups, and refuses unknown local edits.
 
 ## What it adds
 
 - Registers Gemini as an Entity Loom source platform.
-- Auto-detects gemini-merged-batch-draft and
-  gemini-thread-activity-merged-draft JSON.
+- Auto-detects gemini-merged-batch-draft and gemini-thread-activity-merged-draft
+  JSON.
 - Parses merged conversations into Loom's normal conversation format.
 - Leaves raw Gemini Activity exports and raw Gemini thread drafts unsupported;
   merge them in Psycheros Thread Exporter first.
@@ -31,8 +31,8 @@ timestamped backups, and refuses unknown local edits.
 3. Open PowerShell in the extracted directory.
 4. Run:
 
-    Set-ExecutionPolicy -Scope Process Bypass
-    .\tools\install-source-files.ps1 -PsycherosRoot "D:\path\to\Psycheros\source"
+       Set-ExecutionPolicy -Scope Process Bypass
+       .\tools\install-source-files.ps1 -PsycherosRoot "D:\path\to\Psycheros\source"
 
 The selected root must contain packages\psycheros\deno.json and
 packages\entity-loom.
@@ -50,5 +50,5 @@ Then open Entity Loom and upload a merged Gemini batch from Thread Exporter.
 ## Undo
 
 Close Psycheros and restore the timestamped backup under
-packages\entity-loom\.community-addon-backups. Updating or reinstalling
-official Psycheros source also restores the stock files.
+packages\entity-loom\.community-addon-backups. Updating or reinstalling official
+Psycheros source also restores the stock files.

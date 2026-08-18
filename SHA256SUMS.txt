@@ -23,5 +23,9 @@ c26429ede62eb860c0a902572004d57930d6810959096099b10c006a291ef8bf  psycheros-expr
 3894e96859ae04a591ea725f135cb4bd93b40e0fd277e7069c177978a3b80a04  psycheros-screen-presence-alpha-0.4.0-rc.1.zip
 b03d7ea2293474d3a723349351029952b385147b1637fd60245beea388ce92a8  psycheros-loom-gemini-parser-mod-0.4.0-rc.1.zip
 454be53eb368ac6e3bd5554dabb4a50df5704222af7fbeb5931e83e186693ab3  psycheros-everything-together-0.4.0-rc.1.zip
+7691d86ec1404b317b5bec359a78dbc692dce30c069f045ab77be815c3258f40  psycheros-expression-sprites-beta-0.4.0-rc.2.zip
+da3d51c821fbd6d0bb08a398266c5c90d68fa338251a6ddfe9e6e275e6bfb923  psycheros-screen-presence-alpha-0.4.0-rc.2.zip
+1dc1a959546c88734860be29ead0ae4b0aeb7a1f0967e9521a99f902b91a35bd  psycheros-loom-gemini-parser-mod-0.4.0-rc.2.zip
+067a734a2394b4c03cc6592b44d83c7d917c68ff4d5a09620e68821d5fb7f84f  psycheros-everything-together-0.4.0-rc.2.zip
 836cdd42c25a86adce2b21d7930e7b33de4d203668b419f6de6dbddfe34526f5  psycheros-entity-core-codex-plugin-0.4.0.zip
 083799a4e72ea16ac64c378c8b23aa36edce2a09dffe041993fee447ee600ae0  psycheros-entity-core-chatgpt-private-0.3.0.zip
