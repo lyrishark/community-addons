@@ -14,7 +14,7 @@ import {
 } from "../../../packages/entity-core/src/tools/identity-meta.ts";
 import { currentPsycherosDataDir } from "./platform-paths.ts";
 
-const CONNECTOR_VERSION = "0.3.0";
+const CONNECTOR_VERSION = "0.4.0";
 const INSTANCE_ID = Deno.env.get("ENTITY_CONNECTOR_INSTANCE_ID") ?? "codex";
 const WRITE_ENABLED = Deno.env.get("ENTITY_CONNECTOR_WRITE_ENABLED") !==
   "false";

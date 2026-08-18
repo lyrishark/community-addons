@@ -1,13 +1,13 @@
 # Psycheros Everything Together
 
-The complete Psycheros 0.10 community suite, split along the boundary the host
+The complete Psycheros 0.11 community suite, split along the boundary the host
 actually supports: one coherent source bridge for deep chat/voice hooks and
 three ordinary plugin-manager packages for public API-v1 features.
 
 ## Compatibility
 
-Version 0.3.0-rc.2 targets stock Psycheros 0.10.0 at upstream commit
-`de906658ea123802d3de20c6fb925434d2baf9e8`. The source bridge combines
+Version 0.4.0-rc.1 targets stock Psycheros 0.11.0 at upstream commit
+`4405cb4cf5c8b812260dc68c80581355da786b13`. The source bridge combines
 the overlapping host changes once, with exact-version and normalized-hash
 preflight, timestamped backups, and refusal of unknown local edits.
 
@@ -15,7 +15,6 @@ preflight, timestamped backups, and refusal of unknown local edits.
 
 Source bridge:
 
-- Multiple image, document, and audio attachments in chat and typed voice.
 - Expression state, user-supplied sprites, persistence, chat display, and voice
   overlay. No character art or personalized classifier rules are bundled.
 - Consent-based screen presence with transient frame captioning and a bounded
@@ -23,13 +22,15 @@ Source bridge:
 
 Plugin-manager ZIPs:
 
-- Accessibility Controls 0.1.0-rc.1.
-- Windows Shell Fix 0.3.0-rc.1.
-- HTF Music Listener 0.3.0-rc.1, including the cross-platform runtime selector.
+- Accessibility Controls 0.1.0-rc.2.
+- Windows Shell Fix 0.3.0-rc.2.
+- HTF Music Listener 0.3.0-rc.2, including the cross-platform runtime selector.
 
-The old source overlays for typography, voice resizing, and Windows shell
-selection are gone because API v1 now supports those features cleanly. The
-unrelated provider-error overlay is also removed.
+Multiple image, document, and audio attachments are now stock Psycheros 0.11
+behavior, so this suite deliberately removes the old More Uploads source
+component. The source overlays for typography, voice resizing, and Windows
+shell selection remain manager plugins. The unrelated provider-error overlay
+also remains excluded.
 
 ## Install
 
@@ -47,7 +48,7 @@ unrelated provider-error overlay is also removed.
 4. In Settings > Plugins > Add plugin, install each desired ZIP from the
    suite's `plugins` directory.
 
-Psycheros 0.10 can validate each manager plugin, but it does not automatically
+Psycheros 0.11 can validate each manager plugin, but it does not automatically
 install a meta-package's declared dependencies. That is why the suite contains
 separate ready-to-install plugin ZIPs.
 
@@ -55,12 +56,12 @@ separate ready-to-install plugin ZIPs.
 
 Run the focused source tests:
 
-    deno test -A packages/psycheros/tests/chat_attachments_test.ts packages/psycheros/tests/expression_checkerboard_test.ts packages/psycheros/tests/expression_classifier_test.ts packages/psycheros/tests/expression_persistence_test.ts packages/psycheros/tests/expression_settings_nav_test.ts packages/psycheros/tests/expression_sprites_test.ts packages/psycheros/tests/screen_presence_test.ts
+    deno test -A packages/psycheros/tests/expression_checkerboard_test.ts packages/psycheros/tests/expression_classifier_test.ts packages/psycheros/tests/expression_persistence_test.ts packages/psycheros/tests/expression_settings_nav_test.ts packages/psycheros/tests/expression_sprites_test.ts packages/psycheros/tests/screen_presence_test.ts
 
 Then verify the plugin manager shows each installed plugin as active. Test a
-multi-file message, a typed-voice attachment, a configured expression sprite,
-screen presence in chat and voice, typography/resize controls, a Windows shell
-command where applicable, and HTF listening.
+a stock multi-file message, a configured expression sprite, screen presence in
+chat and voice, typography/resize controls, a Windows shell command where
+applicable, and HTF listening.
 
 ## Undo
 

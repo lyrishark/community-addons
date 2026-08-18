@@ -32,11 +32,6 @@ export interface VoiceTranscriptSegment {
   timestamp: number;
 }
 
-export type PrepareVoiceTextTurn = (
-  text: string,
-  attachmentIds: string[],
-) => Promise<string>;
-
 export interface VoiceSession {
   id: string;
   conversationId: string;
@@ -55,8 +50,6 @@ export interface VoiceSession {
   pttEnabled: boolean;
   /** Track PTT vs vanilla mode ('ptt' or 'vanilla'). */
   pttMode: "ptt" | "vanilla";
-  /** Optional hook for typed voice turns before they enter the pipeline. */
-  prepareTextTurn?: PrepareVoiceTextTurn;
   /**
    * True when the browser has detected the start of user speech but the
    * corresponding finalized transcript hasn't arrived yet. Used to defer
@@ -92,21 +85,6 @@ export interface PendingPulse {
   name: string;
   promptText: string;
   resolve: (result: { status: "success" | "skipped"; result?: string }) => void;
-}
-
-function normalizeVoiceAttachmentIds(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-  const normalized: string[] = [];
-  const seen = new Set<string>();
-  for (const raw of value) {
-    if (typeof raw !== "string") continue;
-    const id = raw.trim();
-    if (!id || seen.has(id)) continue;
-    if (!/^[a-zA-Z0-9._-]+$/.test(id) || id.includes("..")) continue;
-    seen.add(id);
-    normalized.push(id);
-  }
-  return normalized.slice(0, 10);
 }
 
 // =============================================================================
@@ -148,7 +126,6 @@ export class VoiceSessionManager {
     entityTurn: EntityTurn,
     voiceSuffix: string,
     pttEnabled: boolean,
-    prepareTextTurn?: PrepareVoiceTextTurn,
   ): { session: VoiceSession } | { error: string } {
     // Multi-device lock: reject if conversation already in voice
     const existingId = this.conversationLocks.get(conversationId);
@@ -179,7 +156,6 @@ export class VoiceSessionManager {
       pttHolding: false,
       pttEnabled: pttEnabled,
       pttMode: pttEnabled ? "ptt" : "vanilla",
-      prepareTextTurn,
       userSpeaking: false,
       pendingPulses: [],
       idleTimer: null,
@@ -460,7 +436,7 @@ export class VoiceSessionManager {
         // The finalized transcript means speech ended — clear the
         // userSpeaking flag so queued Pulses can now drain.
         session.userSpeaking = false;
-        void this.processBrowserTranscript(session, msg);
+        void session.pipeline.processTextTurn(String(msg.text ?? ""));
         break;
 
       case "user_speech_start":
@@ -484,25 +460,6 @@ export class VoiceSessionManager {
 
       default:
         console.log(`[Voice] Unknown browser message type: ${msg.type}`);
-    }
-  }
-
-  private async processBrowserTranscript(
-    session: VoiceSession,
-    msg: Record<string, unknown>,
-  ): Promise<void> {
-    const rawText = String(msg.text ?? "");
-    const attachmentIds = normalizeVoiceAttachmentIds(msg.attachmentIds);
-
-    try {
-      const text = session.prepareTextTurn
-        ? await session.prepareTextTurn(rawText, attachmentIds)
-        : rawText;
-      await session.pipeline.processTextTurn(text);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.error("[Voice] Failed to process browser transcript:", message);
-      this.sendToBrowser(session, { type: "error", message });
     }
   }
 

@@ -1,6 +1,6 @@
 {
   "name": "@community/psycheros-windows-shell-fix",
-  "version": "0.3.0-rc.1",
+  "version": "0.3.0-rc.2",
   "exports": "./psycheros.ts",
   "imports": {
     "@std/assert": "jsr:@std/assert@^1"

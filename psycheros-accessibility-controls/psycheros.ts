@@ -149,7 +149,16 @@ export async function settingsRoute(
   return Response.json({ success: true, settings: next });
 }
 
-export default {
+interface AccessibilityPlugin {
+  routes: Array<{
+    method: "GET" | "POST";
+    path: string;
+    handler: typeof settingsRoute;
+  }>;
+  settingsFragment: () => string;
+}
+
+const plugin: AccessibilityPlugin = {
   routes: [
     { method: "GET", path: "/settings", handler: settingsRoute },
     { method: "POST", path: "/settings", handler: settingsRoute },
@@ -158,3 +167,5 @@ export default {
     return '<div id="psycheros-accessibility-controls-settings-mount"></div>';
   },
 };
+
+export default plugin;

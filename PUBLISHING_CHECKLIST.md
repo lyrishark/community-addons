@@ -1,4 +1,4 @@
-﻿# Publishing Checklist
+# Publishing Checklist
 
 This is the practical path from "local alpha zip" to "safe enough to share in a
 community Discord."
@@ -42,52 +42,44 @@ permissions and browser-store data disclosure forms.
 
 ## 3. Create Release Assets
 
-Current Psycheros 0.10 manager-addon release:
+Prepared Psycheros 0.11 manager artifacts:
 
-- `psycheros-htf-music-listener-0.3.0-rc.1.zip`
-- `psycheros-htf-music-listener-0.3.0-rc.1.zip.sha256`
-- `psycheros-htf-runtime-windows-x86_64.tar.gz`
-- `psycheros-htf-runtime-linux-x86_64.tar.gz`
-- `psycheros-htf-runtime-linux-aarch64.tar.gz`
-- `psycheros-htf-runtime-darwin-x86_64.tar.gz`
-- `psycheros-htf-runtime-darwin-aarch64.tar.gz`
-- `psycheros-accessibility-controls-0.1.0-rc.1.zip`
-- `psycheros-accessibility-controls-0.1.0-rc.1.zip.sha256`
-- `psycheros-windows-shell-fix-0.3.0-rc.1.zip`
-- `psycheros-windows-shell-fix-0.3.0-rc.1.zip.sha256`
-- `psycheros-everything-together-0.3.0-rc.2.zip`
-- `psycheros-everything-together-0.3.0-rc.2.zip.sha256`
+- `psycheros-htf-music-listener-0.3.0-rc.2.zip`
+- `psycheros-accessibility-controls-0.1.0-rc.2.zip`
+- `psycheros-windows-shell-fix-0.3.0-rc.2.zip`
 
-Current manager-native release candidate:
+Prepared exact-0.11 source bridges and release suite:
 
-- `psycheros-accessibility-controls-0.1.0-rc.1.zip`
-- `psycheros-accessibility-controls-0.1.0-rc.1.zip.sha256`
+- `psycheros-expression-sprites-beta-0.4.0-rc.1.zip`
+- `psycheros-screen-presence-alpha-0.4.0-rc.1.zip`
+- `psycheros-loom-gemini-parser-mod-0.4.0-rc.1.zip`
+- `psycheros-everything-together-0.4.0-rc.1.zip`
 
-Current independent Codex plugin prerelease:
+Prepared independent Entity Core artifacts:
 
-- `psycheros-entity-core-codex-plugin-0.3.0.zip`
-- `psycheros-entity-core-codex-plugin-0.3.0.zip.sha256`
+- `psycheros-entity-core-codex-plugin-0.4.0.zip`
+- `psycheros-entity-core-chatgpt-private-0.3.0.zip`
+- matching `.sha256` or checksum-list files
 
-Current independent ChatGPT private bridge prerelease:
+These artifacts are review builds, not published releases. Do not tag, upload,
+or announce them until the reconciliation PR is merged and release publication
+is separately authorized.
 
-- `psycheros-entity-core-chatgpt-private-0.2.0.zip`
-- `SHA256SUMS-chatgpt-bridge.txt`
-
-Do not relabel an old HTF or 0.9.2 source-overlay asset as compatible with 0.10.
-Older Psycheros 0.8/0.9 release assets stay attached to their existing tags.
-Any carried-forward source bridge must be rebuilt against stock 0.10, use an
-exact compatibility guard, pass its own tests, and receive a new release. The
-browser extension and Entity Core bridge/plugin projects use their own
-versioned release runs; do not silently relabel their bundled runtime snapshots
-as Psycheros 0.10 or Entity Core 0.6.
+Do not relabel More Uploads or another 0.10 source-overlay asset as compatible
+with 0.11. More Uploads is upstream in 0.11. Older Psycheros release assets stay
+attached to their existing tags. Any carried-forward source bridge must be
+rebuilt against stock 0.11, use an exact compatibility guard, pass its own
+tests, and receive a new release. The browser extension and Entity Core
+bridge/plugin projects use their own versioned release runs; do not silently
+relabel their bundled runtime snapshots as a Psycheros host version.
 
 Generate checksums on Windows:
 
 ```powershell
-Get-FileHash .\psycheros-htf-music-listener-0.3.0-rc.1.zip -Algorithm SHA256
+Get-FileHash .\psycheros-htf-music-listener-0.3.0-rc.2.zip -Algorithm SHA256
 ```
 
-Before uploading, inspect the exact zip through Psycheros 0.10 Settings >
+Before uploading, inspect the exact zip through Psycheros 0.11 Settings >
 Plugins, install it, restart, verify the official settings page, and exercise an
 update check against its declared repository/package path. Confirm the package
 contains no credentials, local music, generated library state, or personal
@@ -133,8 +125,10 @@ Recommended:
 Official docs:
 
 - Chrome publishing: https://developer.chrome.com/docs/webstore/publish
-- Chrome distribution visibility: https://developer.chrome.com/docs/webstore/cws-dashboard-distribution
-- Chrome user data disclosures: https://developer.chrome.com/docs/webstore/program-policies/user-data-faq
+- Chrome distribution visibility:
+  https://developer.chrome.com/docs/webstore/cws-dashboard-distribution
+- Chrome user data disclosures:
+  https://developer.chrome.com/docs/webstore/program-policies/user-data-faq
 
 Later:
 
@@ -173,6 +167,7 @@ START_HERE.md
 6 Stop Automatic Bridge.bat
 connectors/codex-entity-core/
 packages/entity-core/
+packages/plugin-api/
 ```
 
 3. Confirm the zip does not include:
@@ -184,8 +179,5 @@ bridge.env
 ```
 
 4. Test the exact release zip on a clean folder before announcing.
-5. In Discord, tell users this is a private ChatGPT Developer Mode bridge, not
-   a public ChatGPT app.
-
-
-
+5. In Discord, tell users this is a private ChatGPT Developer Mode bridge, not a
+   public ChatGPT app.

@@ -2,6 +2,9 @@
 
 Portable Codex plugin wrapper for a local Psycheros entity-core.
 
+Version `0.4.0` bundles the Psycheros 0.11 Entity Core `0.6.1` source and plugin
+API v2 contracts.
+
 This package includes:
 
 - `.codex-plugin/plugin.json`
@@ -16,11 +19,11 @@ This package includes:
 
 The connector defaults to the native Psycheros data location:
 
-| Platform | Default path |
-| --- | --- |
-| Windows | `%APPDATA%\Psycheros\data\entity-core` |
-| macOS | `~/Library/Application Support/Psycheros/data/entity-core` |
-| Linux | `${XDG_DATA_HOME:-$HOME/.local/share}/Psycheros/data/entity-core` |
+| Platform | Default path                                                      |
+| -------- | ----------------------------------------------------------------- |
+| Windows  | `%APPDATA%\Psycheros\data\entity-core`                            |
+| macOS    | `~/Library/Application Support/Psycheros/data/entity-core`        |
+| Linux    | `${XDG_DATA_HOME:-$HOME/.local/share}/Psycheros/data/entity-core` |
 
 If Psycheros stores entity-core somewhere else, edit `.mcp.json` and add:
 
@@ -45,7 +48,8 @@ The MCP server can:
 - read identity context
 - search memories and graph nodes
 - fetch selected identity files, memories, or graph nodes
-- record daily or significant memories when `ENTITY_CONNECTOR_WRITE_ENABLED` is `true`
+- record daily or significant memories when `ENTITY_CONNECTOR_WRITE_ENABLED` is
+  `true`
 
 Identity/core edits are intentionally not exposed.
 

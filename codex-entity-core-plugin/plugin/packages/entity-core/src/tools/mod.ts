@@ -30,10 +30,12 @@ export {
 } from "./identity.ts";
 
 export {
+  createEmbeddingRebuildAllHandler,
   createMemoryCreateHandler,
   createMemoryDeleteHandler,
   createMemoryEmbeddingPurgeHandler,
   createMemoryEmbeddingRebuildHandler,
+  createMemoryGrepHandler,
   createMemoryListHandler,
   createMemoryReadHandler,
   createMemorySearchHandler,
@@ -45,6 +47,8 @@ export {
   MemoryEmbeddingPurgeSchema,
   type MemoryEmbeddingRebuildOutput,
   MemoryEmbeddingRebuildSchema,
+  type MemoryGrepOutput,
+  MemoryGrepSchema,
   type MemoryListOutput,
   MemoryListSchema,
   type MemoryReadOutput,

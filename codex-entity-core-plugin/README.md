@@ -1,14 +1,14 @@
-﻿# Psycheros Entity Core for Codex
+# Psycheros Entity Core for Codex
 
-Community alpha Codex plugin that lets Codex read and record memories in a
-local Psycheros entity-core.
+Community alpha Codex plugin that lets Codex read and record memories in a local
+Psycheros entity-core.
 
 This is not an official Psycheros release.
 
-> **Psycheros 0.10 status:** Compatible. Connector `0.3.0` reads the canonical
-> Psycheros entity-core directory on Windows, macOS, or Linux; its type-check and
-> isolated read/write smoke test passed against the current data layout. It is
-> independent of the Psycheros plugin manager.
+> **Psycheros 0.11 status:** Reconciled. Connector `0.4.0` bundles Entity Core
+> `0.6.1` and plugin API v2, reads the canonical Entity Core directory on
+> Windows, macOS, or Linux, and remains independent of the Psycheros plugin
+> manager.
 
 ## What It Does
 
@@ -37,18 +37,19 @@ Codex cannot:
 
 By default, the connector looks for entity-core at:
 
-| Platform | Default path |
-| --- | --- |
-| Windows | `%APPDATA%\Psycheros\data\entity-core` |
-| macOS | `~/Library/Application Support/Psycheros/data/entity-core` |
-| Linux | `${XDG_DATA_HOME:-$HOME/.local/share}/Psycheros/data/entity-core` |
+| Platform | Default path                                                      |
+| -------- | ----------------------------------------------------------------- |
+| Windows  | `%APPDATA%\Psycheros\data\entity-core`                            |
+| macOS    | `~/Library/Application Support/Psycheros/data/entity-core`        |
+| Linux    | `${XDG_DATA_HOME:-$HOME/.local/share}/Psycheros/data/entity-core` |
 
 If Psycheros uses a different data directory, edit `.mcp.json` and add
 `ENTITY_CONNECTOR_DATA_DIR`.
 
 ## Install
 
-Download the latest release:
+The `0.4.0` package is prepared in this branch but is not published yet. The
+latest public release remains:
 
 ```text
 https://github.com/lyrishark/community-addons/releases/tag/codex-entity-core-plugin-v0.3.0
@@ -113,6 +114,3 @@ Issues:
 ```text
 https://github.com/lyrishark/community-addons/issues
 ```
-
-
-

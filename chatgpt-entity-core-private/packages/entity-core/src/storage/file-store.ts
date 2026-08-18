@@ -7,7 +7,6 @@
 
 import { join } from "@std/path";
 import { ensureDir } from "@std/fs";
-import { applyMemoryMetadata, parseMemoryMetadata } from "./memory-metadata.ts";
 import type {
   Granularity,
   IdentityContent,
@@ -306,20 +305,16 @@ export class FileStore {
     try {
       const content = await Deno.readTextFile(filePath);
       const stat = await Deno.stat(filePath);
-      const metadata = parseMemoryMetadata(content);
 
       return {
         id: `${granularity}-${date}`,
         granularity,
         date,
         content,
-        chatIds: metadata.chatIds,
-        sourceMemoryIds: metadata.sourceMemoryIds,
-        sourceInstance: sourceInstance ?? metadata.sourceInstance ?? "",
-        participatingInstances: metadata.participatingInstances,
+        chatIds: [], // TODO: Parse from content
+        sourceInstance: sourceInstance ?? "",
         version: 1,
-        createdAt: metadata.createdAt ?? stat.birthtime?.toISOString() ??
-          new Date().toISOString(),
+        createdAt: stat.birthtime?.toISOString() ?? new Date().toISOString(),
         updatedAt: stat.mtime?.toISOString() ?? new Date().toISOString(),
         ...(slug ? { slug } : {}),
       };
@@ -386,13 +381,14 @@ export class FileStore {
    * E.g., "2026-04-15_psycheros" or "2026-W15" or "2026-03-20_first-conversation".
    * Searches each granularity directory for the matching file.
    */
-  async readMemoryByKey(
-    memoryKey: string,
-    granularityHint?: Granularity,
-  ): Promise<MemoryEntry | null> {
-    const granularities: Granularity[] = granularityHint
-      ? [granularityHint]
-      : ["daily", "weekly", "monthly", "yearly", "significant"];
+  async readMemoryByKey(memoryKey: string): Promise<MemoryEntry | null> {
+    const granularities: Granularity[] = [
+      "daily",
+      "weekly",
+      "monthly",
+      "yearly",
+      "significant",
+    ];
 
     for (const granularity of granularities) {
       const filePath = join(
@@ -405,7 +401,6 @@ export class FileStore {
       try {
         const content = await Deno.readTextFile(filePath);
         const stat = await Deno.stat(filePath);
-        const metadata = parseMemoryMetadata(content);
 
         // Parse the memoryKey back into date + suffix
         const dateMatch = memoryKey.match(
@@ -422,15 +417,10 @@ export class FileStore {
           granularity,
           date,
           content,
-          chatIds: metadata.chatIds,
-          sourceMemoryIds: metadata.sourceMemoryIds,
-          sourceInstance: isSignificant
-            ? metadata.sourceInstance ?? ""
-            : (suffix || metadata.sourceInstance || ""),
-          participatingInstances: metadata.participatingInstances,
+          chatIds: [],
+          sourceInstance: isSignificant ? "" : (suffix || ""),
           version: 1,
-          createdAt: metadata.createdAt ?? stat.birthtime?.toISOString() ??
-            new Date().toISOString(),
+          createdAt: stat.birthtime?.toISOString() ?? new Date().toISOString(),
           updatedAt: stat.mtime?.toISOString() ?? new Date().toISOString(),
           ...(isSignificant ? { slug: suffix } : {}),
         };
@@ -441,17 +431,6 @@ export class FileStore {
     }
 
     return null;
-  }
-
-  /** Read a canonical lineage reference such as daily/2026-06-20_psycheros. */
-  async readMemoryByReference(reference: string): Promise<MemoryEntry | null> {
-    const match = /^(daily|weekly|monthly|yearly|significant)\/(.+)$/.exec(
-      reference.trim(),
-    );
-    if (!match || match[2].includes("/") || match[2].includes("\\")) {
-      return null;
-    }
-    return await this.readMemoryByKey(match[2], match[1] as Granularity);
   }
 
   /**
@@ -528,16 +507,9 @@ export class FileStore {
     const dir = join(this.dataDir, "memories", entry.granularity);
     await ensureDir(dir);
     const filePath = this.getMemoryPath(entry);
-    const content = applyMemoryMetadata(entry.content, {
-      chatIds: entry.chatIds,
-      sourceMemoryIds: entry.sourceMemoryIds,
-      participatingInstances: entry.participatingInstances,
-      sourceInstance: entry.sourceInstance,
-      createdAt: entry.createdAt,
-    });
     await atomicWriteAndVerify(
       filePath,
-      content,
+      entry.content,
       `memory/${entry.granularity}`,
     );
   }
@@ -555,11 +527,9 @@ export class FileStore {
     const filePath = this.getMemoryPath(entry);
 
     let finalContent = entry.content;
-    let existingMetadata = parseMemoryMetadata("");
 
     try {
       const existingContent = await Deno.readTextFile(filePath);
-      existingMetadata = parseMemoryMetadata(existingContent);
       finalContent = mergeDailyContent(existingContent, entry.content);
       console.error(
         `[Storage] Merged daily memory for ${entry.date} (instance: ${entry.sourceInstance})`,
@@ -568,20 +538,6 @@ export class FileStore {
       if (!(error instanceof Deno.errors.NotFound)) throw error;
       // File doesn't exist yet — write as-is
     }
-
-    finalContent = applyMemoryMetadata(finalContent, {
-      chatIds: [...existingMetadata.chatIds, ...entry.chatIds],
-      sourceMemoryIds: [
-        ...existingMetadata.sourceMemoryIds,
-        ...(entry.sourceMemoryIds ?? []),
-      ],
-      participatingInstances: [
-        ...existingMetadata.participatingInstances,
-        ...(entry.participatingInstances ?? []),
-      ],
-      sourceInstance: entry.sourceInstance || existingMetadata.sourceInstance,
-      createdAt: entry.createdAt,
-    });
 
     await atomicWriteAndVerify(
       filePath,

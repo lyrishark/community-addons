@@ -1,12 +1,13 @@
 {
   "name": "@local/codex-entity-core-connector",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "exports": "./src/server.ts",
   "nodeModulesDir": "none",
   "imports": {
     "@db/sqlite": "jsr:@db/sqlite@^0.12",
     "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1",
     "@std/fs": "jsr:@std/fs@^1",
+    "@std/dotenv": "jsr:@std/dotenv@^0.225",
     "@std/path": "jsr:@std/path@^1",
     "express": "npm:express@^5",
     "jose": "npm:jose@^6",

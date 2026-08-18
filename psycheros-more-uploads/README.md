@@ -1,5 +1,9 @@
 # Psycheros More Uploads
 
+> **Historical Psycheros 0.10 package. Do not install on Psycheros 0.11.**
+> Psycheros 0.11 now provides images, documents, audio, native media turns, and
+> attachment rendering upstream, so there is no 0.11 release of this bridge.
+
 A guarded Psycheros 0.10 source bridge for multiple chat and Yin Yang typed
 voice attachments.
 

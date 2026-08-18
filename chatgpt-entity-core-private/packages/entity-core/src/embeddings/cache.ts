@@ -21,10 +21,11 @@ import {
   getPlatformExtension,
 } from "../vec-extension.ts";
 import type { LocalEmbedder } from "./mod.ts";
-import { EMBEDDING_DIMENSION } from "../graph/types.ts";
+import { getActiveEmbeddingDimension } from "../graph/types.ts";
+import { loadEmbeddingRuntimeConfig } from "./settings.ts";
 import type { Granularity } from "../types.ts";
 import { chunkContent, shouldChunk } from "./chunker.ts";
-import { stripMemoryMetadata } from "../storage/mod.ts";
+import { stripMemoryMetadata } from "../storage/memory-metadata.ts";
 
 // ---- SHA-256 hash utility (Deno built-in) ----
 
@@ -111,11 +112,13 @@ const CACHE_INDEX_DDL = `
     ON memory_embeddings(granularity);
 `;
 
-const VECTOR_TABLE_SQL = `
+function vectorTableSql(dim: number): string {
+  return `
   CREATE VIRTUAL TABLE IF NOT EXISTS vec_memory_embeddings USING vec0(
-    embedding FLOAT[${EMBEDDING_DIMENSION}] distance=cosine
+    embedding FLOAT[${dim}] distance=cosine
   )
 `;
+}
 
 const LEXICAL_TABLE_SQL = `
   CREATE VIRTUAL TABLE IF NOT EXISTS memory_fts USING fts5(
@@ -129,10 +132,76 @@ const LEXICAL_TABLE_SQL = `
   )
 `;
 
-// Schema version for the embedding enrichment algorithm.
-// Bump this when the text enrichment logic changes (e.g., date prefix added).
-// The cache auto-detects a version mismatch and triggers a full rebuild.
-const EMBEDDING_SCHEMA_VERSION = 2;
+// Schema version for the embedding enrichment algorithm. Bumped when the
+// text enrichment logic changes (e.g., date prefix added). Combined with
+// the active chunk params and model repo into a composite fingerprint so
+// any of those changes triggers a full rebuild on next startup.
+//
+// Migration note: the historical value was a bare integer `2` stored as TEXT.
+// The new format is a JSON object. `checkSchemaVersion()` treats any value
+// that fails to JSON-parse as a mismatch, which means legacy installs upgrade
+// cleanly (one-time rebuild cost indistinguishable from any other schema bump).
+const EMBEDDING_SCHEMA_ALGORITHM_VERSION = 3;
+
+interface EmbeddingSchemaFingerprint {
+  algorithm: number;
+  chunkParamsHash: string;
+  modelRepoId: string;
+}
+
+/**
+ * Compute the current embedding schema fingerprint from the active runtime
+ * config. The fingerprint captures everything that would invalidate cached
+ * embeddings: the algorithm version (manual bump on enrichment changes),
+ * the active chunk params, and the active model repo.
+ */
+function computeSchemaFingerprint(): EmbeddingSchemaFingerprint {
+  const cfg = loadEmbeddingRuntimeConfig();
+  const cp = cfg.chunkParams;
+  const chunkParamsHash =
+    `${cp.thresholdChars}:${cp.targetChars}:${cp.minChars}:${cp.maxChars}:${cp.overlapChars}`;
+  return {
+    algorithm: EMBEDDING_SCHEMA_ALGORITHM_VERSION,
+    chunkParamsHash,
+    modelRepoId: cfg.modelRepoId,
+  };
+}
+
+/**
+ * Why a rebuild is (or isn't) needed. A `model` change is never auto-rebuilt
+ * at boot — model swaps are migrations my Psycheros parent must own (graph
+ * nodes included, via `embedding_rebuild_all`), not something I grind through
+ * unsupervised at startup.
+ */
+export type RebuildReason =
+  | "none"
+  | "model"
+  | "algorithm"
+  | "chunk_params"
+  | "unparseable";
+
+/**
+ * Compare a stored fingerprint (raw TEXT from embedding_metadata) against the
+ * currently-active fingerprint and classify the difference. `model` takes
+ * precedence: even when algorithm or chunk params also differ, a model swap
+ * routes to the parent orchestrator.
+ */
+function diffFingerprint(stored: string | undefined): RebuildReason {
+  if (!stored) return "unparseable";
+  try {
+    const parsed = JSON.parse(stored) as Partial<EmbeddingSchemaFingerprint>;
+    const active = computeSchemaFingerprint();
+    if (parsed.modelRepoId !== active.modelRepoId) return "model";
+    if (parsed.algorithm !== active.algorithm) return "algorithm";
+    if (parsed.chunkParamsHash !== active.chunkParamsHash) {
+      return "chunk_params";
+    }
+    return "none";
+  } catch {
+    // Legacy integer format or corrupt JSON — rebuild.
+    return "unparseable";
+  }
+}
 
 // ---- Cache class ----
 
@@ -142,7 +211,7 @@ export class EmbeddingCache {
   private vectorAvailable = false;
   private lexicalAvailable = false;
   private initialized = false;
-  private rebuildNeeded = false;
+  private rebuildReason: RebuildReason = "none";
 
   constructor(dataDir: string) {
     this.dbPath = join(dataDir, "graph.db");
@@ -181,12 +250,10 @@ export class EmbeddingCache {
     // Now safe to create indexes (parent_key is present)
     this.db.exec(CACHE_INDEX_DDL);
 
-    await this.initializeLexical();
-
     this.initialized = true;
 
     // Check if embedding schema version changed — flag rebuild if so
-    this.rebuildNeeded = this.checkSchemaVersion();
+    this.rebuildReason = this.checkSchemaVersion();
   }
 
   /**
@@ -263,10 +330,7 @@ export class EmbeddingCache {
         parent_key: string;
         granularity: string;
         rank: number;
-      }>(
-        matchQuery,
-        Math.max(1, limit),
-      );
+      }>(matchQuery, Math.max(1, limit));
       stmt.finalize();
       return rows.map((row, index) => ({
         memoryKey: row.parent_key,
@@ -538,26 +602,23 @@ export class EmbeddingCache {
     if (!this.initialized) return null;
 
     const parentKey = computeMemoryKey(entry);
-    const semanticContent = stripMemoryMetadata(entry.content);
     const enrichedContent = enrichContentWithDate(
       entry.granularity,
       entry.date,
-      semanticContent,
+      entry.content,
     );
     const contentHash = await sha256Hex(enrichedContent);
 
     // Check cache validity by parent key with full content hash
     const cached = this.getByParent(parentKey, contentHash);
     if (cached.length > 0) {
-      this.indexLexical(entry);
       return { memoryKey: parentKey, embedding: cached[0].embedding };
     }
 
     // Cache miss — delete any stale chunks
     this.delete(parentKey);
-    this.indexLexical(entry);
 
-    if (!shouldChunk(semanticContent)) {
+    if (!shouldChunk(entry.content, loadEmbeddingRuntimeConfig().chunkParams)) {
       // SHORT PATH: single embedding
       const embedding = await embedder.embed(enrichedContent);
       if (!embedding) return null;
@@ -577,7 +638,10 @@ export class EmbeddingCache {
     }
 
     // LONG PATH: chunk and embed each chunk
-    const chunks = chunkContent(semanticContent);
+    const chunks = chunkContent(
+      entry.content,
+      loadEmbeddingRuntimeConfig().chunkParams,
+    );
     let firstEmbedding: number[] | null = null;
 
     for (const chunk of chunks) {
@@ -639,7 +703,7 @@ export class EmbeddingCache {
     if (this.vectorAvailable) {
       try {
         this.db.exec("DROP TABLE IF EXISTS vec_memory_embeddings");
-        this.db.exec(VECTOR_TABLE_SQL);
+        this.db.exec(vectorTableSql(getActiveEmbeddingDimension()));
       } catch {
         // Vector extension might be unavailable — metadata clear still proceeds
       }
@@ -682,10 +746,18 @@ export class EmbeddingCache {
    * that all cached embeddings need to be rebuilt.
    */
   needsRebuild(): boolean {
-    return this.rebuildNeeded;
+    return this.rebuildReason !== "none";
   }
 
-  private checkSchemaVersion(): boolean {
+  /**
+   * Classify WHY a rebuild is needed. `model` means the boot path must refuse
+   * and defer to the parent orchestrator; the other reasons auto-rebuild.
+   */
+  getRebuildReason(): RebuildReason {
+    return this.rebuildReason;
+  }
+
+  private checkSchemaVersion(): RebuildReason {
     // Ensure metadata table exists
     this.db.exec(
       `CREATE TABLE IF NOT EXISTS embedding_metadata (key TEXT PRIMARY KEY, value TEXT)`,
@@ -697,12 +769,7 @@ export class EmbeddingCache {
     const row = stmt.get<{ value: string }>();
     stmt.finalize();
 
-    if (!row) return true; // No version recorded — needs rebuild
-
-    const stored = parseInt(row.value, 10);
-    if (isNaN(stored) || stored !== EMBEDDING_SCHEMA_VERSION) return true;
-
-    return false;
+    return diffFingerprint(row?.value);
   }
 
   /**
@@ -715,11 +782,13 @@ export class EmbeddingCache {
     this.db.exec(
       `CREATE TABLE IF NOT EXISTS embedding_metadata (key TEXT PRIMARY KEY, value TEXT)`,
     );
-    this.db.exec(
+    const fingerprint = JSON.stringify(computeSchemaFingerprint());
+    const stmt = this.db.prepare(
       "INSERT OR REPLACE INTO embedding_metadata (key, value) VALUES ('schema_version', ?)",
-      [String(EMBEDDING_SCHEMA_VERSION)],
     );
-    this.rebuildNeeded = false;
+    stmt.run(fingerprint);
+    stmt.finalize();
+    this.rebuildReason = "none";
   }
 
   /**
@@ -808,7 +877,7 @@ export class EmbeddingCache {
           .get();
 
         if (!hasTable) {
-          this.db.exec(VECTOR_TABLE_SQL);
+          this.db.exec(vectorTableSql(getActiveEmbeddingDimension()));
         }
         return true;
       }

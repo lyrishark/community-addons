@@ -1,4 +1,4 @@
-﻿# Discord Post - Psycheros Entity Core for Codex
+# Discord Post - Psycheros Entity Core for Codex
 
 Hi! I also wanted to share an early community Codex plugin:
 
@@ -34,11 +34,8 @@ https://github.com/lyrishark/community-addons
 Release:
 
 ```text
-https://github.com/lyrishark/community-addons/releases/tag/codex-entity-core-plugin-v0.3.0
+https://github.com/lyrishark/community-addons/releases
 ```
 
 This one is especially for people who want Codex to remember project work back
 into Psycheros without manually copying notes around.
-
-
-

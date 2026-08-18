@@ -50,60 +50,6 @@ let wakeLock = null;
 // Uses a short base64-encoded silent WAV (about 0.01s of silence, ~80
 // bytes) looped at low-but-nonzero volume.
 let silentAudioEl = null;
-let voiceTextAttachments = [];
-
-const VOICE_CHAT_ATTACHMENT_ACCEPT = [
-  '.png', '.jpg', '.jpeg', '.gif', '.webp', '.avif', '.svg',
-  '.txt', '.md', '.csv', '.json', '.pdf', '.docx', '.xlsx',
-  '.mp3', '.mp4', '.mpeg', '.mpga', '.wav', '.flac', '.m4a', '.aac',
-  '.aif', '.aiff', '.ogg', '.opus', '.webm',
-  'image/*', 'audio/*', 'text/plain', 'text/markdown', 'text/csv',
-  'application/json', 'application/pdf',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-].join(',');
-const VOICE_CHAT_ATTACHMENT_EXTENSIONS = new Set([
-  'png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'svg',
-  'txt', 'md', 'csv', 'json', 'pdf', 'docx', 'xlsx',
-  'mp3', 'mp4', 'mpeg', 'mpga', 'wav', 'flac', 'm4a', 'aac',
-  'aif', 'aiff', 'ogg', 'opus', 'webm'
-]);
-const VOICE_CHAT_IMAGE_EXTENSIONS = new Set([
-  'png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'svg'
-]);
-const VOICE_CHAT_AUDIO_EXTENSIONS = new Set([
-  'mp3', 'mp4', 'mpeg', 'mpga', 'wav', 'flac', 'm4a', 'aac',
-  'aif', 'aiff', 'ogg', 'opus', 'webm'
-]);
-const VOICE_CHAT_ATTACHMENT_MIME_TYPES = new Set([
-  'image/png',
-  'image/jpeg',
-  'image/gif',
-  'image/webp',
-  'image/avif',
-  'image/svg+xml',
-  'audio/mpeg',
-  'audio/mp3',
-  'audio/mp4',
-  'audio/mpga',
-  'audio/wav',
-  'audio/x-wav',
-  'audio/flac',
-  'audio/x-m4a',
-  'audio/aac',
-  'audio/aiff',
-  'audio/x-aiff',
-  'audio/ogg',
-  'audio/opus',
-  'audio/webm',
-  'text/plain',
-  'text/markdown',
-  'text/csv',
-  'application/json',
-  'application/pdf',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-]);
 
 // Walkie-talkie state
 let sttProvider = "browser";
@@ -441,12 +387,6 @@ async function openVoiceChat(conversationId) {
   // Mouse button PTT (for bindings like Mouse3/Mouse4)
   document.addEventListener('mousedown', voiceMouseHandler);
   document.addEventListener('mouseup', voiceMouseHandler);
-  document.addEventListener('dragenter', handleVoiceTextDragEnter);
-  document.addEventListener('dragover', handleVoiceTextDragOver);
-  document.addEventListener('dragleave', handleVoiceTextDragLeave);
-  document.addEventListener('dragend', clearVoiceTextDragActive);
-  document.addEventListener('drop', handleVoiceTextDrop);
-  document.addEventListener('paste', handleVoiceTextPaste);
 
   // Show hold circle + active toggle if PTT is enabled from settings
   if (pttEnabled) {
@@ -672,13 +612,6 @@ function cleanup() {
   document.removeEventListener('keyup', voiceKeyHandler);
   document.removeEventListener('mousedown', voiceMouseHandler);
   document.removeEventListener('mouseup', voiceMouseHandler);
-  document.removeEventListener('dragenter', handleVoiceTextDragEnter);
-  document.removeEventListener('dragover', handleVoiceTextDragOver);
-  document.removeEventListener('dragleave', handleVoiceTextDragLeave);
-  document.removeEventListener('dragend', clearVoiceTextDragActive);
-  document.removeEventListener('drop', handleVoiceTextDrop);
-  document.removeEventListener('paste', handleVoiceTextPaste);
-  voiceTextAttachments = [];
 
   // Refresh the conversation so the voice transcript messages (persisted
   // during the call as [Voice Chat] entries) show up in the chat UI.
@@ -717,7 +650,25 @@ function cleanup() {
   currentWalkieState = "idle";
   previousWalkieState = null;
   activeConversationId = null;
+
+  // Voice call ended — drain any workspace queries that were queued during
+  // the call. The browser is the right place for this gate (the toast is a
+  // client-side DOM element); the server has no notion of "voice call
+  // active." Without this drain, a workspace question fired mid-call would
+  // either cut off the user mid-utterance with a toast or be silently lost
+  // (if the SSE handler queued it but nothing drained the queue).
+  if (typeof globalThis.drainQueuedWorkspaceQueries === "function") {
+    try { globalThis.drainQueuedWorkspaceQueries(); } catch { /* ignore */ }
+  }
 }
+
+// Expose voice-call-active check so workspace.js can queue queries during a
+// call instead of surfacing toasts that would interrupt the user mid-call.
+// Same pattern as Pulse queueing on the server, just at the DOM layer where
+// the toast actually lives.
+globalThis.isVoiceCallActive = function () {
+  return voiceWs !== null;
+};
 
 // =============================================================================
 // Audio Capture
@@ -2199,265 +2150,17 @@ function handleVoiceTextInputKey(e) {
   }
 }
 
-async function handleVoiceTextAttachment(input) {
-  try {
-    await uploadVoiceTextAttachments(input?.files || []);
-  } finally {
-    if (input) input.value = '';
-  }
-}
-
-function getVoiceAttachmentExtension(name) {
-  return String(name || '').split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') || '';
-}
-
-function isAllowedVoiceAttachmentFile(file) {
-  const ext = getVoiceAttachmentExtension(file.name);
-  return VOICE_CHAT_ATTACHMENT_EXTENSIONS.has(ext) || VOICE_CHAT_ATTACHMENT_MIME_TYPES.has(file.type);
-}
-
-function voiceAttachmentFilesFromList(files) {
-  return Array.from(files || []).filter(isAllowedVoiceAttachmentFile);
-}
-
-function extractVoiceAttachmentFilesFromDataTransfer(dataTransfer) {
-  if (!dataTransfer) return [];
-  if (dataTransfer.files?.length) {
-    return voiceAttachmentFilesFromList(dataTransfer.files);
-  }
-  return Array.from(dataTransfer.items || [])
-    .filter((item) => item.kind === 'file')
-    .map((item) => item.getAsFile())
-    .filter(Boolean)
-    .filter(isAllowedVoiceAttachmentFile);
-}
-
-function voiceTextDataTransferHasFiles(dataTransfer) {
-  if (!dataTransfer) return false;
-  if (Array.from(dataTransfer.types || []).includes('Files')) return true;
-  return Array.from(dataTransfer.items || []).some((item) => item.kind === 'file');
-}
-
-async function uploadVoiceTextAttachments(files, options = {}) {
-  const attachmentFiles = voiceAttachmentFilesFromList(files);
-  if (attachmentFiles.length === 0) {
-    if (options.notifyIfEmpty) {
-      showVoiceToast('Use images, text, Markdown, CSV, JSON, PDF, DOCX, or XLSX files');
-    }
-    return;
-  }
-
-  try {
-    const results = await Promise.allSettled(attachmentFiles.map(uploadVoiceTextAttachment));
-    const uploaded = [];
-    let failed = 0;
-
-    for (const result of results) {
-      if (result.status === 'fulfilled') {
-        uploaded.push(result.value);
-      } else {
-        failed += 1;
-        console.error('[Voice] Attachment upload failed:', result.reason);
-      }
-    }
-
-    if (uploaded.length > 0) {
-      voiceTextAttachments = voiceTextAttachments.concat(uploaded);
-      renderVoiceTextAttachmentPreview();
-    }
-    if (failed > 0) {
-      showVoiceToast(`Failed to upload ${failed} attachment${failed === 1 ? '' : 's'}`);
-    }
-  } catch (error) {
-    console.error('[Voice] Attachment upload failed:', error);
-    showVoiceToast('Failed to upload attachment');
-  }
-}
-
-async function uploadVoiceTextAttachment(file) {
-  const resp = await fetch('/api/chat-attachments', {
-    method: 'POST',
-    headers: {
-      'Accept': 'application/json',
-      'Content-Type': file.type || 'application/octet-stream',
-      'X-Psycheros-Filename': encodeURIComponent(file.name)
-    },
-    body: file
-  });
-  if (!resp.ok) {
-    const err = await resp.json().catch(() => ({}));
-    throw new Error(err.error || 'Failed to upload attachment');
-  }
-  const data = await resp.json();
-  return {
-    id: data.id,
-    url: data.url,
-    filename: data.filename || file.name,
-    name: data.name || file.name,
-    type: data.type || file.type,
-    size: data.size || file.size,
-    kind: data.kind || inferVoiceAttachmentKind(data.filename || file.name)
-  };
-}
-
-function inferVoiceAttachmentKind(name) {
-  const ext = getVoiceAttachmentExtension(name);
-  if (VOICE_CHAT_IMAGE_EXTENSIONS.has(ext)) return 'image';
-  if (VOICE_CHAT_AUDIO_EXTENSIONS.has(ext)) return 'audio';
-  return 'file';
-}
-
-function isVoiceImageAttachment(attachment) {
-  return attachment.kind === 'image' || inferVoiceAttachmentKind(attachment.filename || attachment.url || '') === 'image';
-}
-
-function isVoiceAudioAttachment(attachment) {
-  return attachment.kind === 'audio' || inferVoiceAttachmentKind(attachment.filename || attachment.url || '') === 'audio';
-}
-
-function voiceAttachmentFileIconSvg() {
-  return '<svg class="attachment-file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>';
-}
-
-function renderVoiceAttachmentPreviewItem(attachment, idx) {
-  const label = attachment.name || attachment.filename || `Attachment ${idx + 1}`;
-  const body = isVoiceImageAttachment(attachment)
-    ? `<img src="${escapeHtmlAttr(attachment.url)}" class="attachment-thumb" alt="Attachment ${idx + 1}"/>`
-    : `<span class="attachment-file-preview">${voiceAttachmentFileIconSvg()}<span class="attachment-file-name">${escapeHtmlAttr(label)}</span></span>`;
-  return `
-    <div class="attachment-preview-item">
-      ${body}
-      <button class="attachment-remove" onclick="removeVoiceTextAttachment(${idx})" aria-label="Remove attachment ${idx + 1}">&times;</button>
-    </div>
-  `;
-}
-
-function renderVoiceTextAttachmentPreview() {
-  const preview = document.getElementById('voice-text-attachment-preview');
-  if (!preview) return;
-
-  if (voiceTextAttachments.length === 0) {
-    preview.style.display = 'none';
-    preview.innerHTML = '';
-    return;
-  }
-
-  preview.style.display = 'flex';
-  preview.innerHTML = voiceTextAttachments.map(renderVoiceAttachmentPreviewItem).join('');
-}
-
-function removeVoiceTextAttachment(index) {
-  if (typeof index === 'number') {
-    voiceTextAttachments.splice(index, 1);
-  } else {
-    voiceTextAttachments = [];
-  }
-  renderVoiceTextAttachmentPreview();
-}
-
-function voiceTextDropZoneFromTarget(target) {
-  if (!yinYangMode) return null;
-  return target instanceof Element ? target.closest('#voice-text-input-area') : null;
-}
-
-function setVoiceTextDragActive(zone, active) {
-  if (zone) zone.classList.toggle('is-attachment-dragover', active);
-}
-
-function clearVoiceTextDragActive() {
-  document.querySelectorAll('#voice-text-input-area.is-attachment-dragover').forEach((zone) => {
-    zone.classList.remove('is-attachment-dragover');
-  });
-}
-
-function handleVoiceTextDragEnter(event) {
-  const zone = voiceTextDropZoneFromTarget(event.target);
-  if (!zone || !voiceTextDataTransferHasFiles(event.dataTransfer)) return;
-  event.preventDefault();
-  setVoiceTextDragActive(zone, true);
-}
-
-function handleVoiceTextDragOver(event) {
-  const zone = voiceTextDropZoneFromTarget(event.target);
-  if (!zone || !voiceTextDataTransferHasFiles(event.dataTransfer)) return;
-  event.preventDefault();
-  if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
-  setVoiceTextDragActive(zone, true);
-}
-
-function handleVoiceTextDragLeave(event) {
-  const zone = voiceTextDropZoneFromTarget(event.target);
-  if (!zone) return;
-  if (event.relatedTarget instanceof Node && zone.contains(event.relatedTarget)) return;
-  setVoiceTextDragActive(zone, false);
-}
-
-function handleVoiceTextDrop(event) {
-  const zone = voiceTextDropZoneFromTarget(event.target);
-  if (!zone || !voiceTextDataTransferHasFiles(event.dataTransfer)) return;
-  event.preventDefault();
-  clearVoiceTextDragActive();
-  void uploadVoiceTextAttachments(extractVoiceAttachmentFilesFromDataTransfer(event.dataTransfer), { notifyIfEmpty: true });
-}
-
-function handleVoiceTextPaste(event) {
-  if (!yinYangMode) return;
-  const target = event.target instanceof Element ? event.target : document.activeElement;
-  if (!(target instanceof Element) || !target.closest('#voice-text-input-area')) return;
-
-  const files = extractVoiceAttachmentFilesFromDataTransfer(event.clipboardData);
-  if (files.length === 0) return;
-  event.preventDefault();
-  void uploadVoiceTextAttachments(files);
-}
-
-function voiceAttachmentFallbackText(attachments) {
-  const imageCount = attachments.filter(isVoiceImageAttachment).length;
-  const audioCount = attachments.filter(isVoiceAudioAttachment).length;
-  const fileCount = attachments.length - imageCount - audioCount;
-  if ((imageCount > 0 && (audioCount > 0 || fileCount > 0)) || (audioCount > 0 && fileCount > 0)) return '(attachments attached)';
-  if (imageCount > 1) return '(images attached)';
-  if (imageCount === 1) return '(image attached)';
-  if (audioCount > 1) return '(audio clips attached)';
-  if (audioCount === 1) return '(audio clip attached)';
-  if (fileCount > 1) return '(files attached)';
-  return '(file attached)';
-}
-
 async function sendVoiceTextInput() {
   const input = document.getElementById('voice-text-input');
   if (!input) return;
   const text = input.value.trim();
-  if (!text && voiceTextAttachments.length === 0) return;
-  if (!voiceWs || voiceWs.readyState !== WebSocket.OPEN) {
-    showVoiceToast('Voice connection is not ready');
-    return;
-  }
-
-  const attachments = voiceTextAttachments.slice();
-  const attachmentIds = attachments.map((attachment) => attachment.id);
-  const outboundText = text || voiceAttachmentFallbackText(attachments);
-  voiceTextAttachments = [];
-  renderVoiceTextAttachmentPreview();
+  if (!text) return;
+  if (!voiceWs || voiceWs.readyState !== WebSocket.OPEN) return;
   input.value = '';
   // Disable the send button immediately with inline styles for guaranteed
   // visual feedback regardless of CSS specificity battles with .voice-btn.
   setSendButtonDisabled(true);
-  try {
-    const sent = await sendVoiceTranscript({
-      type: 'transcript',
-      text: outboundText,
-      source: 'typed',
-      attachmentIds
-    });
-    if (!sent) throw new Error('Voice connection closed before send');
-  } catch (error) {
-    input.value = text;
-    voiceTextAttachments = attachments;
-    renderVoiceTextAttachmentPreview();
-    setSendButtonDisabled(false);
-    showVoiceToast('Failed to send typed voice message');
-  }
+  await sendVoiceTranscript({ type: 'transcript', text });
 }
 
 function setSendButtonDisabled(disabled) {
@@ -2489,47 +2192,10 @@ function updateConnectionStatus(state, text) {
 
 // Latest-exchange blurb under the status row. Overwrites on each new
 // transcript — the full history lives in chat after the call ends.
-function summarizeVoiceTranscriptText(role, text) {
-  if (role !== 'user') return text;
-
-  let remaining = String(text || '');
-  let imageCount = 0;
-  let fileCount = 0;
-  const imagePattern = /^\[USER_IMAGE:[^\]]+\]\s*/;
-  const filePattern = /^\[USER_FILE:[^\]]+\]\s*[\s\S]*?\s*\[\/USER_FILE\]\s*/;
-
-  while (remaining) {
-    if (imagePattern.test(remaining)) {
-      imageCount += 1;
-      remaining = remaining.replace(imagePattern, '');
-      continue;
-    }
-    if (filePattern.test(remaining)) {
-      fileCount += 1;
-      remaining = remaining.replace(filePattern, '');
-      continue;
-    }
-    break;
-  }
-
-  if (imageCount === 0 && fileCount === 0) return text;
-  const total = imageCount + fileCount;
-  const label = total === 1 ? '1 attachment attached' : `${total} attachments attached`;
-  const cleanText = remaining.trim();
-  if (
-    !cleanText ||
-    /^\((?:image|images|file|files|attachment|attachments) attached\)$/i.test(cleanText)
-  ) {
-    return label;
-  }
-  return `${label} - ${cleanText}`;
-}
-
 function updateTranscript(speaker, role, text) {
   const el = document.getElementById('voice-transcript');
   if (!el) return;
-  const displayText = summarizeVoiceTranscriptText(role, text);
-  const truncated = displayText.length > 200 ? displayText.slice(0, 197) + '...' : displayText;
+  const truncated = text.length > 200 ? text.slice(0, 197) + '...' : text;
   const speakerClass = role === 'user'
     ? 'voice-transcript__speaker voice-transcript__speaker--user'
     : 'voice-transcript__speaker voice-transcript__speaker--assistant';
@@ -2667,8 +2333,6 @@ globalThis.endVoiceChat = endVoiceChat;
 globalThis.togglePTTMode = togglePTTMode;
 globalThis.toggleYinYangMode = toggleYinYangMode;
 globalThis.handleVoiceTextInputKey = handleVoiceTextInputKey;
-globalThis.handleVoiceTextAttachment = handleVoiceTextAttachment;
-globalThis.removeVoiceTextAttachment = removeVoiceTextAttachment;
 globalThis.sendVoiceTextInput = sendVoiceTextInput;
 globalThis.startPTT = startPTT;
 globalThis.endPTT = endPTT;

@@ -127,19 +127,21 @@ export class LLMClient {
 
     messages.push({ role: "user", content: prompt });
 
-    const response = await this.makeRequest(messages, options);
-
-    if (!response.ok) {
-      await this.handleErrorResponse(response);
-    }
-
-    const data = await response.json() as CompletionResponse;
+    const data = await this.makeRequest(messages, options);
 
     if (!data.choices || data.choices.length === 0) {
       throw new LLMError("No completion returned", "NO_COMPLETION");
     }
 
-    return data.choices[0].message.content;
+    const content = data.choices[0].message.content;
+    if (content === null || content === undefined || content === "") {
+      throw new LLMError(
+        "Empty completion content (upstream returned null/empty after all retries)",
+        "NO_COMPLETION",
+      );
+    }
+
+    return content;
   }
 
   /**
@@ -171,6 +173,15 @@ export class LLMClient {
         /\n?```\s*$/,
         "",
       ).trim();
+    }
+
+    // Final fallback: a bare "json\n" prefix with no surrounding backticks
+    // at all. This shows up when an upstream stream drop loses the opening
+    // fence bytes mid-flight — the model produced ```json\n{... but only
+    // json\n{... survived. Require a newline so we don't match prose like
+    // "json is...".
+    if (/^json\s*\n/.test(jsonStr)) {
+      jsonStr = jsonStr.replace(/^json\s*\n/, "").trim();
     }
 
     try {
@@ -208,12 +219,13 @@ export class LLMClient {
 
   /**
    * Make the HTTP request to the API.
-   * Retries on transient errors (rate limit, 5xx, network) with exponential backoff.
+   * Retries on transient failures (rate limit, 5xx, network, empty content)
+   * with exponential backoff. Returns the parsed completion body.
    */
   private async makeRequest(
     messages: ChatMessage[],
     options?: { temperature?: number; maxTokens?: number },
-  ): Promise<Response> {
+  ): Promise<CompletionResponse> {
     const body: Record<string, unknown> = {
       model: this.config.model,
       messages,
@@ -273,8 +285,9 @@ export class LLMClient {
         throw new LLMError(`Network error: ${message}`, "NETWORK_ERROR");
       }
 
-      // Retry on rate limit or server errors
       const status = response.status;
+
+      // Retry on rate limit or server errors
       if (status === 429 || status >= 500) {
         if (attempt < maxRetries) {
           let retryAfterMs = baseDelayMs * (2 ** attempt) +
@@ -295,10 +308,48 @@ export class LLMClient {
           await sleep(retryAfterMs);
           continue;
         }
-        return response;
+        // Retries exhausted — surface the HTTP error
+        await this.handleErrorResponse(response);
       }
 
-      return response;
+      // Non-retryable HTTP error (4xx other than 429)
+      if (!response.ok) {
+        await this.handleErrorResponse(response);
+      }
+
+      // Parse the body
+      let data: CompletionResponse;
+      try {
+        data = await response.json() as CompletionResponse;
+      } catch (error) {
+        throw new LLMError(
+          `Failed to parse completion response: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+          "PARSE_ERROR",
+          status,
+        );
+      }
+
+      // Retry on empty/null content. Some upstreams intermittently return
+      // HTTP 200 with reasoning_content populated but no answer text — the
+      // response is structurally valid but unusable.
+      const content = data.choices?.[0]?.message?.content;
+      if (
+        (content === null || content === undefined || content === "") &&
+        attempt < maxRetries
+      ) {
+        const delay = baseDelayMs * (2 ** attempt) + Math.random() * jitterMs;
+        console.warn(
+          `[LLM] Empty completion content (HTTP ${status}), retry ${
+            attempt + 1
+          }/${maxRetries} after ${Math.round(delay)}ms`,
+        );
+        await sleep(delay);
+        continue;
+      }
+
+      return data;
     }
 
     throw new LLMError("Unexpected retry loop exit", "INTERNAL_ERROR");

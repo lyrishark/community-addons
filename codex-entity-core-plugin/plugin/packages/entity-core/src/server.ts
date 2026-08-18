@@ -11,6 +11,7 @@ import { FileStore } from "./storage/mod.ts";
 import { GraphStore } from "./graph/mod.ts";
 import { extractMemoryToGraph } from "./graph/memory-integration.ts";
 import {
+  createEmbeddingRebuildAllHandler,
   createEntityExportHandler,
   createEntityImportHandler,
   createGraphEdgeCreateHandler,
@@ -42,6 +43,7 @@ import {
   createMemoryDeleteHandler,
   createMemoryEmbeddingPurgeHandler,
   createMemoryEmbeddingRebuildHandler,
+  createMemoryGrepHandler,
   createMemoryListHandler,
   createMemoryReadHandler,
   createMemorySearchHandler,
@@ -65,7 +67,16 @@ import {
 import type { ServerConfig } from "./types.ts";
 import { DEFAULT_SERVER_CONFIG } from "./types.ts";
 import { cleanupOldSnapshots } from "./snapshot/mod.ts";
-import { EmbeddingCache } from "./embeddings/mod.ts";
+import {
+  EMBEDDING_REBUILD_METHOD,
+  EmbeddingCache,
+  notifyRebuild,
+  setRebuildNotifier,
+} from "./embeddings/mod.ts";
+import {
+  createEntityCorePluginManager,
+  type EntityCorePluginManager,
+} from "./plugins/mod.ts";
 
 /**
  * Create and configure the MCP server.
@@ -84,7 +95,9 @@ export function createServer(
     new GraphStore(fullConfig.dataDir);
 
   // Initialize embedding cache (shares graph.db for sqlite-vec)
-  const embeddingCache = new EmbeddingCache(fullConfig.dataDir);
+  const embeddingCache = fullConfig.embeddingCache ??
+    new EmbeddingCache(fullConfig.dataDir);
+  const pluginManager = fullConfig.pluginManager;
 
   // Create MCP server
   const server = new McpServer({
@@ -105,7 +118,13 @@ export function createServer(
         content: [
           {
             type: "text" as const,
-            text: JSON.stringify(result, null, 2),
+            text: JSON.stringify(
+              pluginManager
+                ? await pluginManager.decorate("identity_get_all", result)
+                : result,
+              null,
+              2,
+            ),
           },
         ],
       };
@@ -129,7 +148,13 @@ export function createServer(
         content: [
           {
             type: "text" as const,
-            text: JSON.stringify(result, null, 2),
+            text: JSON.stringify(
+              pluginManager
+                ? await pluginManager.decorate("identity_write", result)
+                : result,
+              null,
+              2,
+            ),
           },
         ],
       };
@@ -153,7 +178,13 @@ export function createServer(
         content: [
           {
             type: "text" as const,
-            text: JSON.stringify(result, null, 2),
+            text: JSON.stringify(
+              pluginManager
+                ? await pluginManager.decorate("identity_append", result)
+                : result,
+              null,
+              2,
+            ),
           },
         ],
       };
@@ -443,6 +474,34 @@ export function createServer(
         content: [
           {
             type: "text" as const,
+            text: JSON.stringify(
+              pluginManager
+                ? await pluginManager.decorate("memory_search", result)
+                : result,
+              null,
+              2,
+            ),
+          },
+        ],
+      };
+    },
+  );
+
+  server.tool(
+    "memory_grep",
+    memoryTools["memory/grep"].description,
+    {
+      query: memoryTools["memory/grep"].inputSchema.shape.query,
+      maxResults: memoryTools["memory/grep"].inputSchema.shape.maxResults,
+    },
+    async ({ query, maxResults }) => {
+      await store.initialize();
+      const handler = createMemoryGrepHandler(store);
+      const result = await handler({ query, maxResults });
+      return {
+        content: [
+          {
+            type: "text" as const,
             text: JSON.stringify(result, null, 2),
           },
         ],
@@ -487,14 +546,12 @@ export function createServer(
     {
       granularity: memoryTools["memory/read"].inputSchema.shape.granularity,
       date: memoryTools["memory/read"].inputSchema.shape.date,
-      sourceInstance:
-        memoryTools["memory/read"].inputSchema.shape.sourceInstance,
       slug: memoryTools["memory/read"].inputSchema.shape.slug,
     },
-    async ({ granularity, date, sourceInstance, slug }) => {
+    async ({ granularity, date, slug }) => {
       await store.initialize();
       const handler = createMemoryReadHandler(store);
-      const result = await handler({ granularity, date, sourceInstance, slug });
+      const result = await handler({ granularity, date, slug });
       return {
         content: [
           {
@@ -514,21 +571,12 @@ export function createServer(
       date: memoryTools["memory/update"].inputSchema.shape.date,
       content: memoryTools["memory/update"].inputSchema.shape.content,
       editedBy: memoryTools["memory/update"].inputSchema.shape.editedBy,
-      instanceId: memoryTools["memory/update"].inputSchema.shape.instanceId,
-      slug: memoryTools["memory/update"].inputSchema.shape.slug,
     },
-    async ({ granularity, date, content, editedBy, instanceId, slug }) => {
+    async ({ granularity, date, content, editedBy }) => {
       await store.initialize();
       await embeddingCache.initialize();
       const handler = createMemoryUpdateHandler(store, embeddingCache);
-      const result = await handler({
-        granularity,
-        date,
-        content,
-        editedBy,
-        instanceId,
-        slug,
-      });
+      const result = await handler({ granularity, date, content, editedBy });
 
       // After memory is updated, re-extract to graph (fire-and-forget)
       if (result.success) {
@@ -539,14 +587,14 @@ export function createServer(
             date,
             content,
             chatIds: [],
-            sourceInstance: instanceId ?? editedBy ?? "unknown",
+            sourceInstance: editedBy ?? "unknown",
             participatingInstances: [],
             version: 0,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
           },
           graphStore,
-          editedBy ?? instanceId ?? "unknown",
+          editedBy ?? "unknown",
         )
           .then((extraction) => {
             if (extraction.nodesCreated > 0 || extraction.edgesCreated > 0) {
@@ -631,6 +679,31 @@ export function createServer(
       const handler = createMemoryEmbeddingRebuildHandler(
         store,
         embeddingCache,
+      );
+      const result = await handler();
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(result, null, 2),
+          },
+        ],
+      };
+    },
+  );
+
+  server.tool(
+    "embedding_rebuild_all",
+    memoryTools["embedding/rebuild_all"].description,
+    {},
+    async () => {
+      await store.initialize();
+      await embeddingCache.initialize();
+      await graphStore.initialize();
+      const handler = createEmbeddingRebuildAllHandler(
+        store,
+        embeddingCache,
+        graphStore,
       );
       const result = await handler();
       return {
@@ -1344,6 +1417,20 @@ export function createServer(
     },
   );
 
+  server.tool(
+    "plugin_status",
+    "I use this to inspect the trusted local extensions available to my core.",
+    {},
+    () => ({
+      content: [{
+        type: "text" as const,
+        text: JSON.stringify(pluginManager?.getStatuses() ?? [], null, 2),
+      }],
+    }),
+  );
+
+  pluginManager?.registerTools(server);
+
   return { server, embeddingCache };
 }
 
@@ -1354,28 +1441,76 @@ export async function startServer(
   config: Partial<ServerConfig> = {},
 ): Promise<void> {
   const fullConfig: ServerConfig = { ...DEFAULT_SERVER_CONFIG, ...config };
-  const { server, embeddingCache } = createServer(config);
+  let pluginManager: EntityCorePluginManager | undefined =
+    fullConfig.pluginManager;
+  const store = fullConfig.store ?? new FileStore(fullConfig.dataDir);
+  const graphStore = fullConfig.graphStore ??
+    new GraphStore(fullConfig.dataDir);
+  const embeddingCache = fullConfig.embeddingCache ??
+    new EmbeddingCache(fullConfig.dataDir);
+
+  if (!pluginManager) {
+    pluginManager = createEntityCorePluginManager(
+      Deno.env.get("PSYCHEROS_PLUGIN_DIR") ??
+        `${fullConfig.dataDir}/../.psycheros/plugins`,
+      {
+        dataDir: fullConfig.dataDir,
+        store,
+        graphStore,
+        embeddingCache,
+        log: (...args) => console.error("[Plugins]", ...args),
+      },
+    );
+    await pluginManager.load();
+  }
+
+  const { server } = createServer({
+    ...config,
+    store,
+    graphStore,
+    embeddingCache,
+    pluginManager,
+  });
   const transport = new StdioServerTransport();
+  transport.onclose = () => {
+    void pluginManager?.stop();
+  };
 
   // Connect the transport first so the MCP handshake completes before any
   // potentially slow startup work (e.g. embedding rebuilds). Otherwise the
   // 60-second handshake timeout fires and the embodiment disconnects.
   await server.connect(transport);
 
+  // Rebuild progress flows to my parent as MCP notifications — it pauses its
+  // health-ping watchdog while I work and shows the user live progress.
+  setRebuildNotifier((n) => {
+    void server.server.notification(
+      {
+        method: EMBEDDING_REBUILD_METHOD,
+        params: n,
+      } as unknown as Parameters<typeof server.server.notification>[0],
+    )
+      .catch((err) => console.error("[Embeddings] notification failed:", err));
+  });
+
   console.error("Entity Core MCP server started");
   console.error(
     "I am ready to sync my identity and memories with my embodiments.",
   );
 
-  // Auto-rebuild embeddings if schema version changed (e.g., date enrichment
-  // added). Uses the server's EmbeddingCache so there's a single connection
-  // touching the vec table during rebuild — no concurrent-writes race.
-  await autoRebuildEmbeddings(fullConfig, embeddingCache);
+  // Auto-rebuild embeddings if the schema fingerprint changed (e.g., date
+  // enrichment bump). Runs in the BACKGROUND — the transport keeps serving
+  // and the handler yields between items so requests and pings get
+  // answered. Model changes are refused here: those are migrations my
+  // Psycheros parent owns (graph nodes included), reported via
+  // model_change_detected so it can offer the re-index flow.
+  void autoRebuildEmbeddings(fullConfig, embeddingCache);
 }
 
 /**
- * Check if cached embeddings need rebuilding (schema version mismatch)
- * and run a full rebuild if so. No-op when embeddings are up-to-date.
+ * Check if cached embeddings need rebuilding (schema fingerprint mismatch)
+ * and run a full memory rebuild if so. No-op when embeddings are up-to-date;
+ * refuses (without rebuilding or re-marking) when only the model changed.
  *
  * Uses the server's shared EmbeddingCache to avoid a second connection
  * racing against tool calls during startup.
@@ -1386,7 +1521,21 @@ async function autoRebuildEmbeddings(
 ): Promise<void> {
   await cache.initialize();
 
-  if (!cache.needsRebuild()) return;
+  const reason = cache.getRebuildReason();
+  if (reason === "none") return;
+
+  if (reason === "model") {
+    console.error(
+      "[Embeddings] Embedding model changed — refusing boot-time rebuild. " +
+        "Leaving the migration to my Psycheros parent (re-embed via Settings so graph nodes are rebuilt too).",
+    );
+    notifyRebuild({
+      phase: "model_change_detected",
+      message:
+        "Embedding model changed — memory indexes need rebuilding via re-index.",
+    });
+    return;
+  }
 
   const stats = cache.getStats();
   if (stats.totalCached === 0) {
@@ -1396,19 +1545,28 @@ async function autoRebuildEmbeddings(
   }
 
   console.error(
-    `[Embeddings] Schema version changed — rebuilding ${stats.totalCached} memory embeddings...`,
+    `[Embeddings] Schema version changed (${reason}) — rebuilding memory embeddings in background...`,
   );
 
   const store = config.store ?? new FileStore(config.dataDir);
   await store.initialize();
 
-  const handler = createMemoryEmbeddingRebuildHandler(store, cache);
-  const result = await handler();
+  try {
+    const handler = createMemoryEmbeddingRebuildHandler(store, cache);
+    const result = await handler();
 
-  console.error(
-    `[Embeddings] Rebuild complete: ${result.rebuilt} rebuilt, ${result.failed} failed`,
-  );
+    console.error(
+      `[Embeddings] Rebuild complete: ${result.rebuilt} rebuilt, ${result.failed} failed`,
+    );
 
-  // Mark schema version as current so we don't rebuild on next startup
-  cache.markSchemaUpToDate();
+    // Mark schema version as current so we don't rebuild on next startup —
+    // success only; a failed rebuild leaves the fingerprint stale.
+    cache.markSchemaUpToDate();
+  } catch (error) {
+    console.error(
+      `[Embeddings] Rebuild failed: ${
+        error instanceof Error ? error.message : String(error)
+      } (fingerprint left stale — next boot retries)`,
+    );
+  }
 }

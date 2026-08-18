@@ -107,8 +107,8 @@ and duration—not audio or local paths.
 
 ## Compatibility and installation
 
-Version 0.3.0-rc.1 requires Psycheros 0.10.x and Launcher 0.2.45 or newer. The plugin
-manager uses package path `psycheros-htf-music-listener` and the
+Version 0.3.0-rc.2 supports Psycheros 0.10 and 0.11 and requires Launcher 0.2.45 or
+newer. The plugin manager uses package path `psycheros-htf-music-listener` and the
 `psycheros-htf-music-listener-v*` release stream for compatible one-click updates.
 
 For a manual install, use the versioned addon zip from the current GitHub release and
@@ -116,8 +116,8 @@ install it through **Settings > Plugins**. Inspect-before-install shows the decl
 tool, prompt hook, routes, settings page, and browser assets.
 
 The 0.1.x packages remain on their historical GitHub tags for Psycheros 0.8/0.9 users.
-Do not layer the old legacy HTF, More Uploads, or combined source-overlay packages over
-Psycheros 0.10.
+Do not layer the old legacy HTF or Psycheros 0.10 source-overlay packages over Psycheros
+0.11.
 
 ## Source development
 

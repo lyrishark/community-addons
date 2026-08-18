@@ -12,8 +12,8 @@ Deno.test("manifest and tool expose the explicit music boundary", async () => {
   );
   assert.equal(manifest.id, "psycheros-htf-music-listener");
   assert.equal(manifest.apiVersion, 1);
-  assert.equal(manifest.version, "0.3.0-rc.1");
-  assert.equal(manifest.compatibility.psycheros, ">=0.10.0 <0.11.0");
+  assert.equal(manifest.version, "0.3.0-rc.2");
+  assert.equal(manifest.compatibility.psycheros, ">=0.10.0 <0.12.0");
   assert.equal(manifest.capabilities.settings, true);
   assert.equal(
     manifest.update.packagePath,

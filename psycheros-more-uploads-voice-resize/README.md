@@ -1,5 +1,9 @@
 # More Uploads + Voice Text Controls
 
+> **Historical Psycheros 0.10 suite. Do not install on Psycheros 0.11.**
+> Uploads are now upstream, and Accessibility Controls 0.1.0-rc.2 can be
+> installed directly through the 0.11 plugin manager.
+
 A Psycheros 0.10 release suite combining expanded chat/voice attachments with
 plugin-managed typography and resizable Yin Yang text controls.
 
