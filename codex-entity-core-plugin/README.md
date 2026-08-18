@@ -48,7 +48,7 @@ If Psycheros uses a different data directory, edit `.mcp.json` and add
 
 ## Install
 
-The `0.4.0` package is prepared in this branch but is not published yet. The
+The `0.4.0` package is published on GitHub Releases. The
 latest public release remains:
 
 ```text
