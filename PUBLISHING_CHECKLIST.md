@@ -50,6 +50,7 @@ Current Psycheros 0.11 manager artifacts:
 
 Current exact-0.11.2 source bridges and release suite:
 
+- `psycheros-more-uploads-0.4.0-rc.1.zip`
 - `psycheros-expression-sprites-beta-0.4.0-rc.2.zip`
 - `psycheros-screen-presence-alpha-0.4.0-rc.2.zip`
 - `psycheros-loom-gemini-parser-mod-0.4.0-rc.2.zip`
@@ -61,11 +62,12 @@ Current independent Entity Core artifacts:
 - `psycheros-entity-core-chatgpt-private-0.3.0.zip`
 - matching `.sha256` or checksum-list files
 
-Do not relabel More Uploads or another 0.10 source-overlay asset as compatible
-with 0.11. More Uploads is upstream in 0.11. Older Psycheros release assets stay
-attached to their existing tags. Any carried-forward source bridge must be
-rebuilt against stock 0.11, use an exact compatibility guard, pass its own
-tests, and receive a new release. The browser extension and Entity Core
+Do not relabel a 0.10 source-overlay asset as compatible with 0.11. More Uploads
+0.4.0-rc.1 is a new bridge rebuilt against stock 0.11.2 after verifying that
+upstream still lacks its multi-attachment behavior; its old assets stay attached
+to their existing tags. Any carried-forward source bridge must use an exact
+compatibility guard, pass its own tests, and receive a new release. The browser
+extension and Entity Core
 bridge/plugin projects use their own versioned release runs; do not silently
 relabel their bundled runtime snapshots as a Psycheros host version.
 

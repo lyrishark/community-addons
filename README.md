@@ -12,6 +12,7 @@ Read [COMPATIBILITY.md](COMPATIBILITY.md) before installing anything.
 | [HTF Music Listener](psycheros-htf-music-listener/README.md)           | `0.3.0-rc.2` | Settings > Plugins         | Local HTF listening, sensory library, synced lyrics, and Windows/macOS/Linux Now Playing presence. |
 | [Accessibility Controls](psycheros-accessibility-controls/README.md)   | `0.1.0-rc.2` | Settings > Plugins         | Typography controls and resizable Yin Yang text input; additive to Theme Studio.                   |
 | [Windows Shell Fix](psycheros-windows-shell-fix/README.md)             | `0.3.0-rc.2` | Settings > Plugins         | Native host-shell execution on Windows while upstream issue #40 remains open.                      |
+| [More Uploads](psycheros-more-uploads/README.md)                       | `0.4.0-rc.1` | Guarded source bridge      | Multiple images, documents, and audio files in main chat and Yin Yang typed mode.                  |
 | [Expression Sprites Beta](psycheros-expression-sprites-beta/README.md) | `0.4.0-rc.2` | Guarded source bridge      | Live expression state and user-supplied chat/voice sprites.                                        |
 | [Screen Presence Alpha](psycheros-screen-presence-alpha/README.md)     | `0.4.0-rc.2` | Guarded source bridge      | Consent-based screen context in chat and voice.                                                    |
 | [Loom Gemini Parser](psycheros-loom-gemini-parser-mod/README.md)       | `0.4.0-rc.2` | Guarded Loom source bridge | Merged Gemini export import in Entity Loom.                                                        |
@@ -34,10 +35,11 @@ imply the version of Entity Core bundled with Psycheros.
 
 ## Historical releases
 
-More Uploads is now part of upstream Psycheros 0.11. Its standalone package and
-the More Uploads + Voice Text Controls suite remain historical 0.10 releases and
-must not be installed over 0.11. Older 0.8/0.9 source overlays likewise remain
-available only through immutable tags and releases. See
+More Uploads 0.4.0-rc.1 restores the multi-attachment behavior that stock
+Psycheros 0.11.2 does not yet provide. Its older 0.10 releases and the combined
+More Uploads + Voice Text Controls suite remain historical and must not be
+installed over 0.11. Older 0.8/0.9 source overlays likewise remain available
+only through immutable tags and releases. See
 [historical/README.md](historical/README.md).
 
 ## Releases and trust

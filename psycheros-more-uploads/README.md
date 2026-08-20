@@ -1,26 +1,23 @@
 # Psycheros More Uploads
 
-> **Historical Psycheros 0.10 package. Do not install on Psycheros 0.11.**
-> Psycheros 0.11 now provides images, documents, audio, native media turns, and
-> attachment rendering upstream, so there is no 0.11 release of this bridge.
-
-A guarded Psycheros 0.10 source bridge for multiple chat and Yin Yang typed
+A guarded Psycheros 0.11.2 source bridge for multiple chat and Yin Yang typed
 voice attachments.
 
 ## Compatibility
 
-Version 0.3.0-rc.1 is rebuilt and tested against stock Psycheros 0.10.0. It is
-not compatible with older source trees.
+Version 0.4.0-rc.1 is rebuilt and tested against stock Psycheros 0.11.2. It is
+not compatible with older or locally modified source trees.
 
-This is not a pure API-v1 manager plugin. The 0.10 manager can add browser
-assets, routes, tools, settings, and text prompt hooks, but it cannot add
-multimodal content parts to a host turn or extend attachment persistence and
-message rendering. Until those hooks exist, exact upload behavior requires a
-guarded source bridge.
+Psycheros 0.11 added native Discord media and a stock single-image chat path,
+but its main and typed-voice composers still keep one attachment at a time.
+This bridge preserves those upstream media paths while restoring the missing
+multi-attachment state, request, persistence, and rendering seams. Those seams
+are not exposed through plugin API v2, so this remains a guarded source bridge.
 
-The installer verifies the Psycheros version and normalized SHA-256 of every
-stock file it replaces before writing, accepts the identical payload for safe
-reinstallation, creates timestamped backups, and refuses unknown local edits.
+The installer verifies Psycheros 0.11.2 and the normalized SHA-256 of every
+stock file it replaces before writing. It accepts pristine stock files or its
+own identical payload, creates timestamped backups, and refuses unknown local
+edits before changing anything.
 
 ## What it adds
 
@@ -43,7 +40,7 @@ presence.
 4. Run:
 
     Set-ExecutionPolicy -Scope Process Bypass
-    .\install.ps1 -PsycherosRoot "D:\path\to\Psycheros\source"
+    .\install.ps1 -PsycherosRoot "D:\path\to\Psycheros"
 
 ## Install on macOS or Linux
 
@@ -61,8 +58,12 @@ From packages/psycheros in the patched source:
 Then attach two images, a document, and an audio file in ordinary chat, and
 attach a file from Yin Yang typed voice mode.
 
+Do not install this source bridge together with Expression Sprites, Screen
+Presence, or Everything Together: those packages replace overlapping host
+files. A future combined-suite release must merge the implementations first.
+
 ## Undo
 
 Close Psycheros and restore the timestamped backup under
-packages\psycheros\.community-addon-backups. Updating or reinstalling official
-Psycheros source also restores stock files.
+`packages/psycheros/.community-addon-backups`. Updating or reinstalling
+official Psycheros source also restores stock files.
