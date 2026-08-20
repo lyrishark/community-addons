@@ -11,3 +11,4 @@
   HTF Music Listener 0.3.0-rc.2 unchanged.
 - Makes the attachment source tests independent of the caller's working
   directory and adds combined-suite cache assertions.
+- Refreshes the Linux installer's guarded stock hashes for Psycheros 0.11.2.
