@@ -30,3 +30,4 @@ da3d51c821fbd6d0bb08a398266c5c90d68fa338251a6ddfe9e6e275e6bfb923  psycheros-scre
 067a734a2394b4c03cc6592b44d83c7d917c68ff4d5a09620e68821d5fb7f84f  psycheros-everything-together-0.4.0-rc.2.zip
 836cdd42c25a86adce2b21d7930e7b33de4d203668b419f6de6dbddfe34526f5  psycheros-entity-core-codex-plugin-0.4.0.zip
 083799a4e72ea16ac64c378c8b23aa36edce2a09dffe041993fee447ee600ae0  psycheros-entity-core-chatgpt-private-0.3.0.zip
+753eeef38970602c2576f7004aa595ad94d05f20224ca0f4da0dcac84d6ac2ad  psycheros-everything-together-0.4.0-rc.3.zip

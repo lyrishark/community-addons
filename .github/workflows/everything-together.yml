@@ -1,0 +1,76 @@
+name: Everything Together source suite
+
+on:
+  pull_request:
+    paths:
+      - "psycheros-everything-together/**"
+      - "scripts/Build-SourceBridgeRelease.ps1"
+      - ".github/workflows/everything-together.yml"
+  push:
+    branches: [main]
+    paths:
+      - "psycheros-everything-together/**"
+      - "scripts/Build-SourceBridgeRelease.ps1"
+      - ".github/workflows/everything-together.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: ${{ matrix.os }} combined installer and feature tests
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6
+        with:
+          repository: PsycherosAI/Psycheros
+          ref: psycheros-v0.11.2
+          path: _upstream
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.9.2
+
+      - name: Install suite source bridge on pristine 0.11.2 (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: >-
+          ./psycheros-everything-together/install.ps1
+          -PsycherosRoot (Resolve-Path ./_upstream).Path
+
+      - name: Install suite source bridge on pristine 0.11.2 (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          chmod +x psycheros-everything-together/install.sh psycheros-everything-together/tools/install-source-files.sh
+          ./psycheros-everything-together/install.sh "$PWD/_upstream"
+
+      - name: Format and type-check combined source
+        working-directory: _upstream
+        run: |
+          deno fmt --check packages/psycheros/src/server/chat-attachments.ts packages/psycheros/src/server/routes.ts packages/psycheros/src/server/templates.ts packages/psycheros/src/voice/session-manager.ts packages/psycheros/tests/chat_attachments_test.ts packages/psycheros/tests/expression_settings_nav_test.ts
+          deno check packages/psycheros/src/server/routes.ts packages/psycheros/src/server/templates.ts packages/psycheros/src/server/chat-attachments.ts packages/psycheros/src/voice/session-manager.ts packages/psycheros/src/server/screen-presence.ts packages/psycheros/src/expression/mod.ts
+
+      - name: Test combined source features
+        working-directory: _upstream
+        run: >-
+          deno test -A --node-modules-dir=none
+          packages/psycheros/tests/chat_attachments_test.ts
+          packages/psycheros/tests/expression_checkerboard_test.ts
+          packages/psycheros/tests/expression_classifier_test.ts
+          packages/psycheros/tests/expression_persistence_test.ts
+          packages/psycheros/tests/expression_settings_nav_test.ts
+          packages/psycheros/tests/expression_sprites_test.ts
+          packages/psycheros/tests/screen_presence_test.ts
+
+      - name: Check browser JavaScript
+        working-directory: _upstream/packages/psycheros
+        run: |
+          node --check web/js/psycheros.js
+          node --check web/js/voice.js

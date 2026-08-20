@@ -14,25 +14,24 @@ Deno.test("vision settings initial tab bar exposes expressions", () => {
 });
 
 Deno.test({
-  name:
-    "expression sprite addon stamps client assets for webview cache refresh",
+  name: "Everything Together stamps client assets for webview cache refresh",
   permissions: { env: ["PSYCHEROS_ACCENT_COLOR"] },
   fn() {
     const html = renderAppShell();
 
     assertStringIncludes(
       html,
-      "/css/main.css?v=expression-sprites-beta-0.2.0",
+      "/css/main.css?v=everything-together-0.4.0-rc.3",
     );
     assertStringIncludes(
       html,
-      "/js/psycheros.js?v=expression-sprites-beta-0.2.0",
+      "/js/psycheros.js?v=everything-together-0.4.0-rc.3",
     );
   },
 });
 
 Deno.test({
-  name: "expression sprite addon does not offline-cache the app shell",
+  name: "Everything Together does not offline-cache the app shell",
   permissions: { read: true },
   async fn() {
     const sw = await Deno.readTextFile(
@@ -41,7 +40,7 @@ Deno.test({
 
     assertStringIncludes(
       sw,
-      "psycheros-offline-__VERSION__-expression-sprites-beta-0-2-0",
+      "psycheros-offline-__VERSION__-everything-together-0-4-0-rc-3",
     );
     assertStringIncludes(sw, 'path === "/"');
     assertFalse(sw.includes('  "/",'));

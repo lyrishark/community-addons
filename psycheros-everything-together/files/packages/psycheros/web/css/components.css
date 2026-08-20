@@ -2756,6 +2756,13 @@ body[data-decor="stamp"] .msg--user .msg-content,
   gap: var(--sp-2);
   padding: var(--sp-1) var(--sp-2);
   position: relative;
+  flex-wrap: wrap;
+}
+
+.attachment-preview-item {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
 }
 
 .attachment-thumb {
@@ -2765,6 +2772,46 @@ body[data-decor="stamp"] .msg--user .msg-content,
   border-radius: var(--radius-sm);
   border: 1px solid var(--c-border);
   object-fit: cover;
+}
+
+.attachment-file-preview,
+.attachment-file-in-message {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  max-width: 280px;
+  min-height: 38px;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-sm);
+  background: var(--c-bg-sunken);
+  color: var(--c-fg);
+  text-decoration: none;
+}
+
+.attachment-audio-in-message {
+  display: block;
+  width: min(100%, 320px);
+  margin-bottom: var(--sp-2);
+}
+
+.attachment-file-preview {
+  max-width: 220px;
+}
+
+.attachment-file-icon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  color: var(--c-fg-muted);
+}
+
+.attachment-file-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-sm);
 }
 
 .attachment-remove {
