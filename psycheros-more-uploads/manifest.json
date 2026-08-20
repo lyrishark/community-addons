@@ -1,26 +1,26 @@
 {
   "name": "psycheros-more-uploads",
-  "version": "0.3.0-rc.1",
-  "description": "Guarded Psycheros 0.10 source bridge for multiple image, document, and audio attachments.",
+  "version": "0.4.0-rc.1",
+  "description": "Guarded Psycheros 0.11.2 source bridge for multiple image, document, and audio attachments.",
   "kind": "psycheros-source-bridge",
   "official": false,
   "requires": {
-    "psycheros_version": "0.10.0",
+    "psycheros_version": "0.11.2",
     "compatible_psycheros_versions": [
-      "0.10.0"
+      "0.11.2"
     ]
   },
   "source_bridge": {
-    "base": "psycheros-v0.10.0",
+    "base": "psycheros-v0.11.2",
     "backup_package": "packages/psycheros",
     "stock_sha256": {
-      "packages/psycheros/src/server/routes.ts": "eb7de44afaa17288c9ab612bf47bd73c6b5b85f12ef4ee3a5f34ae45d3b3e70f",
-      "packages/psycheros/src/server/templates.ts": "c612d5508c2228df6e26615fc30126cda7dc396d89c39e5ca46c50187b63c077",
+      "packages/psycheros/src/server/routes.ts": "18d6df2b59e0b2e72e1668d608b7cd9111596eed2107562d14e53917d6899db3",
+      "packages/psycheros/src/server/templates.ts": "c452f06b95103b8abd223ab551adb9b66d9d2753d0a1adc489323465921dcd33",
       "packages/psycheros/src/voice/session-manager.ts": "911e2495c0b8fcb492fb3c0cc0f1c37c3f50764f958e7a4158c0c6a89e8a338a",
-      "packages/psycheros/web/css/components.css": "3f20ebfcc548c16372e89923043660f31558f5b4221c82db398d8f5ce7d9cd2d",
-      "packages/psycheros/web/css/voice.css": "37afc3b5c8648b340f648a782f2c0f8605f165aad2afe3e1f4a936f585c4106f",
-      "packages/psycheros/web/js/psycheros.js": "8becf0782bd4f750e1f5d5c5a6d6bd919e859ada6226c98b3970f536ae5e30ff",
-      "packages/psycheros/web/js/voice.js": "5aa6f6e9beaa715cdd74509d5d92ff30aa9451b340948ec421e5d8027a5c9fe4",
+      "packages/psycheros/web/css/components.css": "27f96a5471a297ad128981cc0b61b2d7f6662afd9454097b3c01c93647825737",
+      "packages/psycheros/web/css/voice.css": "988c920bda148e7aae631ab67a37bd6e64df4e383226c13fbbbb59a7412037d0",
+      "packages/psycheros/web/js/psycheros.js": "b4ebbd75d15660eb2afb15e09e8351108969910541692100b91f978cfe61964e",
+      "packages/psycheros/web/js/voice.js": "901aba21b8a47f576e6f51837dba01506b767db44ebb0187858278305665b95b",
       "packages/psycheros/web/sw.js": "1c6bf021d733f6d3abd7a8620d3f186b16ecfa51ee0779aadac9d63cb229840f"
     }
   },
@@ -31,7 +31,10 @@
       "psycheros-screen-presence-alpha",
       "psycheros-everything-together"
     ],
-    "supersedes": []
+    "supersedes": [
+      "psycheros-more-uploads@0.2.0",
+      "psycheros-more-uploads@0.3.0-rc.1"
+    ]
   },
   "files": [
     "packages/psycheros/src/server/chat-attachments.ts",

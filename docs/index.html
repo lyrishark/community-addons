@@ -182,18 +182,17 @@
 <body>
   <header>
     <div class="wrap">
-      <div class="eyebrow">Psycheros 0.10 community addons</div>
+      <div class="eyebrow">Psycheros 0.11 community addons</div>
       <h1>Manager-native where current; reproducible where historical.</h1>
       <p class="lede">
-        Local music presence, accessibility controls, continuity connectors,
-        and thread export without presenting old source replacements as current
-        Psycheros addons.
+        Multi-attachment chat, local music presence, accessibility controls,
+        continuity connectors, and thread export with explicit compatibility
+        boundaries.
       </p>
       <div class="notice">
-        These are community projects, not official Psycheros releases. HTF Music
-        Listener 0.3.0-rc.1 and Accessibility Controls 0.1.0-rc.1 are current
-        Psycheros 0.10 plugin-manager packages. Current guarded source bridges
-        are labeled separately from historical 0.8/0.9 overlays.
+        These are community projects, not official Psycheros releases. Current
+        manager plugins support Psycheros 0.11, while guarded source bridges are
+        pinned exactly to 0.11.2 and labeled separately from historical overlays.
       </div>
     </div>
   </header>
@@ -201,9 +200,9 @@
   <main class="wrap">
     <div class="grid">
       <article class="card">
-        <h2>HTF Music Listener 0.3.0-rc.1</h2>
+        <h2>HTF Music Listener 0.3.0-rc.2</h2>
         <p>
-          A trusted Psycheros 0.10 plugin for explicit one-off listening and
+          A trusted Psycheros 0.11 plugin for explicit one-off listening and
           opt-in shared Windows, macOS, and Linux Now Playing presence.
         </p>
         <ul>
@@ -220,7 +219,7 @@
       </article>
 
       <article class="card">
-        <h2>Accessibility Controls 0.1.0-rc.1</h2>
+        <h2>Accessibility Controls 0.1.0-rc.2</h2>
         <p>
           A manager-native replacement for the historical font and Yin Yang
           voice-text resize source overlays.
@@ -232,7 +231,7 @@
           <li>No Psycheros source files replaced</li>
         </ul>
         <div class="actions">
-          <a class="button primary" href="https://github.com/lyrishark/community-addons/releases/tag/psycheros-accessibility-controls-v0.1.0-rc.1">Release candidate</a>
+          <a class="button primary" href="https://github.com/lyrishark/community-addons/releases/tag/psycheros-accessibility-controls-v0.1.0-rc.2">Release candidate</a>
           <a class="button" href="https://github.com/lyrishark/community-addons/blob/main/COMPATIBILITY.md">Compatibility</a>
         </div>
       </article>
@@ -241,17 +240,18 @@
         <h2>Current guarded source bridges</h2>
         <p>
           More Uploads, Expression Sprites, Screen Presence, the Loom Gemini
-          parser, and combined packages have explicit Psycheros 0.10 release
-          candidates where plugin API v1 does not expose the required hooks.
+          parser, and combined packages have explicit Psycheros 0.11.2 release
+          candidates where plugin API v2 does not expose the required hooks.
         </p>
         <ul>
-          <li>Do not install the old source-overlay releases over Psycheros 0.10</li>
-          <li>Use only the release candidate matching stock Psycheros 0.10.0</li>
+          <li>More Uploads 0.4.0-rc.1 restores multiple chat and typed-voice attachments</li>
+          <li>Use only a release candidate matching stock Psycheros 0.11.2</li>
           <li>Installers verify stock hashes and refuse unknown local edits</li>
-          <li>Manager-native dependencies remain separate inspectable plugins</li>
+          <li>Overlapping source bridges must not be installed together</li>
         </ul>
         <div class="actions">
-          <a class="button primary" href="https://github.com/lyrishark/community-addons/blob/main/historical/README.md">Historical index</a>
+          <a class="button primary" href="https://github.com/lyrishark/community-addons/tree/main/psycheros-more-uploads">More Uploads</a>
+          <a class="button" href="https://github.com/lyrishark/community-addons/blob/main/COMPATIBILITY.md">Compatibility</a>
         </div>
       </article>
 

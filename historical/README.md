@@ -10,7 +10,7 @@ Do not copy any of these source trees over Psycheros 0.10.
 | --- | --- | --- | --- |
 | Accessible Font Settings | [0.1.3](https://github.com/lyrishark/community-addons/releases/tag/psycheros-accessible-font-settings-v0.1.3) | [0.2.0 snapshot](https://github.com/lyrishark/community-addons/tree/b9094ae/psycheros-accessible-font-settings) | Superseded by Accessibility Controls. |
 | Voice Text Resize | [0.1.0](https://github.com/lyrishark/community-addons/releases/tag/psycheros-voice-text-resize-v0.1.0) | [0.2.0 snapshot](https://github.com/lyrishark/community-addons/tree/b9094ae/psycheros-voice-text-resize) | Superseded by Accessibility Controls. |
-| More Uploads | [0.1.1](https://github.com/lyrishark/community-addons/releases/tag/psycheros-more-uploads-v0.1.1) | [0.2.0 snapshot](https://github.com/lyrishark/community-addons/tree/b9094ae/psycheros-more-uploads) | Superseded by the current 0.3.0-rc.1 source bridge. |
+| More Uploads | [0.1.1](https://github.com/lyrishark/community-addons/releases/tag/psycheros-more-uploads-v0.1.1) | [0.2.0 snapshot](https://github.com/lyrishark/community-addons/tree/b9094ae/psycheros-more-uploads) | Superseded by the current exact-0.11.2 0.4.0-rc.1 source bridge. |
 | More Uploads + Voice Text Resize | [0.1.1](https://github.com/lyrishark/community-addons/releases/tag/psycheros-more-uploads-voice-resize-v0.1.1) | [0.2.0 snapshot](https://github.com/lyrishark/community-addons/tree/b9094ae/psycheros-more-uploads-voice-resize) | Superseded by the current 0.3.0-rc.1 release suite. |
 | Expression Sprites Beta | [0.1.6](https://github.com/lyrishark/community-addons/releases/tag/psycheros-expression-sprites-beta-v0.1.6) | [0.2.0 snapshot](https://github.com/lyrishark/community-addons/tree/b9094ae/psycheros-expression-sprites-beta) | Superseded by the privacy-clean 0.3.0-rc.1 source bridge. |
 | Screen Presence Alpha | Not separately published | [0.2.0 snapshot](https://github.com/lyrishark/community-addons/tree/b9094ae/psycheros-screen-presence-alpha) | Superseded by the current 0.3.0-rc.1 source bridge. |
@@ -19,7 +19,7 @@ Do not copy any of these source trees over Psycheros 0.10.
 | Everything Together | [0.1.0-rc.4](https://github.com/lyrishark/community-addons/releases/tag/psycheros-everything-together-v0.1.0-rc.4) | [0.2.0 snapshot](https://github.com/lyrishark/community-addons/tree/b9094ae/psycheros-everything-together) | Superseded by the current 0.3.0-rc.1 release suite. |
 
 The historical links are immutable references, not installation
-recommendations. Current packages and their Psycheros 0.10 releases are listed
+recommendations. Current packages and their Psycheros 0.11 releases are listed
 in the repository-root README.
 Checksums for the retired release assets are kept in the
 [historical checksum ledger](SHA256SUMS.txt); the repository-root checksum file

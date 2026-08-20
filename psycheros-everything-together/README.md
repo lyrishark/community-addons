@@ -26,11 +26,13 @@ Plugin-manager ZIPs:
 - Windows Shell Fix 0.3.0-rc.2.
 - HTF Music Listener 0.3.0-rc.2, including the cross-platform runtime selector.
 
-Multiple image, document, and audio attachments are now stock Psycheros 0.11
-behavior, so this suite deliberately removes the old More Uploads source
-component. The source overlays for typography, voice resizing, and Windows shell
-selection remain manager plugins. The unrelated provider-error overlay also
-remains excluded.
+This 0.4.0-rc.2 suite does not include the revived More Uploads 0.4.0-rc.1
+bridge. Stock Psycheros 0.11.2 has Discord media and one-image chat, but not its
+multi-attachment behavior; our earlier parity assumption was incorrect. Do not
+install the standalone bridge over this suite because their guarded source
+files overlap. A future suite release must merge them first. Typography, voice
+resizing, and Windows shell selection remain manager plugins. The unrelated
+provider-error overlay also remains excluded.
 
 ## Install
 

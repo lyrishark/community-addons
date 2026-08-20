@@ -1,0 +1,75 @@
+name: More Uploads source bridge
+
+on:
+  pull_request:
+    paths:
+      - "psycheros-more-uploads/**"
+      - "scripts/Build-SourceBridgeRelease.ps1"
+      - ".github/workflows/more-uploads.yml"
+  push:
+    branches: [main]
+    paths:
+      - "psycheros-more-uploads/**"
+      - "scripts/Build-SourceBridgeRelease.ps1"
+      - ".github/workflows/more-uploads.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: ${{ matrix.os }} installer and attachment tests
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6
+        with:
+          repository: PsycherosAI/Psycheros
+          ref: psycheros-v0.11.2
+          path: _upstream
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.9.2
+
+      - name: Install bridge on pristine 0.11.2 (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: >-
+          ./psycheros-more-uploads/install.ps1
+          -PsycherosRoot (Resolve-Path ./_upstream).Path
+
+      - name: Install bridge on pristine 0.11.2 (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          chmod +x psycheros-more-uploads/install.sh psycheros-more-uploads/tools/install-source-files.sh
+          ./psycheros-more-uploads/install.sh "$PWD/_upstream"
+
+      - name: Format and type-check patched source
+        working-directory: _upstream/packages/psycheros
+        run: |
+          deno fmt --check src/server/chat-attachments.ts tests/chat_attachments_test.ts
+          deno check src/server/routes.ts src/server/templates.ts src/server/chat-attachments.ts src/voice/session-manager.ts
+
+      - name: Test attachments
+        working-directory: _upstream/packages/psycheros
+        run: deno test -A --node-modules-dir=none tests/chat_attachments_test.ts
+
+      - name: Check browser JavaScript
+        working-directory: _upstream/packages/psycheros
+        run: |
+          node --check web/js/psycheros.js
+          node --check web/js/voice.js
+
+      - name: Build release archive
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: >-
+          ./scripts/Build-SourceBridgeRelease.ps1
+          -PackageDirectory ./psycheros-more-uploads
