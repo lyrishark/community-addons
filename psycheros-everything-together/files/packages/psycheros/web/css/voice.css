@@ -460,9 +460,17 @@
 .voice-text-input-area {
   width: 100%;
   display: flex;
+  flex-direction: column;
   gap: 0.5rem;
-  align-items: center;
+  align-items: stretch;
   margin-bottom: 0.5rem;
+}
+
+.voice-text-input-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
 }
 
 .voice-text-input {
@@ -489,6 +497,27 @@
   color: var(--c-fg-subtle);
 }
 
+.voice-text-attach-btn {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.voice-text-attach-btn input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.voice-text-attach-btn:hover,
+.voice-text-input-area.is-attachment-dragover .voice-text-attach-btn {
+  background: var(--c-accent);
+  color: #000;
+}
+
 .voice-text-send-btn {
   width: 44px;
   height: 44px;
@@ -508,6 +537,25 @@
   color: var(--c-fg-subtle);
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.voice-text-attachment-preview {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  max-width: 100%;
+}
+
+.voice-text-attachment-preview .attachment-thumb {
+  height: 40px;
+  max-width: 96px;
+}
+
+.voice-text-attachment-preview .attachment-file-preview {
+  max-width: 190px;
+  min-height: 34px;
+  padding: 0.35rem 0.55rem;
 }
 
 /* ========================================================================== */

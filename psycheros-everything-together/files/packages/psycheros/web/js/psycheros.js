@@ -24,8 +24,7 @@ function focusInputWhenReady() {
 
 let currentConversationId = null;
 let isStreaming = false;
-let pendingAttachmentId = null;
-let pendingAttachmentUrl = null;
+let pendingAttachments = [];
 const pendingToolCalls = new Map();
 let currentAbortController = null;
 let streamingConversationId = null; // The conversation currently being streamed (may differ from currentConversationId)
@@ -34,11 +33,64 @@ let expressionDisplaySettings = null;
 let expressionDisplaySettingsPromise = null;
 let expressionStageState = null;
 let expressionStageResizeObserver = null;
-const CLIENT_CACHE_VERSION = 'expression-sprites-beta-0.2.0';
+const CLIENT_CACHE_VERSION = 'everything-together-0.4.0-rc.3';
 const CLIENT_CACHE_VERSION_KEY = 'psycheros.clientCacheVersion';
 
 // General settings (display names)
 globalThis.PsycherosSettings = { entityName: 'Assistant', userName: 'You', timezone: '' };
+
+const CHAT_ATTACHMENT_ACCEPT = [
+  '.png', '.jpg', '.jpeg', '.gif', '.webp', '.avif', '.svg',
+  '.txt', '.md', '.csv', '.json', '.pdf', '.docx', '.xlsx',
+  '.mp3', '.mp4', '.mpeg', '.mpga', '.wav', '.flac', '.m4a', '.aac',
+  '.aif', '.aiff', '.ogg', '.opus', '.webm',
+  'image/*', 'audio/*', 'text/plain', 'text/markdown', 'text/csv',
+  'application/json', 'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+].join(',');
+const CHAT_ATTACHMENT_EXTENSIONS = new Set([
+  'png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'svg',
+  'txt', 'md', 'csv', 'json', 'pdf', 'docx', 'xlsx',
+  'mp3', 'mp4', 'mpeg', 'mpga', 'wav', 'flac', 'm4a', 'aac',
+  'aif', 'aiff', 'ogg', 'opus', 'webm'
+]);
+const CHAT_ATTACHMENT_IMAGE_EXTENSIONS = new Set([
+  'png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'svg'
+]);
+const CHAT_ATTACHMENT_AUDIO_EXTENSIONS = new Set([
+  'mp3', 'mp4', 'mpeg', 'mpga', 'wav', 'flac', 'm4a', 'aac',
+  'aif', 'aiff', 'ogg', 'opus', 'webm'
+]);
+const CHAT_ATTACHMENT_MIME_TYPES = new Set([
+  'image/png',
+  'image/jpeg',
+  'image/gif',
+  'image/webp',
+  'image/avif',
+  'image/svg+xml',
+  'audio/mpeg',
+  'audio/mp3',
+  'audio/mp4',
+  'audio/mpga',
+  'audio/wav',
+  'audio/x-wav',
+  'audio/flac',
+  'audio/x-m4a',
+  'audio/aac',
+  'audio/aiff',
+  'audio/x-aiff',
+  'audio/ogg',
+  'audio/opus',
+  'audio/webm',
+  'text/plain',
+  'text/markdown',
+  'text/csv',
+  'application/json',
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+]);
 
 // Selection mode state
 let selectionMode = false;
@@ -524,6 +576,7 @@ async function clearStaleClientCaches() {
 
 document.addEventListener('DOMContentLoaded', async () => {
   await clearStaleClientCaches();
+  initComposerAttachmentEvents();
 
   // Register service worker
   if ('serviceWorker' in navigator) {
@@ -1003,14 +1056,14 @@ async function newConversation() {
         </div>
         <div class="input-area">
           <div class="input-container">
-            <button class="attach-btn" onclick="document.getElementById('attach-input').click()" title="Attach image">
+            <button class="attach-btn" onclick="document.getElementById('attach-input').click()" title="Attach files">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
                 <circle cx="8.5" cy="8.5" r="1.5"/>
                 <polyline points="21 15 16 10 5 21"/>
               </svg>
             </button>
-            <input type="file" id="attach-input" accept="image/*" style="display:none" onchange="Psycheros.handleAttachment(this)">
+            <input type="file" id="attach-input" accept="${CHAT_ATTACHMENT_ACCEPT}" multiple style="display:none" onchange="Psycheros.handleAttachment(this)">
             <textarea
               class="input-field"
               id="message-input"
@@ -1350,41 +1403,245 @@ async function stopPulseGeneration() {
 // =============================================================================
 
 async function handleAttachment(input) {
-  const file = input.files?.[0];
-  if (!file) return;
+  await uploadAttachments(input.files, { notifyIfEmpty: true });
+  input.value = '';
+}
+
+function getAttachmentExtension(name) {
+  return String(name || '').split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') || '';
+}
+
+function isAllowedAttachmentFile(file) {
+  const ext = getAttachmentExtension(file.name);
+  return CHAT_ATTACHMENT_EXTENSIONS.has(ext) || CHAT_ATTACHMENT_MIME_TYPES.has(file.type);
+}
+
+function attachmentFilesFromList(files) {
+  return Array.from(files || []).filter(isAllowedAttachmentFile);
+}
+
+function extractAttachmentFilesFromDataTransfer(dataTransfer) {
+  if (!dataTransfer) return [];
+  if (dataTransfer.files?.length) {
+    return attachmentFilesFromList(dataTransfer.files);
+  }
+  return Array.from(dataTransfer.items || [])
+    .filter((item) => item.kind === 'file')
+    .map((item) => item.getAsFile())
+    .filter(Boolean)
+    .filter(isAllowedAttachmentFile);
+}
+
+function dataTransferHasFiles(dataTransfer) {
+  if (!dataTransfer) return false;
+  if (Array.from(dataTransfer.types || []).includes('Files')) return true;
+  return Array.from(dataTransfer.items || []).some((item) => item.kind === 'file');
+}
+
+async function uploadAttachments(files, options = {}) {
+  const attachmentFiles = attachmentFilesFromList(files);
+  if (attachmentFiles.length === 0) {
+    if (options.notifyIfEmpty) {
+      showToast('Use images, text, Markdown, CSV, JSON, PDF, DOCX, or XLSX files');
+    }
+    return;
+  }
 
   try {
-    const formData = new FormData();
-    formData.append('file', file);
-    const resp = await fetch('/api/chat-attachments', { method: 'POST', body: formData });
-    if (!resp.ok) {
-      const err = await resp.json().catch(() => ({}));
-      showToast(err.error || 'Failed to upload attachment');
-      return;
-    }
-    const data = await resp.json();
-    pendingAttachmentId = data.id;
-    pendingAttachmentUrl = data.url;
+    const results = await Promise.allSettled(attachmentFiles.map(uploadChatAttachment));
+    const uploaded = [];
+    let failed = 0;
 
-    const preview = document.getElementById('attachment-preview');
-    if (preview) {
-      preview.style.display = 'flex';
-      preview.innerHTML = `
-        <img src="${escapeHtml(data.url)}" class="attachment-thumb" alt="Attachment"/>
-        <button class="attachment-remove" onclick="Psycheros.removeAttachment()">&times;</button>
-      `;
+    for (const result of results) {
+      if (result.status === 'fulfilled') {
+        uploaded.push(result.value);
+      } else {
+        failed += 1;
+        console.error('Attachment upload failed:', result.reason);
+      }
+    }
+
+    if (uploaded.length > 0) {
+      pendingAttachments = pendingAttachments.concat(uploaded);
+      renderAttachmentPreview();
+    }
+    if (failed > 0) {
+      showToast(`Failed to upload ${failed} attachment${failed === 1 ? '' : 's'}`);
     }
   } catch (error) {
     showToast('Failed to upload attachment');
   }
-  input.value = '';
 }
 
-function removeAttachment() {
-  pendingAttachmentId = null;
-  pendingAttachmentUrl = null;
+function composerDropZoneFromTarget(target) {
+  return target instanceof Element ? target.closest('.input-area') : null;
+}
+
+function setComposerDragActive(zone, active) {
+  if (zone) zone.classList.toggle('is-attachment-dragover', active);
+}
+
+function clearComposerDragActive() {
+  document.querySelectorAll('.input-area.is-attachment-dragover').forEach((zone) => {
+    zone.classList.remove('is-attachment-dragover');
+  });
+}
+
+function handleComposerDragEnter(event) {
+  const zone = composerDropZoneFromTarget(event.target);
+  if (!zone || !dataTransferHasFiles(event.dataTransfer)) return;
+  event.preventDefault();
+  setComposerDragActive(zone, true);
+}
+
+function handleComposerDragOver(event) {
+  const zone = composerDropZoneFromTarget(event.target);
+  if (!zone || !dataTransferHasFiles(event.dataTransfer)) return;
+  event.preventDefault();
+  if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+  setComposerDragActive(zone, true);
+}
+
+function handleComposerDragLeave(event) {
+  const zone = composerDropZoneFromTarget(event.target);
+  if (!zone) return;
+  if (event.relatedTarget instanceof Node && zone.contains(event.relatedTarget)) return;
+  setComposerDragActive(zone, false);
+}
+
+function handleComposerDrop(event) {
+  const zone = composerDropZoneFromTarget(event.target);
+  if (!zone || !dataTransferHasFiles(event.dataTransfer)) return;
+  event.preventDefault();
+  clearComposerDragActive();
+  void uploadAttachments(extractAttachmentFilesFromDataTransfer(event.dataTransfer), { notifyIfEmpty: true });
+}
+
+function handleComposerPaste(event) {
+  const target = event.target instanceof Element ? event.target : document.activeElement;
+  const zone = target instanceof Element ? target.closest('.input-area') : null;
+  if (!zone) return;
+
+  const files = extractAttachmentFilesFromDataTransfer(event.clipboardData);
+  if (files.length === 0) return;
+  event.preventDefault();
+  void uploadAttachments(files);
+}
+
+function initComposerAttachmentEvents() {
+  if (globalThis.__psycherosComposerAttachmentEvents) return;
+  globalThis.__psycherosComposerAttachmentEvents = true;
+  document.addEventListener('dragenter', handleComposerDragEnter);
+  document.addEventListener('dragover', handleComposerDragOver);
+  document.addEventListener('dragleave', handleComposerDragLeave);
+  document.addEventListener('dragend', clearComposerDragActive);
+  document.addEventListener('drop', handleComposerDrop);
+  document.addEventListener('paste', handleComposerPaste);
+}
+
+async function uploadChatAttachment(file) {
+  const resp = await fetch('/api/chat-attachments', {
+    method: 'POST',
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': file.type || 'application/octet-stream',
+      'X-Psycheros-Filename': encodeURIComponent(file.name)
+    },
+    body: file
+  });
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to upload attachment');
+  }
+  const data = await resp.json();
+  return {
+    id: data.id,
+    url: data.url,
+    filename: data.filename || file.name,
+    name: data.name || file.name,
+    type: data.type || file.type,
+    size: data.size || file.size,
+    kind: data.kind || inferAttachmentKind(data.filename || file.name)
+  };
+}
+
+function inferAttachmentKind(name) {
+  const ext = getAttachmentExtension(name);
+  if (CHAT_ATTACHMENT_IMAGE_EXTENSIONS.has(ext)) return 'image';
+  if (CHAT_ATTACHMENT_AUDIO_EXTENSIONS.has(ext)) return 'audio';
+  return 'file';
+}
+
+function isImageAttachment(attachment) {
+  return attachment.kind === 'image' || inferAttachmentKind(attachment.filename || attachment.url || '') === 'image';
+}
+
+function isAudioAttachment(attachment) {
+  return attachment.kind === 'audio' || inferAttachmentKind(attachment.filename || attachment.url || '') === 'audio';
+}
+
+function attachmentFileIconSvg() {
+  return '<svg class="attachment-file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>';
+}
+
+function renderAttachmentPreviewItem(attachment, idx) {
+  const label = attachment.name || attachment.filename || `Attachment ${idx + 1}`;
+  const body = isImageAttachment(attachment)
+    ? `<img src="${escapeHtml(attachment.url)}" class="attachment-thumb" alt="Attachment ${idx + 1}"/>`
+    : `<span class="attachment-file-preview">${attachmentFileIconSvg()}<span class="attachment-file-name">${escapeHtml(label)}</span></span>`;
+  return `
+    <div class="attachment-preview-item">
+      ${body}
+      <button class="attachment-remove" onclick="Psycheros.removeAttachment(${idx})" aria-label="Remove attachment ${idx + 1}">&times;</button>
+    </div>
+  `;
+}
+
+function renderAttachmentInMessage(attachment, idx) {
+  const label = attachment.name || attachment.filename || `Attachment ${idx + 1}`;
+  if (isImageAttachment(attachment)) {
+    return `<img src="${escapeHtml(attachment.url)}" class="attachment-in-message" alt="Attached image ${idx + 1}" loading="lazy"/>`;
+  }
+  if (isAudioAttachment(attachment)) {
+    return `<audio src="${escapeHtml(attachment.url)}" class="attachment-audio-in-message" controls preload="metadata"></audio>`;
+  }
+  return `<a href="${escapeHtml(attachment.url)}" class="attachment-file-in-message" target="_blank" rel="noopener" download>${attachmentFileIconSvg()}<span class="attachment-file-name">${escapeHtml(label)}</span></a>`;
+}
+
+function renderAttachmentPreview() {
   const preview = document.getElementById('attachment-preview');
-  if (preview) { preview.style.display = 'none'; preview.innerHTML = ''; }
+  if (!preview) return;
+
+  if (pendingAttachments.length === 0) {
+    preview.style.display = 'none';
+    preview.innerHTML = '';
+    return;
+  }
+
+  preview.style.display = 'flex';
+  preview.innerHTML = pendingAttachments.map(renderAttachmentPreviewItem).join('');
+}
+
+function removeAttachment(index) {
+  if (typeof index === 'number') {
+    pendingAttachments.splice(index, 1);
+  } else {
+    pendingAttachments = [];
+  }
+  renderAttachmentPreview();
+}
+
+function attachmentFallbackText(attachments) {
+  const imageCount = attachments.filter(isImageAttachment).length;
+  const audioCount = attachments.filter(isAudioAttachment).length;
+  const fileCount = attachments.length - imageCount - audioCount;
+  if ((imageCount > 0 && (audioCount > 0 || fileCount > 0)) || (audioCount > 0 && fileCount > 0)) return '(attachments attached)';
+  if (imageCount > 1) return '(images attached)';
+  if (imageCount === 1) return '(image attached)';
+  if (audioCount > 1) return '(audio clips attached)';
+  if (audioCount === 1) return '(audio clip attached)';
+  if (fileCount > 1) return '(files attached)';
+  return '(file attached)';
 }
 
 async function sendMessage() {
@@ -1392,7 +1649,7 @@ async function sendMessage() {
   const sendBtn = document.getElementById('send-btn');
   const message = input?.value.trim();
 
-  if ((!message && !pendingAttachmentId) || isStreaming || pulseStreamingPulseId) return;
+  if ((!message && pendingAttachments.length === 0) || isStreaming || pulseStreamingPulseId) return;
 
   // Create conversation if needed
   if (!currentConversationId) {
@@ -1418,13 +1675,11 @@ async function sendMessage() {
   input.disabled = true;
   clearDraft(currentConversationId);
 
-  // Save and clear attachment before sending
-  const attachmentId = pendingAttachmentId || undefined;
-  const attachmentUrl = pendingAttachmentUrl || undefined;
-  pendingAttachmentId = null;
-  pendingAttachmentUrl = null;
-  const preview = document.getElementById('attachment-preview');
-  if (preview) { preview.style.display = 'none'; preview.innerHTML = ''; }
+  // Save and clear attachments before sending.
+  const attachments = pendingAttachments.slice();
+  const attachmentIds = attachments.map((attachment) => attachment.id);
+  pendingAttachments = [];
+  renderAttachmentPreview();
 
   // Switch send button to stop button (requires double-tap)
   stopConfirmed = false;
@@ -1445,9 +1700,7 @@ async function sendMessage() {
   const userTime = formatChatTimestamp(new Date());
   if (messages) {
     const userHtml = message ? DOMPurify.sanitize(marked.parse(message)) : '';
-    const attachmentHtml = attachmentUrl
-      ? `<img src="${escapeHtml(attachmentUrl)}" class="attachment-in-message" alt="Attached image" loading="lazy"/>`
-      : '';
+    const attachmentHtml = attachments.map(renderAttachmentInMessage).join('');
     messages.insertAdjacentHTML('beforeend', `
       <div class="msg msg--user">
         <div class="msg-header">
@@ -1493,8 +1746,8 @@ async function sendMessage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         conversationId: currentConversationId,
-        message: message || '(image attached)',
-        attachmentId: attachmentId,
+        message: message || attachmentFallbackText(attachments),
+        attachmentIds,
         deviceType: isMobileDevice() ? 'mobile' : 'desktop'
       }),
       signal: currentAbortController.signal
@@ -4556,14 +4809,14 @@ async function confirmDelete() {
           </div>
           <div class="input-area">
             <div class="input-container">
-              <button class="attach-btn" onclick="document.getElementById('attach-input').click()" title="Attach image">
+              <button class="attach-btn" onclick="document.getElementById('attach-input').click()" title="Attach files">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
                   <circle cx="8.5" cy="8.5" r="1.5"/>
                   <polyline points="21 15 16 10 5 21"/>
                 </svg>
               </button>
-              <input type="file" id="attach-input" accept="image/*" style="display:none" onchange="Psycheros.handleAttachment(this)">
+              <input type="file" id="attach-input" accept="${CHAT_ATTACHMENT_ACCEPT}" multiple style="display:none" onchange="Psycheros.handleAttachment(this)">
               <textarea
                 class="input-field"
                 id="message-input"
@@ -6257,12 +6510,12 @@ function goBack() {
       chat.innerHTML = `
         <div class="messages" id="messages"><div class="empty-state" id="empty-state"><div class="empty-title">Psycheros</div><p class="empty-text">What's on your mind?</p></div></div>
         <div class="input-area"><div class="input-container">
-          <button class="attach-btn" onclick="document.getElementById('attach-input').click()" title="Attach image">
+          <button class="attach-btn" onclick="document.getElementById('attach-input').click()" title="Attach files">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
             </svg>
           </button>
-          <input type="file" id="attach-input" accept="image/*" style="display:none" onchange="Psycheros.handleAttachment(this)">
+          <input type="file" id="attach-input" accept="${CHAT_ATTACHMENT_ACCEPT}" multiple style="display:none" onchange="Psycheros.handleAttachment(this)">
           <button class="screen-share-btn" type="button" data-screen-presence-toggle onclick="Psycheros.toggleScreenPresence()" title="Share screen" aria-label="Share screen" aria-pressed="false">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8"/><path d="M12 16v4"/>

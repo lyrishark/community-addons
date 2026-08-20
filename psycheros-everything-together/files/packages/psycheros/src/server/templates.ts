@@ -56,6 +56,7 @@ import {
   type ExpressionDisplaySettings,
   expressionSpriteUrl,
 } from "../expression/mod.ts";
+import { extractLeadingUserAttachments } from "./chat-attachments.ts";
 import { pulseIconSvg } from "../pulse/templates.ts";
 import type { ExtractionHealth } from "../mcp-client/mod.ts";
 import { getWearableConnectionManager } from "../wearable/mod.ts";
@@ -68,7 +69,7 @@ import {
   RAG_MAX_CHUNKS_MIN,
 } from "../memory/memory-settings.ts";
 
-const WEB_ASSET_VERSION = "expression-sprites-beta-0.2.0";
+const WEB_ASSET_VERSION = "everything-together-0.4.0-rc.3";
 
 // =============================================================================
 // Utilities
@@ -120,6 +121,52 @@ function formatExpressionLabel(label: string): string {
   return String(label)
     .replace(/[-_]+/g, " ")
     .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+const CHAT_ATTACHMENT_ACCEPT = [
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".gif",
+  ".webp",
+  ".avif",
+  ".svg",
+  ".txt",
+  ".md",
+  ".csv",
+  ".json",
+  ".pdf",
+  ".docx",
+  ".xlsx",
+  ".mp3",
+  ".mp4",
+  ".mpeg",
+  ".mpga",
+  ".wav",
+  ".flac",
+  ".m4a",
+  ".aac",
+  ".aif",
+  ".aiff",
+  ".ogg",
+  ".opus",
+  ".webm",
+  "image/*",
+  "audio/*",
+  "text/plain",
+  "text/markdown",
+  "text/csv",
+  "application/json",
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+].join(",");
+
+function renderAttachmentFileIcon(): string {
+  return `<svg class="attachment-file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+    <path d="M14 2v6h6"/>
+  </svg>`;
 }
 
 /**
@@ -2766,21 +2813,37 @@ export function renderUserMessage(
     : "";
   const displayName = escapeHtml(userName || "You");
 
-  // Extract [USER_IMAGE: path | ...] markers and render as images
-  let imageHtml = "";
-  let textContent = content;
-  const userImageMatch = content.match(
-    /^\[USER_IMAGE:\s*(\/[^\s\]]+)(?:\s*\|[^\]]*)?\]\s*([\s\S]*)$/,
-  );
-  if (userImageMatch) {
-    const imagePath = userImageMatch[1];
-    textContent = userImageMatch[2].trim();
-    // Suppress the fallback placeholder text for image-only messages
-    if (textContent === "(image attached)") textContent = "";
-    imageHtml = `<img src="${
-      escapeHtml(imagePath)
-    }" class="attachment-in-message" alt="Attached image" loading="lazy"/>`;
+  const parsedAttachments = extractLeadingUserAttachments(content);
+  let textContent = parsedAttachments.textContent;
+  if (
+    parsedAttachments.attachments.length > 0 &&
+    /^\((?:image|images|audio clip|audio clips|file|files|attachment|attachments) attached\)$/i
+      .test(
+        textContent,
+      )
+  ) {
+    textContent = "";
   }
+  const attachmentHtml = parsedAttachments.attachments.map((attachment, idx) =>
+    attachment.kind === "image"
+      ? `<img src="${
+        escapeHtml(attachment.path)
+      }" class="attachment-in-message" alt="Attached image ${
+        idx + 1
+      }" loading="lazy"/>`
+      : attachment.kind === "audio"
+      ? `<audio src="${
+        escapeHtml(attachment.path)
+      }" class="attachment-audio-in-message" controls preload="metadata"></audio>`
+      : `<a href="${
+        escapeHtml(attachment.path)
+      }" class="attachment-file-in-message" target="_blank" rel="noopener" download>
+        ${renderAttachmentFileIcon()}
+        <span class="attachment-file-name">${
+        escapeHtml(attachment.label || `Attachment ${idx + 1}`)
+      }</span>
+      </a>`
+  ).join("");
 
   const contentHtml = textContent ? renderMarkdown(textContent) : "";
 
@@ -2793,7 +2856,7 @@ export function renderUserMessage(
   </div>
   <div class="msg-content user-text" data-raw-content="${
     escapeHtml(content)
-  }">${imageHtml}${contentHtml}</div>
+  }">${attachmentHtml}${contentHtml}</div>
 </div>`;
 }
 
@@ -3025,8 +3088,8 @@ export function renderEmptyState(): string {
 export function renderInputArea(): string {
   return `<div class="input-area">
   <div class="input-container">
-    <label class="attach-btn" title="Attach image" style="position:relative;overflow:hidden;cursor:pointer;">
-      <input type="file" id="attach-input" accept="image/*" style="position:absolute;inset:0;opacity:0;cursor:pointer;" onchange="Psycheros.handleAttachment(this)" />
+    <label class="attach-btn" title="Attach files" style="position:relative;overflow:hidden;cursor:pointer;">
+      <input type="file" id="attach-input" accept="${CHAT_ATTACHMENT_ACCEPT}" multiple style="position:absolute;inset:0;opacity:0;cursor:pointer;" onchange="Psycheros.handleAttachment(this)" />
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
         <circle cx="8.5" cy="8.5" r="1.5"/>
@@ -11013,16 +11076,31 @@ export function renderVoiceCallView(
     <div class="voice-expression-stage" id="voice-expression-stage" aria-live="polite" hidden></div>
 
     <div class="voice-text-input-area" id="voice-text-input-area" style="display: none;">
-      <textarea
-        class="voice-text-input"
-        id="voice-text-input"
-        placeholder="Type a message..."
-        rows="2"
-        onkeydown="handleVoiceTextInputKey(event)"
-      ></textarea>
-      <button class="voice-btn voice-text-send-btn" id="voice-text-send-btn" onclick="sendVoiceTextInput()" aria-label="Send" title="Send">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
-      </button>
+      <div class="voice-text-input-row">
+        <label class="voice-btn voice-text-attach-btn" aria-label="Attach files" title="Attach files">
+          <input
+            type="file"
+            id="voice-text-attach-input"
+            accept="${CHAT_ATTACHMENT_ACCEPT}"
+            multiple
+            onchange="handleVoiceTextAttachment(this)"
+          />
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21.44 11.05 12.25 20.24a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+          </svg>
+        </label>
+        <textarea
+          class="voice-text-input"
+          id="voice-text-input"
+          placeholder="Type a message..."
+          rows="2"
+          onkeydown="handleVoiceTextInputKey(event)"
+        ></textarea>
+        <button class="voice-btn voice-text-send-btn" id="voice-text-send-btn" onclick="sendVoiceTextInput()" aria-label="Send" title="Send">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+        </button>
+      </div>
+      <div id="voice-text-attachment-preview" class="voice-text-attachment-preview" style="display:none;"></div>
     </div>
 
     <div class="voice-controls">

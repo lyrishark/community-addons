@@ -67,6 +67,7 @@ import {
   saveMemorySettings,
 } from "../memory/memory-settings.ts";
 import { join, toFileUrl } from "@std/path";
+import { extractText, resolveFileType } from "../vault/processor.ts";
 import { captionImageDual } from "../tools/describe-image.ts";
 import { generateThumbnail } from "../utils/thumbnail.ts";
 import {
@@ -386,8 +387,30 @@ const MIME_TYPES: Record<string, string> = {
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
   ".gif": "image/gif",
+  ".webp": "image/webp",
+  ".avif": "image/avif",
   ".svg": "image/svg+xml",
   ".ico": "image/x-icon",
+  ".txt": "text/plain; charset=utf-8",
+  ".md": "text/markdown; charset=utf-8",
+  ".csv": "text/csv; charset=utf-8",
+  ".pdf": "application/pdf",
+  ".docx":
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ".mp3": "audio/mpeg",
+  ".mp4": "audio/mp4",
+  ".mpeg": "audio/mpeg",
+  ".mpga": "audio/mpeg",
+  ".wav": "audio/wav",
+  ".flac": "audio/flac",
+  ".m4a": "audio/mp4",
+  ".aac": "audio/aac",
+  ".aif": "audio/aiff",
+  ".aiff": "audio/aiff",
+  ".ogg": "audio/ogg",
+  ".opus": "audio/opus",
+  ".webm": "audio/webm",
   ".woff": "font/woff",
   ".woff2": "font/woff2",
   ".ttf": "font/ttf",
@@ -413,6 +436,79 @@ const JSON_HEADERS = {
  * Maximum file size for background uploads (5MB).
  */
 const MAX_BACKGROUND_SIZE = 5 * 1024 * 1024;
+
+const CHAT_ATTACHMENT_MAX_SIZE = 512 * 1024 * 1024;
+const CHAT_ATTACHMENT_EXTRACT_LIMIT = 24_000;
+
+const CHAT_ATTACHMENT_IMAGE_EXTENSIONS = new Set([
+  "png",
+  "jpg",
+  "jpeg",
+  "gif",
+  "webp",
+  "avif",
+  "svg",
+]);
+const CHAT_ATTACHMENT_FILE_EXTENSIONS = new Set([
+  "txt",
+  "md",
+  "csv",
+  "json",
+  "pdf",
+  "docx",
+  "xlsx",
+]);
+const CHAT_ATTACHMENT_AUDIO_EXTENSIONS = new Set([
+  "mp3",
+  "mp4",
+  "mpeg",
+  "mpga",
+  "wav",
+  "flac",
+  "m4a",
+  "aac",
+  "aif",
+  "aiff",
+  "ogg",
+  "opus",
+  "webm",
+]);
+const CHAT_ATTACHMENT_ALLOWED_EXTENSIONS = new Set([
+  ...CHAT_ATTACHMENT_IMAGE_EXTENSIONS,
+  ...CHAT_ATTACHMENT_AUDIO_EXTENSIONS,
+  ...CHAT_ATTACHMENT_FILE_EXTENSIONS,
+]);
+const CHAT_ATTACHMENT_TEXT_EXTENSIONS = new Set(["txt", "md", "csv", "json"]);
+const CHAT_ATTACHMENT_MIME_TO_EXTENSION: Record<string, string> = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/gif": "gif",
+  "image/webp": "webp",
+  "image/avif": "avif",
+  "image/svg+xml": "svg",
+  "text/plain": "txt",
+  "text/markdown": "md",
+  "text/csv": "csv",
+  "application/json": "json",
+  "application/pdf": "pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+    "docx",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
+  "audio/mpeg": "mp3",
+  "audio/mp3": "mp3",
+  "audio/mp4": "mp4",
+  "audio/mpga": "mpga",
+  "audio/wav": "wav",
+  "audio/x-wav": "wav",
+  "audio/flac": "flac",
+  "audio/x-m4a": "m4a",
+  "audio/aac": "aac",
+  "audio/aiff": "aiff",
+  "audio/x-aiff": "aiff",
+  "audio/ogg": "ogg",
+  "audio/opus": "opus",
+  "audio/webm": "webm",
+};
 
 /**
  * Get MIME type for a file path.
@@ -1496,6 +1592,7 @@ interface ChatRequestBody {
   conversationId: string;
   message: string;
   attachmentId?: string;
+  attachmentIds?: string[];
   visionImages?: unknown;
   deviceType?: "desktop" | "mobile";
 }
@@ -1546,6 +1643,256 @@ function parseTransientVisionImages(input: unknown): ChatImageUrlPart[] {
     }
     return image;
   });
+}
+
+type ChatAttachmentKind = "image" | "audio" | "file";
+
+function getExtensionFromName(name: string): string {
+  const ext = name.split(".").pop()?.toLowerCase() ?? "";
+  return ext.replace(/[^a-z0-9]/g, "");
+}
+
+function resolveChatAttachmentExtension(file: File): string | null {
+  const nameExt = getExtensionFromName(file.name);
+  if (nameExt && CHAT_ATTACHMENT_ALLOWED_EXTENSIONS.has(nameExt)) {
+    return nameExt;
+  }
+
+  const mimeExt = CHAT_ATTACHMENT_MIME_TO_EXTENSION[file.type];
+  if (mimeExt && CHAT_ATTACHMENT_ALLOWED_EXTENSIONS.has(mimeExt)) {
+    return mimeExt;
+  }
+
+  return null;
+}
+
+function getChatAttachmentKind(filename: string): ChatAttachmentKind {
+  const ext = getExtensionFromName(filename);
+  if (CHAT_ATTACHMENT_IMAGE_EXTENSIONS.has(ext)) return "image";
+  if (CHAT_ATTACHMENT_AUDIO_EXTENSIONS.has(ext)) return "audio";
+  return "file";
+}
+
+function canCaptionChatImage(filename: string): boolean {
+  const ext = getExtensionFromName(filename);
+  return ext === "png" || ext === "jpg" || ext === "jpeg" || ext === "webp";
+}
+
+function sanitizeAttachmentFilenamePart(name: string): string {
+  const stem = name.replace(/\.[^.]*$/, "");
+  const safe = stem
+    .replace(/[^a-zA-Z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+  return safe || "attachment";
+}
+
+function sanitizeAttachmentMarkerValue(value: string): string {
+  return value.replace(/[\]\r\n|]+/g, " ").replace(/\s+/g, " ").trim()
+    .slice(0, 240);
+}
+
+function isSafeChatAttachmentName(name: string): boolean {
+  return /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(name) &&
+    !name.includes("..") && !name.includes("/") && !name.includes("\\");
+}
+
+function normalizeChatAttachmentIdList(ids: string[]): string[] {
+  const normalized: string[] = [];
+  const seen = new Set<string>();
+  for (const rawId of ids) {
+    const id = rawId.trim();
+    if (!id || seen.has(id)) continue;
+    if (!/^[a-zA-Z0-9._-]+$/.test(id) || id.includes("..")) continue;
+    seen.add(id);
+    normalized.push(id);
+  }
+  return normalized.slice(0, 10);
+}
+
+function normalizeChatAttachmentIds(body: ChatRequestBody): string[] {
+  return normalizeChatAttachmentIdList([
+    ...(body.attachmentId ? [body.attachmentId] : []),
+    ...(Array.isArray(body.attachmentIds) ? body.attachmentIds : []),
+  ]);
+}
+
+async function resolveChatAttachmentFilename(
+  ctx: RouteContext,
+  attachmentId: string,
+): Promise<string | null> {
+  const attachDir = `${ctx.dataRoot}/.psycheros/chat-attachments`;
+  if (isSafeChatAttachmentName(attachmentId) && attachmentId.includes(".")) {
+    try {
+      await Deno.stat(join(attachDir, attachmentId));
+      return attachmentId;
+    } catch {
+      // Fall through to id-prefix lookup.
+    }
+  }
+
+  try {
+    for await (const entry of Deno.readDir(attachDir)) {
+      if (!entry.isFile || !isSafeChatAttachmentName(entry.name)) continue;
+      if (
+        entry.name.startsWith(`${attachmentId}.`) ||
+        entry.name.startsWith(`${attachmentId}-`)
+      ) {
+        return entry.name;
+      }
+    }
+  } catch {
+    // Directory may not exist yet.
+  }
+
+  return null;
+}
+
+function truncateExtractedAttachmentText(text: string): string {
+  if (text.length <= CHAT_ATTACHMENT_EXTRACT_LIMIT) return text;
+  return text.slice(0, CHAT_ATTACHMENT_EXTRACT_LIMIT) +
+    "\n\n[Attachment text truncated.]";
+}
+
+async function extractChatAttachmentText(
+  attachmentPath: string,
+  filename: string,
+  mimeType: string,
+): Promise<string> {
+  try {
+    const ext = getExtensionFromName(filename);
+    if (CHAT_ATTACHMENT_TEXT_EXTENSIONS.has(ext)) {
+      return truncateExtractedAttachmentText(
+        await Deno.readTextFile(attachmentPath),
+      );
+    }
+
+    const vaultType = resolveFileType(filename, mimeType);
+    if (vaultType) {
+      return truncateExtractedAttachmentText(
+        await extractText(attachmentPath, vaultType),
+      );
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return `[Attachment text could not be extracted: ${message}]`;
+  }
+
+  return "";
+}
+
+async function buildUserImageMarker(
+  ctx: RouteContext,
+  attachmentFilename: string,
+  idx: number,
+): Promise<string> {
+  const imagePath = `/chat-attachments/${attachmentFilename}`;
+  const captioningSettings = ctx.getImageGenSettings().captioning;
+  if (captioningSettings?.enabled && canCaptionChatImage(attachmentFilename)) {
+    try {
+      const attachmentPath =
+        `${ctx.dataRoot}/.psycheros/chat-attachments/${attachmentFilename}`;
+      const fileData = await Deno.readFile(attachmentPath);
+      const base64 = uint8ToBase64(fileData);
+      const mediaType = getImageMediaType(attachmentFilename);
+      const caption = await captionImageDual(
+        base64,
+        mediaType,
+        captioningSettings,
+      );
+      return `[USER_IMAGE: ${imagePath} | Image ${idx + 1} | Caption: ${
+        sanitizeAttachmentMarkerValue(caption.long)
+      } | Short: ${sanitizeAttachmentMarkerValue(caption.short)}]`;
+    } catch (captionError) {
+      console.error(
+        "[Chat] Auto-captioning failed, falling back to path-only:",
+        captionError,
+      );
+    }
+  }
+
+  return `[USER_IMAGE: ${imagePath} | Image ${idx + 1}]`;
+}
+
+async function buildUserFileMarker(
+  ctx: RouteContext,
+  attachmentFilename: string,
+  idx: number,
+): Promise<string> {
+  const filePath = `/chat-attachments/${attachmentFilename}`;
+  const attachmentPath =
+    `${ctx.dataRoot}/.psycheros/chat-attachments/${attachmentFilename}`;
+  let size = 0;
+  try {
+    size = (await Deno.stat(attachmentPath)).size;
+  } catch {
+    // Size is only metadata for the marker.
+  }
+  const mimeType = getMimeType(attachmentFilename);
+  const displayName = attachmentFilename.replace(
+    /^[0-9a-fA-F-]{36}[-.]?/,
+    "",
+  );
+  const extracted = await extractChatAttachmentText(
+    attachmentPath,
+    attachmentFilename,
+    mimeType,
+  ).then((text) => text.replace(/\[\/USER_FILE\]/gi, "[/USER FILE]"));
+  const marker = `[USER_FILE: ${filePath} | File ${idx + 1} | Name: ${
+    sanitizeAttachmentMarkerValue(displayName || attachmentFilename)
+  } | Type: ${sanitizeAttachmentMarkerValue(mimeType)} | Size: ${size} bytes]`;
+  return extracted.trim()
+    ? `${marker}\n${extracted.trim()}\n[/USER_FILE]`
+    : `${marker}\n[/USER_FILE]`;
+}
+
+async function buildUserAudioMarker(
+  ctx: RouteContext,
+  attachmentFilename: string,
+  idx: number,
+): Promise<string> {
+  const audioPath = `/chat-attachments/${attachmentFilename}`;
+  const attachmentPath =
+    `${ctx.dataRoot}/.psycheros/chat-attachments/${attachmentFilename}`;
+  let size = 0;
+  try {
+    size = (await Deno.stat(attachmentPath)).size;
+  } catch {
+    // Size is only metadata for the marker.
+  }
+  const displayName = attachmentFilename.replace(
+    /^[0-9a-fA-F-]{36}[-.]?/,
+    "",
+  );
+  return `[USER_AUDIO: ${audioPath} | Audio ${idx + 1} | Name: ${
+    sanitizeAttachmentMarkerValue(displayName || attachmentFilename)
+  } | Type: ${
+    sanitizeAttachmentMarkerValue(getMimeType(attachmentFilename))
+  } | Size: ${size} bytes]`;
+}
+
+async function buildUserAttachmentMarkers(
+  ctx: RouteContext,
+  attachmentIds: string[],
+): Promise<string[]> {
+  const markers: string[] = [];
+  const normalizedIds = normalizeChatAttachmentIdList(attachmentIds);
+  for (let idx = 0; idx < normalizedIds.length; idx++) {
+    const attachmentFilename = await resolveChatAttachmentFilename(
+      ctx,
+      normalizedIds[idx],
+    );
+    if (!attachmentFilename) continue;
+    const kind = getChatAttachmentKind(attachmentFilename);
+    if (kind === "image") {
+      markers.push(await buildUserImageMarker(ctx, attachmentFilename, idx));
+    } else if (kind === "audio") {
+      markers.push(await buildUserAudioMarker(ctx, attachmentFilename, idx));
+    } else {
+      markers.push(await buildUserFileMarker(ctx, attachmentFilename, idx));
+    }
+  }
+  return markers;
 }
 
 /**
@@ -1659,6 +2006,19 @@ export async function handleChat(
       throw new Error("Missing or invalid message");
     }
     visionImages = parseTransientVisionImages(body.visionImages);
+    if (
+      body.attachmentId !== undefined &&
+      typeof body.attachmentId !== "string"
+    ) {
+      throw new Error("Invalid attachmentId");
+    }
+    if (
+      body.attachmentIds !== undefined &&
+      (!Array.isArray(body.attachmentIds) ||
+        body.attachmentIds.some((id) => typeof id !== "string"))
+    ) {
+      throw new Error("Invalid attachmentIds");
+    }
   } catch (error) {
     console.error("[Routes] handleChat parse error:", error);
     return new Response(
@@ -1723,47 +2083,13 @@ export async function handleChat(
       }, 15_000);
 
       try {
-        // Prefix user message with attachment reference if provided
+        // Prefix user message with attachment references if provided.
         let userMessage = body.message;
-        if (body.attachmentId) {
-          // Resolve the actual filename (attachment is saved as {uuid}.{ext} but we only have the UUID)
-          let attachmentFilename = body.attachmentId;
-          try {
-            const attachDir = `${ctx.dataRoot}/.psycheros/chat-attachments`;
-            for await (const entry of Deno.readDir(attachDir)) {
-              if (entry.name.startsWith(body.attachmentId)) {
-                attachmentFilename = entry.name;
-                break;
-              }
-            }
-          } catch { /* dir may not exist yet */ }
-
-          const captioningSettings = ctx.getImageGenSettings().captioning;
-          if (captioningSettings?.enabled) {
-            try {
-              const attachmentPath =
-                `${ctx.dataRoot}/.psycheros/chat-attachments/${attachmentFilename}`;
-              const fileData = await Deno.readFile(attachmentPath);
-              const base64 = uint8ToBase64(fileData);
-              const mediaType = getImageMediaType(attachmentFilename);
-              const caption = await captionImageDual(
-                base64,
-                mediaType,
-                captioningSettings,
-              );
-              userMessage =
-                `[USER_IMAGE: /chat-attachments/${attachmentFilename} | Caption: ${caption.long} | Short: ${caption.short}] ${body.message}`;
-            } catch (captionError) {
-              console.error(
-                "[Chat] Auto-captioning failed, falling back to path-only:",
-                captionError,
-              );
-              userMessage =
-                `[USER_IMAGE: /chat-attachments/${attachmentFilename}] ${body.message}`;
-            }
-          } else {
-            userMessage =
-              `[USER_IMAGE: /chat-attachments/${attachmentFilename}] ${body.message}`;
+        const attachmentIds = normalizeChatAttachmentIds(body);
+        if (attachmentIds.length > 0) {
+          const markers = await buildUserAttachmentMarkers(ctx, attachmentIds);
+          if (markers.length > 0) {
+            userMessage = `${markers.join("\n")}\n${body.message}`;
           }
         }
 
@@ -8330,14 +8656,7 @@ export async function handleServeImageFile(
   const filePath = `${ctx.dataRoot}/.psycheros/${dirName}/${filename}`;
   try {
     const data = await Deno.readFile(filePath);
-    const ext = filename.split(".").pop()?.toLowerCase();
-    const mediaType = ext === "jpg" || ext === "jpeg"
-      ? "image/jpeg"
-      : ext === "webp"
-      ? "image/webp"
-      : ext === "gif"
-      ? "image/gif"
-      : "image/png";
+    const mediaType = getMimeType(filename);
 
     return new Response(data, {
       headers: {
@@ -8354,14 +8673,140 @@ export async function handleServeImageFile(
 // Chat Attachments API Routes
 // =============================================================================
 
+class ChatAttachmentTooLargeError extends Error {}
+
+async function writeAllToFile(
+  file: Deno.FsFile,
+  chunk: Uint8Array,
+): Promise<void> {
+  let offset = 0;
+  while (offset < chunk.length) {
+    const written = await file.write(chunk.subarray(offset));
+    if (written <= 0) throw new Error("Attachment upload write stalled");
+    offset += written;
+  }
+}
+
+async function handleRawChatAttachmentUpload(
+  ctx: RouteContext,
+  request: Request,
+  encodedName: string,
+): Promise<Response> {
+  let originalName: string;
+  try {
+    originalName = decodeURIComponent(encodedName).trim();
+  } catch {
+    originalName = "";
+  }
+  if (!originalName || originalName.length > 255) {
+    return new Response(JSON.stringify({ error: "Invalid attachment name" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  const declaredSize = Number(request.headers.get("content-length"));
+  if (
+    Number.isFinite(declaredSize) && declaredSize > CHAT_ATTACHMENT_MAX_SIZE
+  ) {
+    return new Response(
+      JSON.stringify({ error: "Attachment is larger than 512MB" }),
+      { status: 413, headers: { "Content-Type": "application/json" } },
+    );
+  }
+
+  const mimeType = (request.headers.get("content-type") ||
+    "application/octet-stream").split(";", 1)[0].trim().toLowerCase();
+  const ext = resolveChatAttachmentExtension(
+    new File([], originalName, { type: mimeType }),
+  );
+  if (!ext) {
+    return new Response(
+      JSON.stringify({
+        error:
+          "Unsupported attachment type. Use images, audio, text, Markdown, CSV, JSON, PDF, DOCX, or XLSX.",
+      }),
+      { status: 400, headers: { "Content-Type": "application/json" } },
+    );
+  }
+  if (!request.body) {
+    return new Response(JSON.stringify({ error: "No file provided" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  const id = crypto.randomUUID();
+  const safeName = sanitizeAttachmentFilenamePart(originalName);
+  const filename = `${id}-${safeName}.${ext}`;
+  const attachmentsDir = `${ctx.dataRoot}/.psycheros/chat-attachments`;
+  const tempPath = `${attachmentsDir}/.${id}.uploading`;
+  const finalPath = `${attachmentsDir}/${filename}`;
+  await Deno.mkdir(attachmentsDir, { recursive: true });
+
+  let size = 0;
+  let output: Deno.FsFile | undefined;
+  try {
+    output = await Deno.open(tempPath, { createNew: true, write: true });
+    for await (const chunk of request.body) {
+      size += chunk.byteLength;
+      if (size > CHAT_ATTACHMENT_MAX_SIZE) {
+        throw new ChatAttachmentTooLargeError();
+      }
+      await writeAllToFile(output, chunk);
+    }
+    output.close();
+    output = undefined;
+    await Deno.rename(tempPath, finalPath);
+  } catch (error) {
+    try {
+      output?.close();
+    } catch {
+      // Already closed.
+    }
+    try {
+      await Deno.remove(tempPath);
+    } catch {
+      // Nothing partial remains if creation failed before the temp file existed.
+    }
+    if (error instanceof ChatAttachmentTooLargeError) {
+      return new Response(
+        JSON.stringify({ error: "Attachment is larger than 512MB" }),
+        { status: 413, headers: { "Content-Type": "application/json" } },
+      );
+    }
+    throw error;
+  }
+
+  return new Response(
+    JSON.stringify({
+      id,
+      filename,
+      url: `/chat-attachments/${filename}`,
+      name: originalName,
+      type: mimeType !== "application/octet-stream"
+        ? mimeType
+        : getMimeType(filename),
+      size,
+      kind: getChatAttachmentKind(filename),
+    }),
+    { headers: { "Content-Type": "application/json" } },
+  );
+}
+
 /**
- * Handle POST /api/chat-attachments - Upload a chat attachment image.
+ * Handle POST /api/chat-attachments - Upload a chat attachment.
  */
 export async function handleUploadChatAttachment(
   ctx: RouteContext,
   request: Request,
 ): Promise<Response> {
   try {
+    const rawFilename = request.headers.get("x-psycheros-filename");
+    if (rawFilename !== null) {
+      return await handleRawChatAttachmentUpload(ctx, request, rawFilename);
+    }
+
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
 
@@ -8378,9 +8823,39 @@ export async function handleUploadChatAttachment(
       );
     }
 
+    if (file.size > CHAT_ATTACHMENT_MAX_SIZE) {
+      return new Response(
+        JSON.stringify({ error: "Attachment is larger than 512MB" }),
+        {
+          status: 413,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+          },
+        },
+      );
+    }
+
+    const ext = resolveChatAttachmentExtension(file);
+    if (!ext) {
+      return new Response(
+        JSON.stringify({
+          error:
+            "Unsupported attachment type. Use images, audio, text, Markdown, CSV, JSON, PDF, DOCX, or XLSX.",
+        }),
+        {
+          status: 400,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+          },
+        },
+      );
+    }
+
     const id = crypto.randomUUID();
-    const ext = file.name.split(".").pop() || "png";
-    const filename = `${id}.${ext}`;
+    const safeName = sanitizeAttachmentFilenamePart(file.name);
+    const filename = `${id}-${safeName}.${ext}`;
     const attachmentsDir = `${ctx.dataRoot}/.psycheros/chat-attachments`;
     await Deno.mkdir(attachmentsDir, { recursive: true });
 
@@ -8397,7 +8872,15 @@ export async function handleUploadChatAttachment(
     }
 
     return new Response(
-      JSON.stringify({ id, filename, url: `/chat-attachments/${filename}` }),
+      JSON.stringify({
+        id,
+        filename,
+        url: `/chat-attachments/${filename}`,
+        name: file.name,
+        type: file.type || getMimeType(filename),
+        size: file.size,
+        kind: getChatAttachmentKind(filename),
+      }),
       {
         headers: {
           "Content-Type": "application/json",
@@ -12537,6 +13020,16 @@ export function handleVoiceWebSocket(
       entityTurn,
       voiceSuffix,
       false,
+      async (text, attachmentIds) => {
+        const bodyText = text.trim() ||
+          (attachmentIds.length > 1
+            ? "(attachments attached)"
+            : "(attachment attached)");
+        const markers = await buildUserAttachmentMarkers(ctx, attachmentIds);
+        return markers.length > 0
+          ? `${markers.join("\n")}\n${bodyText}`
+          : bodyText;
+      },
     );
 
     if ("error" in result) {

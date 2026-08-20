@@ -1,7 +1,7 @@
 {
   "name": "psycheros-everything-together",
-  "version": "0.4.0-rc.2",
-  "description": "Psycheros 0.11 suite for expressions, screen presence, accessibility, Windows shell support, and HTF listening.",
+  "version": "0.4.0-rc.3",
+  "description": "Psycheros 0.11 suite for multi-attachments, expressions, screen presence, accessibility, Windows shell support, and HTF listening.",
   "kind": "psycheros-release-suite",
   "official": false,
   "requires": {
@@ -38,6 +38,7 @@
   },
   "suite": {
     "source_components": [
+      "psycheros-more-uploads@0.4.0-rc.1",
       "psycheros-expression-sprites-beta@0.4.0-rc.2",
       "psycheros-screen-presence-alpha@0.4.0-rc.2"
     ],
@@ -75,7 +76,10 @@
     "supersedes": [
       "psycheros-everything-together@0.2.0",
       "psycheros-everything-together@0.3.0-rc.1",
-      "psycheros-everything-together@0.3.0-rc.2"
+      "psycheros-everything-together@0.3.0-rc.2",
+      "psycheros-everything-together@0.4.0-rc.1",
+      "psycheros-everything-together@0.4.0-rc.2",
+      "psycheros-more-uploads@0.4.0-rc.1"
     ]
   },
   "files": [
@@ -94,6 +98,7 @@
     "packages/psycheros/src/expression/tracker.ts",
     "packages/psycheros/src/expression/types.ts",
     "packages/psycheros/src/pulse/engine.ts",
+    "packages/psycheros/src/server/chat-attachments.ts",
     "packages/psycheros/src/server/routes.ts",
     "packages/psycheros/src/server/screen-presence.ts",
     "packages/psycheros/src/server/server.ts",
@@ -101,6 +106,7 @@
     "packages/psycheros/src/types.ts",
     "packages/psycheros/src/voice/pipeline.ts",
     "packages/psycheros/src/voice/session-manager.ts",
+    "packages/psycheros/tests/chat_attachments_test.ts",
     "packages/psycheros/tests/expression_checkerboard_test.ts",
     "packages/psycheros/tests/expression_classifier_test.ts",
     "packages/psycheros/tests/expression_persistence_test.ts",
