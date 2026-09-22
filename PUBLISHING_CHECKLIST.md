@@ -63,7 +63,7 @@ Current independent Entity Core artifacts:
 - matching `.sha256` or checksum-list files
 
 Do not relabel a 0.10 source-overlay asset as compatible with 0.11. More Uploads
-0.4.0-rc.1 is a new bridge rebuilt against stock 0.11.3 after verifying that
+0.4.0-rc.2 is a new bridge rebuilt against stock 0.11.3 after verifying that
 upstream still lacks its multi-attachment behavior; its old assets stay attached
 to their existing tags. Any carried-forward source bridge must use an exact
 compatibility guard, pass its own tests, and receive a new release. The browser

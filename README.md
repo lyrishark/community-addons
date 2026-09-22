@@ -35,7 +35,7 @@ imply the version of Entity Core bundled with Psycheros.
 
 ## Historical releases
 
-More Uploads 0.4.0-rc.1 restores the multi-attachment behavior that stock
+More Uploads 0.4.0-rc.2 restores the multi-attachment behavior that stock
 Psycheros 0.11.3 does not yet provide. Its older 0.10 releases and the combined
 More Uploads + Voice Text Controls suite remain historical and must not be
 installed over 0.11. Older 0.8/0.9 source overlays likewise remain available
