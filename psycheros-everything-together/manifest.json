@@ -1,27 +1,27 @@
 {
   "name": "psycheros-everything-together",
-  "version": "0.4.0-rc.3",
+  "version": "0.4.0-rc.4",
   "description": "Psycheros 0.11 suite for multi-attachments, expressions, screen presence, accessibility, Windows shell support, and HTF listening.",
   "kind": "psycheros-release-suite",
   "official": false,
   "requires": {
-    "psycheros_version": "0.11.2",
+    "psycheros_version": "0.11.3",
     "compatible_psycheros_versions": [
-      "0.11.2"
+      "0.11.3"
     ]
   },
   "source_bridge": {
-    "base": "psycheros-v0.11.2",
+    "base": "psycheros-v0.11.3",
     "backup_package": ".",
     "stock_sha256": {
       "deno.lock": "088b25f524c8c544433a19176da6503da2a8a4298ee9a7dd876ed82a93bc3fc9",
-      "packages/psycheros/deno.json": "15c4df07cc56bb441d9ec1a6deb2924b94812104d6c4878c0d47cb928c0de566",
+      "packages/psycheros/deno.json": "b461e3cb249b1a7095c529edbd5e1b55d74e2e18ce0b20d0ab0eaee200d84691",
       "packages/psycheros/docs/ui-features.md": "e5d056babc5b7ebcf178ff3b93f04c4d02ae5602f3f36adaa61cf7c984f644a2",
-      "packages/psycheros/src/db/client.ts": "494dbdd3892ea802f35c3006c89c98a5d2555cb56500f37b5521f3e5a56dd618",
+      "packages/psycheros/src/db/client.ts": "5f7b436a614dbdea36ec0edcbe8ff84f3e9319a848b54115e82034d398c4f819",
       "packages/psycheros/src/db/schema.ts": "3d9770165453bb62bdefa29ca34c0049b71f5ee8ab58fb660017acf04ca0226b",
       "packages/psycheros/src/entity/loop.ts": "0eaa90155b4c09e0cefc58eea324e8ddae6a70af81edeba13a88afc692083d18",
       "packages/psycheros/src/entity/sa-formatters.ts": "10e71f53e1207df4daae8c3bf9a3d447834c3332655fcc6d390d3de8692c21af",
-      "packages/psycheros/src/pulse/engine.ts": "1ea93b0d360bee0a127f737dd0ab98f6638960049ad51c7804f0c5a0d2ab2c35",
+      "packages/psycheros/src/pulse/engine.ts": "08a134f9c41319f86e79a6e623e87646968dc45c852a78eede062eda60a44efc",
       "packages/psycheros/src/server/routes.ts": "18d6df2b59e0b2e72e1668d608b7cd9111596eed2107562d14e53917d6899db3",
       "packages/psycheros/src/server/server.ts": "af6711fca16eaad3caebe5c1a3380ccb461f34053159c0a5f4648981d86538bf",
       "packages/psycheros/src/server/templates.ts": "c452f06b95103b8abd223ab551adb9b66d9d2753d0a1adc489323465921dcd33",
@@ -38,31 +38,31 @@
   },
   "suite": {
     "source_components": [
-      "psycheros-more-uploads@0.4.0-rc.1",
-      "psycheros-expression-sprites-beta@0.4.0-rc.2",
-      "psycheros-screen-presence-alpha@0.4.0-rc.2"
+      "psycheros-more-uploads@0.4.0-rc.2",
+      "psycheros-expression-sprites-beta@0.4.0-rc.3",
+      "psycheros-screen-presence-alpha@0.4.0-rc.3"
     ],
     "manager_plugins": [
       {
         "id": "psycheros-accessibility-controls",
-        "version": "0.1.0-rc.2",
+        "version": "0.1.0-rc.3",
         "package_path": "psycheros-accessibility-controls",
-        "artifact": "psycheros-accessibility-controls-0.1.0-rc.2.zip",
-        "sha256": "b01e26e992188423a1cb960df8da38aab9625238dc5cfdefe2b093f030abf8f6"
+        "artifact": "psycheros-accessibility-controls-0.1.0-rc.3.zip",
+        "sha256": "158904bdbb6dcad521be1412bd9ecd3902b2482a5d88ff472e467cfb2367b9d7"
       },
       {
         "id": "psycheros-windows-shell-fix",
-        "version": "0.3.0-rc.2",
+        "version": "0.3.0-rc.3",
         "package_path": "psycheros-windows-shell-fix",
-        "artifact": "psycheros-windows-shell-fix-0.3.0-rc.2.zip",
-        "sha256": "dde1d5ec8ac193835907d117cafa7e5d20f457c312bc034e7d36665d614bb7db"
+        "artifact": "psycheros-windows-shell-fix-0.3.0-rc.3.zip",
+        "sha256": "44345bbf831db1175960b82f99de6bd7bdbdbb3fe83974cb269c9e94ddc60159"
       },
       {
         "id": "psycheros-htf-music-listener",
-        "version": "0.3.0-rc.2",
+        "version": "0.3.0-rc.3",
         "package_path": "psycheros-htf-music-listener",
-        "artifact": "psycheros-htf-music-listener-0.3.0-rc.2.zip",
-        "sha256": "a878a1f5e810e67c12627dcf28e929a529608092cc1a8e64c32e014a483cf50e"
+        "artifact": "psycheros-htf-music-listener-0.3.0-rc.3.zip",
+        "sha256": "9ec5bef76bd4e62ef7d32e5ba8f5d218e930235444b50014847c951e9b0dbcf1"
       }
     ]
   },
@@ -79,7 +79,8 @@
       "psycheros-everything-together@0.3.0-rc.2",
       "psycheros-everything-together@0.4.0-rc.1",
       "psycheros-everything-together@0.4.0-rc.2",
-      "psycheros-more-uploads@0.4.0-rc.1"
+      "psycheros-more-uploads@0.4.0-rc.1",
+      "psycheros-everything-together@0.4.0-rc.3"
     ]
   },
   "files": [

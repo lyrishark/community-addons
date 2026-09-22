@@ -4,7 +4,7 @@ Consent-based browser screen sharing for Psycheros text chat and voice.
 
 ## Compatibility
 
-Version 0.4.0-rc.2 is rebuilt and tested against stock Psycheros 0.11.2. It is a
+Version 0.4.0-rc.3 is rebuilt and tested against stock Psycheros 0.11.3. It is a
 guarded source bridge, not a manager plugin: Psycheros 0.11 still does not
 expose an asynchronous pre-turn freshness barrier, host vision captioning, or
 voice-turn screen-presence hooks to plugins.
@@ -41,7 +41,7 @@ macOS or Linux:
     ./install.sh "/path/to/Psycheros/source"
 
 The selected root must contain `packages/psycheros/deno.json` and report version
-0.11.2. Restart Psycheros after installation.
+0.11.3. Restart Psycheros after installation.
 
 ## Configure and verify
 

@@ -1,17 +1,17 @@
 {
   "name": "psycheros-more-uploads",
-  "version": "0.4.0-rc.1",
-  "description": "Guarded Psycheros 0.11.2 source bridge for multiple image, document, and audio attachments.",
+  "version": "0.4.0-rc.2",
+  "description": "Guarded Psycheros 0.11.3 source bridge for multiple image, document, and audio attachments.",
   "kind": "psycheros-source-bridge",
   "official": false,
   "requires": {
-    "psycheros_version": "0.11.2",
+    "psycheros_version": "0.11.3",
     "compatible_psycheros_versions": [
-      "0.11.2"
+      "0.11.3"
     ]
   },
   "source_bridge": {
-    "base": "psycheros-v0.11.2",
+    "base": "psycheros-v0.11.3",
     "backup_package": "packages/psycheros",
     "stock_sha256": {
       "packages/psycheros/src/server/routes.ts": "18d6df2b59e0b2e72e1668d608b7cd9111596eed2107562d14e53917d6899db3",

@@ -1,22 +1,22 @@
 {
   "name": "psycheros-screen-presence-alpha",
-  "version": "0.4.0-rc.2",
+  "version": "0.4.0-rc.3",
   "description": "Guarded Psycheros 0.11 source bridge for consent-based screen presence in chat and voice.",
   "kind": "psycheros-source-bridge",
   "official": false,
   "requires": {
-    "psycheros_version": "0.11.2",
+    "psycheros_version": "0.11.3",
     "compatible_psycheros_versions": [
-      "0.11.2"
+      "0.11.3"
     ]
   },
   "source_bridge": {
-    "base": "psycheros-v0.11.2",
+    "base": "psycheros-v0.11.3",
     "backup_package": "packages/psycheros",
     "stock_sha256": {
       "packages/psycheros/src/entity/loop.ts": "0eaa90155b4c09e0cefc58eea324e8ddae6a70af81edeba13a88afc692083d18",
       "packages/psycheros/src/entity/sa-formatters.ts": "10e71f53e1207df4daae8c3bf9a3d447834c3332655fcc6d390d3de8692c21af",
-      "packages/psycheros/src/pulse/engine.ts": "1ea93b0d360bee0a127f737dd0ab98f6638960049ad51c7804f0c5a0d2ab2c35",
+      "packages/psycheros/src/pulse/engine.ts": "08a134f9c41319f86e79a6e623e87646968dc45c852a78eede062eda60a44efc",
       "packages/psycheros/src/server/routes.ts": "18d6df2b59e0b2e72e1668d608b7cd9111596eed2107562d14e53917d6899db3",
       "packages/psycheros/src/server/server.ts": "af6711fca16eaad3caebe5c1a3380ccb461f34053159c0a5f4648981d86538bf",
       "packages/psycheros/src/server/templates.ts": "c452f06b95103b8abd223ab551adb9b66d9d2753d0a1adc489323465921dcd33",

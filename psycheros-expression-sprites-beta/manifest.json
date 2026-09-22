@@ -1,23 +1,23 @@
 {
   "name": "psycheros-expression-sprites-beta",
-  "version": "0.4.0-rc.2",
+  "version": "0.4.0-rc.3",
   "description": "Guarded Psycheros 0.11 source bridge for live expression state and user-supplied character sprites.",
   "kind": "psycheros-source-bridge",
   "official": false,
   "requires": {
-    "psycheros_version": "0.11.2",
+    "psycheros_version": "0.11.3",
     "compatible_psycheros_versions": [
-      "0.11.2"
+      "0.11.3"
     ]
   },
   "source_bridge": {
-    "base": "psycheros-v0.11.2",
+    "base": "psycheros-v0.11.3",
     "backup_package": ".",
     "stock_sha256": {
       "deno.lock": "088b25f524c8c544433a19176da6503da2a8a4298ee9a7dd876ed82a93bc3fc9",
-      "packages/psycheros/deno.json": "15c4df07cc56bb441d9ec1a6deb2924b94812104d6c4878c0d47cb928c0de566",
+      "packages/psycheros/deno.json": "b461e3cb249b1a7095c529edbd5e1b55d74e2e18ce0b20d0ab0eaee200d84691",
       "packages/psycheros/docs/ui-features.md": "e5d056babc5b7ebcf178ff3b93f04c4d02ae5602f3f36adaa61cf7c984f644a2",
-      "packages/psycheros/src/db/client.ts": "494dbdd3892ea802f35c3006c89c98a5d2555cb56500f37b5521f3e5a56dd618",
+      "packages/psycheros/src/db/client.ts": "5f7b436a614dbdea36ec0edcbe8ff84f3e9319a848b54115e82034d398c4f819",
       "packages/psycheros/src/db/schema.ts": "3d9770165453bb62bdefa29ca34c0049b71f5ee8ab58fb660017acf04ca0226b",
       "packages/psycheros/src/entity/loop.ts": "0eaa90155b4c09e0cefc58eea324e8ddae6a70af81edeba13a88afc692083d18",
       "packages/psycheros/src/server/routes.ts": "18d6df2b59e0b2e72e1668d608b7cd9111596eed2107562d14e53917d6899db3",

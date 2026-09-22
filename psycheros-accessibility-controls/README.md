@@ -1,8 +1,10 @@
 # Psycheros Accessibility Controls
 
+Release 0.1.0-rc.3: compatibility refresh for Psycheros 0.11.3. Existing settings and runtime asset pins are preserved.
+
 Manager-native accessibility controls for Psycheros 0.10 and 0.11.
 
-Version `0.1.0-rc.2` combines the useful parts of the historical Accessible Font
+Version `0.1.0-rc.3` combines the useful parts of the historical Accessible Font
 Settings and Voice Text Resize source packages without replacing any Psycheros
 files.
 

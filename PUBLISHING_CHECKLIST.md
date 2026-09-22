@@ -44,17 +44,17 @@ permissions and browser-store data disclosure forms.
 
 Current Psycheros 0.11 manager artifacts:
 
-- `psycheros-htf-music-listener-0.3.0-rc.2.zip`
-- `psycheros-accessibility-controls-0.1.0-rc.2.zip`
-- `psycheros-windows-shell-fix-0.3.0-rc.2.zip`
+- `psycheros-htf-music-listener-0.3.0-rc.3.zip`
+- `psycheros-accessibility-controls-0.1.0-rc.3.zip`
+- `psycheros-windows-shell-fix-0.3.0-rc.3.zip`
 
-Current exact-0.11.2 source bridges and release suite:
+Current exact-0.11.3 source bridges and release suite:
 
-- `psycheros-more-uploads-0.4.0-rc.1.zip`
-- `psycheros-expression-sprites-beta-0.4.0-rc.2.zip`
-- `psycheros-screen-presence-alpha-0.4.0-rc.2.zip`
-- `psycheros-loom-gemini-parser-mod-0.4.0-rc.2.zip`
-- `psycheros-everything-together-0.4.0-rc.2.zip`
+- `psycheros-more-uploads-0.4.0-rc.2.zip`
+- `psycheros-expression-sprites-beta-0.4.0-rc.3.zip`
+- `psycheros-screen-presence-alpha-0.4.0-rc.3.zip`
+- `psycheros-loom-gemini-parser-mod-0.4.0-rc.3.zip`
+- `psycheros-everything-together-0.4.0-rc.4.zip`
 
 Current independent Entity Core artifacts:
 
@@ -63,7 +63,7 @@ Current independent Entity Core artifacts:
 - matching `.sha256` or checksum-list files
 
 Do not relabel a 0.10 source-overlay asset as compatible with 0.11. More Uploads
-0.4.0-rc.1 is a new bridge rebuilt against stock 0.11.2 after verifying that
+0.4.0-rc.2 is a new bridge rebuilt against stock 0.11.3 after verifying that
 upstream still lacks its multi-attachment behavior; its old assets stay attached
 to their existing tags. Any carried-forward source bridge must use an exact
 compatibility guard, pass its own tests, and receive a new release. The browser
@@ -74,7 +74,7 @@ relabel their bundled runtime snapshots as a Psycheros host version.
 Generate checksums on Windows:
 
 ```powershell
-Get-FileHash .\psycheros-htf-music-listener-0.3.0-rc.2.zip -Algorithm SHA256
+Get-FileHash .\psycheros-htf-music-listener-0.3.0-rc.3.zip -Algorithm SHA256
 ```
 
 Before uploading, inspect the exact zip through Psycheros 0.11 Settings >
