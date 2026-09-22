@@ -2,8 +2,8 @@
 set -euo pipefail
 
 addon_id="psycheros-screen-presence-alpha"
-addon_version="0.4.0-rc.2"
-supported_version="0.11.2"
+addon_version="0.4.0-rc.3"
+supported_version="0.11.3"
 script_dir="$(cd -- "$(dirname -- "$0")" && pwd -P)"
 package_root="$(cd -- "$script_dir/.." && pwd -P)"
 files_root="$package_root/files"
@@ -36,13 +36,13 @@ stock_hash() {
   case "$1" in
     packages/psycheros/src/entity/loop.ts) printf '%s\n' "0eaa90155b4c09e0cefc58eea324e8ddae6a70af81edeba13a88afc692083d18" ;;
     packages/psycheros/src/entity/sa-formatters.ts) printf '%s\n' "10e71f53e1207df4daae8c3bf9a3d447834c3332655fcc6d390d3de8692c21af" ;;
-    packages/psycheros/src/pulse/engine.ts) printf '%s\n' "1ea93b0d360bee0a127f737dd0ab98f6638960049ad51c7804f0c5a0d2ab2c35" ;;
-    packages/psycheros/src/server/routes.ts) printf '%s\n' "56d3041a3f976a458b769146a69e9c32f46990e0ff01f0513b8bd66d2eaecf6f" ;;
-    packages/psycheros/src/server/server.ts) printf '%s\n' "99583a44fd6934effcde75a3918ce687d1671a9eac1eafe7d4b1d349598904e4" ;;
+    packages/psycheros/src/pulse/engine.ts) printf '%s\n' "08a134f9c41319f86e79a6e623e87646968dc45c852a78eede062eda60a44efc" ;;
+    packages/psycheros/src/server/routes.ts) printf '%s\n' "18d6df2b59e0b2e72e1668d608b7cd9111596eed2107562d14e53917d6899db3" ;;
+    packages/psycheros/src/server/server.ts) printf '%s\n' "af6711fca16eaad3caebe5c1a3380ccb461f34053159c0a5f4648981d86538bf" ;;
     packages/psycheros/src/server/templates.ts) printf '%s\n' "c452f06b95103b8abd223ab551adb9b66d9d2753d0a1adc489323465921dcd33" ;;
-    packages/psycheros/web/css/components.css) printf '%s\n' "3e42d925867b1068ded44b05f6841b20dd95a580556e5d2c3423ee9545e3744e" ;;
+    packages/psycheros/web/css/components.css) printf '%s\n' "27f96a5471a297ad128981cc0b61b2d7f6662afd9454097b3c01c93647825737" ;;
     packages/psycheros/web/css/voice.css) printf '%s\n' "988c920bda148e7aae631ab67a37bd6e64df4e383226c13fbbbb59a7412037d0" ;;
-    packages/psycheros/web/js/psycheros.js) printf '%s\n' "944acf307be66edde20f26bb825f297466588b05608d8a9aeed17bb1ada1a56a" ;;
+    packages/psycheros/web/js/psycheros.js) printf '%s\n' "b4ebbd75d15660eb2afb15e09e8351108969910541692100b91f978cfe61964e" ;;
     packages/psycheros/web/js/voice.js) printf '%s\n' "901aba21b8a47f576e6f51837dba01506b767db44ebb0187858278305665b95b" ;;
     *) return 1 ;;
   esac
@@ -104,7 +104,7 @@ done < <(find "$files_root" -type f -print | sort)
 
 marker_dir="$root/packages/psycheros/.addon-installs"
 mkdir -p -- "$marker_dir"
-printf '{"schema_version":1,"id":"%s","version":"%s","psycheros_version":"%s","base":"psycheros-v0.11.2","installed_at":"%s","backup":"%s"}\n' \
+printf '{"schema_version":1,"id":"%s","version":"%s","psycheros_version":"%s","base":"psycheros-v0.11.3","installed_at":"%s","backup":"%s"}\n' \
   "$addon_id" "$addon_version" "$version" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$backup_root" \
   > "$marker_dir/$addon_id.json"
 

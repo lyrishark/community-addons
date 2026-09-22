@@ -2,8 +2,8 @@
 set -euo pipefail
 
 addon_id="psycheros-everything-together"
-addon_version="0.4.0-rc.3"
-supported_version="0.11.2"
+addon_version="0.4.0-rc.4"
+supported_version="0.11.3"
 script_dir="$(cd -- "$(dirname -- "$0")" && pwd -P)"
 package_root="$(cd -- "$script_dir/.." && pwd -P)"
 files_root="$package_root/files"
@@ -35,13 +35,13 @@ normalized_hash() {
 stock_hash() {
   case "$1" in
     deno.lock) printf '%s\n' "088b25f524c8c544433a19176da6503da2a8a4298ee9a7dd876ed82a93bc3fc9" ;;
-    packages/psycheros/deno.json) printf '%s\n' "15c4df07cc56bb441d9ec1a6deb2924b94812104d6c4878c0d47cb928c0de566" ;;
+    packages/psycheros/deno.json) printf '%s\n' "b461e3cb249b1a7095c529edbd5e1b55d74e2e18ce0b20d0ab0eaee200d84691" ;;
     packages/psycheros/docs/ui-features.md) printf '%s\n' "e5d056babc5b7ebcf178ff3b93f04c4d02ae5602f3f36adaa61cf7c984f644a2" ;;
-    packages/psycheros/src/db/client.ts) printf '%s\n' "494dbdd3892ea802f35c3006c89c98a5d2555cb56500f37b5521f3e5a56dd618" ;;
+    packages/psycheros/src/db/client.ts) printf '%s\n' "5f7b436a614dbdea36ec0edcbe8ff84f3e9319a848b54115e82034d398c4f819" ;;
     packages/psycheros/src/db/schema.ts) printf '%s\n' "3d9770165453bb62bdefa29ca34c0049b71f5ee8ab58fb660017acf04ca0226b" ;;
     packages/psycheros/src/entity/loop.ts) printf '%s\n' "0eaa90155b4c09e0cefc58eea324e8ddae6a70af81edeba13a88afc692083d18" ;;
     packages/psycheros/src/entity/sa-formatters.ts) printf '%s\n' "10e71f53e1207df4daae8c3bf9a3d447834c3332655fcc6d390d3de8692c21af" ;;
-    packages/psycheros/src/pulse/engine.ts) printf '%s\n' "1ea93b0d360bee0a127f737dd0ab98f6638960049ad51c7804f0c5a0d2ab2c35" ;;
+    packages/psycheros/src/pulse/engine.ts) printf '%s\n' "08a134f9c41319f86e79a6e623e87646968dc45c852a78eede062eda60a44efc" ;;
     packages/psycheros/src/server/routes.ts) printf '%s\n' "18d6df2b59e0b2e72e1668d608b7cd9111596eed2107562d14e53917d6899db3" ;;
     packages/psycheros/src/server/server.ts) printf '%s\n' "af6711fca16eaad3caebe5c1a3380ccb461f34053159c0a5f4648981d86538bf" ;;
     packages/psycheros/src/server/templates.ts) printf '%s\n' "c452f06b95103b8abd223ab551adb9b66d9d2753d0a1adc489323465921dcd33" ;;
@@ -114,7 +114,7 @@ done < <(find "$files_root" -type f -print | sort)
 
 marker_dir="$root/.addon-installs"
 mkdir -p -- "$marker_dir"
-printf '{"schema_version":1,"id":"%s","version":"%s","psycheros_version":"%s","base":"psycheros-v0.11.2","installed_at":"%s","backup":"%s"}\n' \
+printf '{"schema_version":1,"id":"%s","version":"%s","psycheros_version":"%s","base":"psycheros-v0.11.3","installed_at":"%s","backup":"%s"}\n' \
   "$addon_id" "$addon_version" "$version" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$backup_root" \
   > "$marker_dir/$addon_id.json"
 

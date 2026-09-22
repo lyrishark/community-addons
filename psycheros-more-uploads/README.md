@@ -1,11 +1,11 @@
 # Psycheros More Uploads
 
-A guarded Psycheros 0.11.2 source bridge for multiple chat and Yin Yang typed
+A guarded Psycheros 0.11.3 source bridge for multiple chat and Yin Yang typed
 voice attachments.
 
 ## Compatibility
 
-Version 0.4.0-rc.1 is rebuilt and tested against stock Psycheros 0.11.2. It is
+Version 0.4.0-rc.2 is rebuilt and tested against stock Psycheros 0.11.3. It is
 not compatible with older or locally modified source trees.
 
 Psycheros 0.11 added native Discord media and a stock single-image chat path,
@@ -14,7 +14,7 @@ This bridge preserves those upstream media paths while restoring the missing
 multi-attachment state, request, persistence, and rendering seams. Those seams
 are not exposed through plugin API v2, so this remains a guarded source bridge.
 
-The installer verifies Psycheros 0.11.2 and the normalized SHA-256 of every
+The installer verifies Psycheros 0.11.3 and the normalized SHA-256 of every
 stock file it replaces before writing. It accepts pristine stock files or its
 own identical payload, creates timestamped backups, and refuses unknown local
 edits before changing anything.

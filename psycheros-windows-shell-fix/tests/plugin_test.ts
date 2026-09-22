@@ -9,7 +9,7 @@ import {
 Deno.test("manifest declares a Psycheros 0.10/0.11 API-v1 plugin", async () => {
   const manifest = JSON.parse(await Deno.readTextFile("plugin.json"));
   assertEquals(manifest.id, "psycheros-windows-shell-fix");
-  assertEquals(manifest.version, "0.3.0-rc.2");
+  assertEquals(manifest.version, "0.3.0-rc.3");
   assertEquals(manifest.apiVersion, 1);
   assertEquals(manifest.compatibility.psycheros, ">=0.10.0 <0.12.0");
   assertEquals(manifest.entrypoints.psycheros, "./psycheros.ts");

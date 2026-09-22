@@ -1,5 +1,7 @@
 # HTF Music Listener
 
+Release 0.3.0-rc.3: compatibility refresh for Psycheros 0.11.3. Existing settings and runtime asset pins are preserved.
+
 HTF Music Listener gives a Psycheros entity two related local music senses:
 
 1. **One-off listening:** attach a song and ask the entity to listen. The addon
@@ -107,7 +109,7 @@ and duration—not audio or local paths.
 
 ## Compatibility and installation
 
-Version 0.3.0-rc.2 supports Psycheros 0.10 and 0.11 and requires Launcher 0.2.45 or
+Version 0.3.0-rc.3 supports Psycheros 0.10 and 0.11 and requires Launcher 0.2.45 or
 newer. The plugin manager uses package path `psycheros-htf-music-listener` and the
 `psycheros-htf-music-listener-v*` release stream for compatible one-click updates.
 

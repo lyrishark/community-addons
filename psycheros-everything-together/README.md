@@ -6,8 +6,8 @@ three ordinary plugin-manager packages for public API-v1 features.
 
 ## Compatibility
 
-Version 0.4.0-rc.3 targets stock Psycheros 0.11.2 at upstream commit
-`a1561f515fcb01327c52589b90f65595e5a0d064`. The source bridge combines the
+Version 0.4.0-rc.4 targets stock Psycheros 0.11.3 at upstream commit
+`2bb9c9e751b2539aac20588d8a72f70a0c8d36d9`. The source bridge combines the
 overlapping host changes once, with exact-version and normalized-hash preflight,
 timestamped backups, and refusal of unknown local edits.
 
@@ -25,9 +25,9 @@ Source bridge:
 
 Plugin-manager ZIPs:
 
-- Accessibility Controls 0.1.0-rc.2.
-- Windows Shell Fix 0.3.0-rc.2.
-- HTF Music Listener 0.3.0-rc.2, including the cross-platform runtime selector.
+- Accessibility Controls 0.1.0-rc.3.
+- Windows Shell Fix 0.3.0-rc.3.
+- HTF Music Listener 0.3.0-rc.3, including the cross-platform runtime selector.
 
 This release restores the revived More Uploads bridge inside the combined
 source payload. Do not install the standalone More Uploads, Expression Sprites,
