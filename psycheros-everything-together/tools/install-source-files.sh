@@ -34,24 +34,24 @@ normalized_hash() {
 
 stock_hash() {
   case "$1" in
-    deno.lock) printf '%s\n' "088b25f524c8c544433a19176da6503da2a8a4298ee9a7dd876ed82a93bc3fc9" ;;
-    packages/psycheros/deno.json) printf '%s\n' "b461e3cb249b1a7095c529edbd5e1b55d74e2e18ce0b20d0ab0eaee200d84691" ;;
-    packages/psycheros/docs/ui-features.md) printf '%s\n' "e5d056babc5b7ebcf178ff3b93f04c4d02ae5602f3f36adaa61cf7c984f644a2" ;;
-    packages/psycheros/src/db/client.ts) printf '%s\n' "5f7b436a614dbdea36ec0edcbe8ff84f3e9319a848b54115e82034d398c4f819" ;;
-    packages/psycheros/src/db/schema.ts) printf '%s\n' "3d9770165453bb62bdefa29ca34c0049b71f5ee8ab58fb660017acf04ca0226b" ;;
-    packages/psycheros/src/entity/loop.ts) printf '%s\n' "0eaa90155b4c09e0cefc58eea324e8ddae6a70af81edeba13a88afc692083d18" ;;
+    deno.lock) printf '%s\n' "15e0dfc57198e271bfcabfd0824536e0b9fd598608c4203f7d8e730918bf0a6b" ;;
+    packages/psycheros/deno.json) printf '%s\n' "11e5c6733791b72999f0178a2224bc27fd90f13b4b5440102656be2364bacc02" ;;
+    packages/psycheros/docs/ui-features.md) printf '%s\n' "4fb33d503a9c0fef98de5ca3c38899c20b1be1626a6a71c3017b589df071581d" ;;
+    packages/psycheros/src/db/client.ts) printf '%s\n' "0814adedae6db775354b7eee6281e3a5453c674d4db2ca7582a36ec76de0bbda" ;;
+    packages/psycheros/src/db/schema.ts) printf '%s\n' "0cf417b01ed6b096cbde66d16d92e521df01d5463a8f2b2bda55b8b9541be4e7" ;;
+    packages/psycheros/src/entity/loop.ts) printf '%s\n' "4e6d86f50a3d5141dea5169234b9fc576457e9138f554da5db0e9ea89a91169a" ;;
     packages/psycheros/src/entity/sa-formatters.ts) printf '%s\n' "10e71f53e1207df4daae8c3bf9a3d447834c3332655fcc6d390d3de8692c21af" ;;
-    packages/psycheros/src/pulse/engine.ts) printf '%s\n' "08a134f9c41319f86e79a6e623e87646968dc45c852a78eede062eda60a44efc" ;;
-    packages/psycheros/src/server/routes.ts) printf '%s\n' "18d6df2b59e0b2e72e1668d608b7cd9111596eed2107562d14e53917d6899db3" ;;
-    packages/psycheros/src/server/server.ts) printf '%s\n' "af6711fca16eaad3caebe5c1a3380ccb461f34053159c0a5f4648981d86538bf" ;;
-    packages/psycheros/src/server/templates.ts) printf '%s\n' "c452f06b95103b8abd223ab551adb9b66d9d2753d0a1adc489323465921dcd33" ;;
-    packages/psycheros/src/types.ts) printf '%s\n' "d17ffcc115079e2dabe88a8decc3c286a790e08a91e44da4a56a39575a2f1f18" ;;
-    packages/psycheros/src/voice/pipeline.ts) printf '%s\n' "e3707bb65b8cd7855ff0bd19ee1b20e862becf947d9c7c7c8956bb89707e5667" ;;
-    packages/psycheros/src/voice/session-manager.ts) printf '%s\n' "911e2495c0b8fcb492fb3c0cc0f1c37c3f50764f958e7a4158c0c6a89e8a338a" ;;
-    packages/psycheros/web/css/components.css) printf '%s\n' "27f96a5471a297ad128981cc0b61b2d7f6662afd9454097b3c01c93647825737" ;;
-    packages/psycheros/web/css/voice.css) printf '%s\n' "988c920bda148e7aae631ab67a37bd6e64df4e383226c13fbbbb59a7412037d0" ;;
-    packages/psycheros/web/js/psycheros.js) printf '%s\n' "b4ebbd75d15660eb2afb15e09e8351108969910541692100b91f978cfe61964e" ;;
-    packages/psycheros/web/js/voice.js) printf '%s\n' "901aba21b8a47f576e6f51837dba01506b767db44ebb0187858278305665b95b" ;;
+    packages/psycheros/src/pulse/engine.ts) printf '%s\n' "1d3b86fbc57657ccef714ae87837d459c4b7caa29bb4425edb0cab2df76cc139" ;;
+    packages/psycheros/src/server/routes.ts) printf '%s\n' "890466d1fa8b36f6d85bffd0fb03613b0f1677079ff690c2aec3890c994409e2" ;;
+    packages/psycheros/src/server/server.ts) printf '%s\n' "18a19dbc1170eb5bf5a7fd66cf8f271ed32f77b2d36e73e8eaf8a6674b03b285" ;;
+    packages/psycheros/src/server/templates.ts) printf '%s\n' "adcc93a863a98a7f0b830b1a99100d9d94b0247b48bddd88e4ea172e207e30b3" ;;
+    packages/psycheros/src/types.ts) printf '%s\n' "20ea60b02c0ec1e7e4eb4ac6085f697d00a9eaa9029706c254204017bd964cc9" ;;
+    packages/psycheros/src/voice/pipeline.ts) printf '%s\n' "cac722dad634b7890438b99f0cffdb90653e287475914d0f574fe4144990523d" ;;
+    packages/psycheros/src/voice/session-manager.ts) printf '%s\n' "967ebd80900a3f16db0255831ffb618ea4c4dab73752b3d67afdacd6dc286d5a" ;;
+    packages/psycheros/web/css/components.css) printf '%s\n' "db1a95867750f66aa4699c466d6fc1a59380192268caa790d1c728ac597081df" ;;
+    packages/psycheros/web/css/voice.css) printf '%s\n' "294319beb1cb7cf603b12d6d394cddc736f9a7ca51d5c4bde67c0000ab9d8208" ;;
+    packages/psycheros/web/js/psycheros.js) printf '%s\n' "5df293f4a3364143d581b4c75389eececcea4b510e4be58cbca1ff131acf66c2" ;;
+    packages/psycheros/web/js/voice.js) printf '%s\n' "a66dadbc53a010adc65e55b94e692a8c7994e0c1cf75803c228983cffbc3086c" ;;
     packages/psycheros/web/sw.js) printf '%s\n' "1c6bf021d733f6d3abd7a8620d3f186b16ecfa51ee0779aadac9d63cb229840f" ;;
     site/src/content/docs/psycheros/ui-features.md) printf '%s\n' "552be1a3a3309344bd7a50247b5d0324372c0a9b3ce0f3cae4ae8160e1853250" ;;
     *) return 1 ;;
