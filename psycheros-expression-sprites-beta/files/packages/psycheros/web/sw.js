@@ -12,7 +12,7 @@
 // on upgrade. Local file load (without going through the server route) will
 // see the literal placeholder, which is harmless — the SW still functions.
 const CACHE_NAME =
-  "psycheros-offline-__VERSION__-expression-sprites-beta-0-2-0";
+  "psycheros-offline-__VERSION__-expression-sprites-beta-0-5-0-rc-1";
 const STATIC_ASSETS = [
   "/css/main.css",
   "/js/psycheros.js",

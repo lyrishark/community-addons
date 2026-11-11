@@ -1,9 +1,9 @@
 # Psycheros Windows Shell Fix
 
-Release 0.3.0-rc.3: compatibility refresh for Psycheros 0.11.3. Existing settings and runtime asset pins are preserved.
+Release 0.3.0-rc.4: compatibility refresh for Psycheros 1.0.2. Existing behavior is preserved.
 
 A trusted API-v1 plugin that makes Psycheros's existing shell tool use the host
-platform shell. It fixes stock Psycheros 0.10 and 0.11 failures on Windows
+platform shell. It fixes stock Psycheros 0.10 through 1.x failures on Windows
 systems without sh:
 
     Failed to spawn sh: entity not found
@@ -12,12 +12,12 @@ It does not replace Psycheros source files.
 
 ## Compatibility
 
-Version 0.3.0-rc.3 supports Psycheros 0.10 and 0.11. The historical 0.1.x and
+Version 0.3.0-rc.4 supports Psycheros `>=0.10.0 <2.0.0`. The historical 0.1.x and
 0.2.0 source overlays remain attached to their original releases.
 
 ## Install
 
-1. Download psycheros-windows-shell-fix-0.3.0-rc.3.zip from GitHub Releases.
+1. Download psycheros-windows-shell-fix-0.3.0-rc.4.zip from GitHub Releases.
 2. Open **Settings > Plugins** in Psycheros.
 3. Preview the ZIP, review its trusted entrypoint and warnings, and install it.
 4. Restart Psycheros when prompted and leave the plugin enabled.

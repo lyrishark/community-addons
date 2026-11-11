@@ -1,25 +1,25 @@
 {
   "name": "psycheros-loom-gemini-parser-mod",
-  "version": "0.4.0-rc.3",
-  "description": "Guarded Entity Loom 0.4 source bridge for merged Gemini exports from Psycheros Thread Exporter.",
+  "version": "0.5.0-rc.1",
+  "description": "Guarded Psycheros 1.0.2 Entity Loom source bridge for merged Gemini exports from Psycheros Thread Exporter.",
   "kind": "psycheros-entity-loom-source-bridge",
   "official": false,
   "requires": {
-    "psycheros_version": "0.11.3",
+    "psycheros_version": "1.0.2",
     "compatible_psycheros_versions": [
-      "0.11.3"
+      "1.0.2"
     ],
     "psycheros_package": "packages/entity-loom",
     "browser_thread_exporter": "0.3.2+"
   },
   "source_bridge": {
-    "base": "psycheros-v0.11.3",
+    "base": "psycheros-v1.0.2",
     "backup_package": "packages/entity-loom",
     "stock_sha256": {
       "packages/entity-loom/src/parsers/mod.ts": "9b2a60789977be978f0fab77abe244e6572d4eb1c21c58be1491da70e7c1ec05",
       "packages/entity-loom/src/parsers/registry.ts": "371125230eaa15fe8a771f428cced6bdfcb8219b07eb1e07664ab2b0f0dfbfa2",
       "packages/entity-loom/src/types.ts": "d3358c5dcbe34386cf4a55241fba09bc4301829f2c960ea59ecc24ed48aa6d87",
-      "packages/entity-loom/web/wizard.html": "cc087962cb0a57fd799455b368323160f19f3b9f26961e05fde5b48294f0a637"
+      "packages/entity-loom/web/wizard.html": "36434de308c0bd7596e976c2cb7b6d58b57fec037b81de91fc58a31cba76e23f"
     }
   },
   "files": [

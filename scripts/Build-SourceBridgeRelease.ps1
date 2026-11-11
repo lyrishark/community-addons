@@ -80,6 +80,23 @@ foreach ($relative in $stockPaths) {
     }
 }
 
+# POSIX installers cannot assume jq is installed, so their guarded stock-hash
+# table is intentionally embedded. Keep that table provably synchronized with
+# manifest.json instead of discovering drift only on Linux CI or an end-user
+# machine.
+$shellInstallerPath = Join-Path $packageRoot "tools/install-source-files.sh"
+if (Test-Path -LiteralPath $shellInstallerPath -PathType Leaf) {
+    $shellInstaller = Get-Content -LiteralPath $shellInstallerPath -Raw
+    foreach ($property in $manifest.source_bridge.stock_sha256.PSObject.Properties) {
+        $relative = ([string]$property.Name).Replace('\', '/')
+        $hash = ([string]$property.Value).ToLowerInvariant()
+        $expectedFragment = "$relative) printf '%s\n' `"$hash`" ;;"
+        if (-not $shellInstaller.Contains($expectedFragment)) {
+            throw "Shell installer stock hash is missing or stale: $relative"
+        }
+    }
+}
+
 if (-not $OutputDirectory) {
     $OutputDirectory = Join-Path $communityRoot "dist"
 }

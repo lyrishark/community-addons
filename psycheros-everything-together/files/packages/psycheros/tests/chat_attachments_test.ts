@@ -9,12 +9,6 @@ import { extractLeadingUserAttachments } from "../src/server/chat-attachments.ts
 import { handleUploadChatAttachment } from "../src/server/routes.ts";
 import { renderUserMessage } from "../src/server/templates.ts";
 
-const PSYCHEROS_PACKAGE = new URL("../", import.meta.url);
-
-function packageFile(relativePath: string): URL {
-  return new URL(relativePath, PSYCHEROS_PACKAGE);
-}
-
 Deno.test("raw music uploads stream to disk and retain audio metadata", async () => {
   const dataRoot = await Deno.makeTempDir();
   try {
@@ -96,11 +90,9 @@ Deno.test("renderUserMessage renders mixed attachments and hides marker payload"
 });
 
 Deno.test("main chat composer supports images, documents, and music uploads", async () => {
-  const js = await Deno.readTextFile(packageFile("web/js/psycheros.js"));
-  const templates = await Deno.readTextFile(
-    packageFile("src/server/templates.ts"),
-  );
-  const routes = await Deno.readTextFile(packageFile("src/server/routes.ts"));
+  const js = await Deno.readTextFile("web/js/psycheros.js");
+  const templates = await Deno.readTextFile("src/server/templates.ts");
+  const routes = await Deno.readTextFile("src/server/routes.ts");
 
   assertStringIncludes(js, "let pendingAttachments = []");
   assertStringIncludes(js, "attachmentIds");
@@ -121,13 +113,11 @@ Deno.test("main chat composer supports images, documents, and music uploads", as
 });
 
 Deno.test("Yin Yang typed voice input supports attachments without resize controls", async () => {
-  const templates = await Deno.readTextFile(
-    packageFile("src/server/templates.ts"),
-  );
-  const voiceJs = await Deno.readTextFile(packageFile("web/js/voice.js"));
-  const voiceCss = await Deno.readTextFile(packageFile("web/css/voice.css"));
+  const templates = await Deno.readTextFile("src/server/templates.ts");
+  const voiceJs = await Deno.readTextFile("web/js/voice.js");
+  const voiceCss = await Deno.readTextFile("web/css/voice.css");
   const sessionManager = await Deno.readTextFile(
-    packageFile("src/voice/session-manager.ts"),
+    "src/voice/session-manager.ts",
   );
 
   assertStringIncludes(templates, 'id="voice-text-attach-input"');

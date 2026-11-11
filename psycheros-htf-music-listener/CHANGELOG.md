@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.0-rc.4 - 2026-11-10
+
+- Verify the unchanged manager-native implementation on Psycheros 1.0.2.
+- Expand host compatibility to Psycheros `>=0.10.0 <2.0.0`.
+- Preserve the existing immutable native-runtime asset pins.
+
 ## 0.3.0-rc.2 - 2026-08-17
 
 - Verify the manager-native listener against Psycheros 0.11.
