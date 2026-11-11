@@ -174,8 +174,7 @@ Deno.test("HTF formatter produces a natural listening handoff with plugin artifa
     previewImages: [{
       kind: "waveform",
       filename: "wave.png",
-      path:
-        "/api/plugins/psycheros-htf-music-listener/artifact?run=test&file=wave.png",
+      path: "/api/plugins/psycheros-htf-music-listener/artifact?run=test&file=wave.png",
     }],
   });
   assert.ok(result);
