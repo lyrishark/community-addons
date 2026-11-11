@@ -1,13 +1,13 @@
 # Psycheros Everything Together
 
-The complete Psycheros 0.11 community suite, split along the boundary the host
+The complete Psycheros 1.0.2 community suite, split along the boundary the host
 actually supports: one coherent source bridge for deep chat/voice hooks and
 three ordinary plugin-manager packages for public API-v1 features.
 
 ## Compatibility
 
-Version 0.4.0-rc.4 targets stock Psycheros 0.11.3 at upstream commit
-`2bb9c9e751b2539aac20588d8a72f70a0c8d36d9`. The source bridge combines the
+Version 0.5.0-rc.1 targets stock Psycheros 1.0.2 at upstream commit
+`1b575abb5fd5494af7fa713756dfc7d3ae189c73`. The source bridge combines the
 overlapping host changes once, with exact-version and normalized-hash preflight,
 timestamped backups, and refusal of unknown local edits.
 
@@ -25,9 +25,9 @@ Source bridge:
 
 Plugin-manager ZIPs:
 
-- Accessibility Controls 0.1.0-rc.3.
-- Windows Shell Fix 0.3.0-rc.3.
-- HTF Music Listener 0.3.0-rc.3, including the cross-platform runtime selector.
+- Accessibility Controls 0.1.0-rc.4.
+- Windows Shell Fix 0.3.0-rc.4.
+- HTF Music Listener 0.3.0-rc.4, including the cross-platform runtime selector.
 
 This release restores the revived More Uploads bridge inside the combined
 source payload. Do not install the standalone More Uploads, Expression Sprites,
@@ -51,7 +51,7 @@ plugins. The unrelated provider-error overlay also remains excluded.
 4. In Settings > Plugins > Add plugin, install each desired ZIP from the suite's
    `plugins` directory.
 
-Psycheros 0.11 can validate each manager plugin, but it does not automatically
+Psycheros 1.0 can validate each manager plugin, but it does not automatically
 install a meta-package's declared dependencies. That is why the suite contains
 separate ready-to-install plugin ZIPs.
 

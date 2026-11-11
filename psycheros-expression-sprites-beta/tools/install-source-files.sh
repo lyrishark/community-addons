@@ -2,8 +2,8 @@
 set -euo pipefail
 
 addon_id="psycheros-expression-sprites-beta"
-addon_version="0.4.0-rc.3"
-supported_version="0.11.3"
+addon_version="0.5.0-rc.1"
+supported_version="1.0.2"
 script_dir="$(cd -- "$(dirname -- "$0")" && pwd -P)"
 package_root="$(cd -- "$script_dir/.." && pwd -P)"
 files_root="$package_root/files"
@@ -112,7 +112,7 @@ done < <(find "$files_root" -type f -print | sort)
 
 marker_dir="$root/.addon-installs"
 mkdir -p -- "$marker_dir"
-printf '{"schema_version":1,"id":"%s","version":"%s","psycheros_version":"%s","base":"psycheros-v0.11.3","installed_at":"%s","backup":"%s"}\n' \
+printf '{"schema_version":1,"id":"%s","version":"%s","psycheros_version":"%s","base":"psycheros-v1.0.2","installed_at":"%s","backup":"%s"}\n' \
   "$addon_id" "$addon_version" "$version" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$backup_root" \
   > "$marker_dir/$addon_id.json"
 

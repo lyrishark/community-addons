@@ -22,11 +22,11 @@ Deno.test({
 
     assertStringIncludes(
       html,
-      "/css/main.css?v=expression-sprites-beta-0.2.0",
+      "/css/main.css?v=expression-sprites-beta-0.5.0-rc.1",
     );
     assertStringIncludes(
       html,
-      "/js/psycheros.js?v=expression-sprites-beta-0.2.0",
+      "/js/psycheros.js?v=expression-sprites-beta-0.5.0-rc.1",
     );
   },
 });
@@ -41,7 +41,7 @@ Deno.test({
 
     assertStringIncludes(
       sw,
-      "psycheros-offline-__VERSION__-expression-sprites-beta-0-2-0",
+      "psycheros-offline-__VERSION__-expression-sprites-beta-0-5-0-rc-1",
     );
     assertStringIncludes(sw, 'path === "/"');
     assertFalse(sw.includes('  "/",'));
